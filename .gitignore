@@ -1,0 +1,7 @@
+Monitor/Logs/*
+!Monitor/Logs/.gitkeep
+RootTheBox/*
+JuiceBoxEngine/configs/*
+!JuiceBoxEngine/configs/.gitkeep
+JuiceBox_TUI/
+*.txt
