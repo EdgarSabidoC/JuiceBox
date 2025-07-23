@@ -3,7 +3,7 @@ Este es el **motor** o programa principal y corre directamente en el **host**.
 
 Se comunica a través de **eventos** o **señales** por medio de un custom Unix Domain Socket con los clientes:
 
-- **JuiceBox_TUI:** es la interfaz gráfica para los administradores (Python y Textual).
+- **JuiceBox_TUI:** es la interfaz basada en texto para los administradores (Python y Textual).
 - **JuiceShop_API:** es la interfaz gráfica para los usuarios/clientes normales (Go).
 
 ### Estructura de los mensajes para la API de Juice Box Engine:
