@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from scripts.juiceBoxEngineServer import JuiceBoxEngineServer
 from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager

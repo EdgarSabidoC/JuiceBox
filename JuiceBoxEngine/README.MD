@@ -75,7 +75,7 @@ Ejecutar el comando `__GENERATE_XML__`
 **NOTA:** *Utiliza internamente el comando `__RESET__`.* [`Ver: Reiniciar el servicio`](#js-reiniciar-el-sevicio)
 
 ## NOTAS
-- Los scripts requieren de una versión de Python (v. 3.6+) que permita el tipado.
+- Los scripts requieren de una versión de Python (v. 3.9+) que permita el tipado.
 - Por la naturaleza de los contenedores cuando se detienen también se realiza la destrucción.
 - Si se quiere conservar información es importante que el contenedor cree un volumen para la persistencia de datos.
 - Los contenedores se pueden comunicar entre sí de forma predeterminada por medio de la red por defecto de Docker.

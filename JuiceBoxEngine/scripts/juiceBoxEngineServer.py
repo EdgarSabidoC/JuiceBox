@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os, socket, threading, json
 from juiceShopManager import JuiceShopManager
 from rootTheBoxManager import RootTheBoxManager
