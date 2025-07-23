@@ -1,0 +1,92 @@
+.github-link {
+  width: 50%;
+  height: 100%;
+  color: white;
+  text-style: bold;
+  link-color: orange;
+  border: double orange;
+  border-title-color: white;
+  border-title-background: red;
+  border-title-align: left;
+  border-title-style: bold;
+  content-align: center middle;
+  margin: 0 0 0 0;
+  padding: 1 0 0 0;
+}
+
+.github-link:hover {
+  color: rgb(30,255,0);
+  text-style: bold;
+}
+
+.juice-box-logo {
+  border: double orange;
+  border_bottom: none orange;
+  content_align: center middle;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+  height: 80%;
+  width: 100%;
+}
+
+.option-list--option-highlighted {
+    background: orange;    /* color de fondo */
+    color: white;           /* color de texto */
+}
+
+.menu {
+  margin: 0 0 0 0;
+  padding: 1 0 1 0;
+  height: 30%;
+  width: 100%;
+  border: double green;
+  border-title-align: left;
+  border-title-color: white;
+  border-title-background: green;
+  border-title-style: bold;
+}
+
+.empty {
+  width: 50%;
+  height: 100%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+  border-bottom: double orange;
+  border-left: double orange;
+  content-align: right bottom;
+}
+
+.hcontainer {
+  width: 100%;
+  height: 100%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
+
+.vinnercontainer {
+  width: 100%;
+  height: 50%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
+
+.hinnercontainer {
+  width: 100%;
+  height: 20%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
+
+.vcontainer1 {
+  width: 40%;
+  height: 100%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
+
+.vcontainer2 {
+  width: 60%;
+  height: 100%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
