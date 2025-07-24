@@ -7,8 +7,7 @@ from widgets.header import get_header
 from textual.screen import Screen
 from textual.events import ScreenResume
 from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Label, Static, OptionList, Placeholder, Link
-import textual.color as color
+from textual.widgets import Label, Static, OptionList, Link
 
 
 class MainScreen(Screen):
@@ -16,33 +15,9 @@ class MainScreen(Screen):
     with open("media/JuiceBoxLogo.txt", "r", encoding="utf-8") as file:
         JB_LOGO = file.read()
 
-    server = ServerInfo()
-    SERVER_INFO = Static(server.get_all_info_as_str(), id="server_info")
-    SYSTEM_ARCH = """
-[#4097e2]╔═════════════════════════════════════════════════════╗
-║                ┌───────────┐               [#ffffff]Docker[/#ffffff]   ║
-║          ┌─────│   [#ffffff]NginX[/#ffffff]   │───────┐     [#ffffff]Containers[/#ffffff] ║
-║          │     └───────────┘       │                ║
-║    ┌─────┴─────┐           ┌───────┴─────┐          ║
-║    │ [#ffffff]JuiceShop[/#ffffff] │           │     [#ffffff]Web[/#ffffff]     │          ║
-║    │    [#ffffff]API[/#ffffff]    ├───────────┤    [#ffffff]Client[/#ffffff]   │          ║
-║    │           │           │             │          ║
-║    └─────┬───┬─┘           └──────┬──────┘          ║
-║          │   └──────────────┐     │                 ║
-╚═════════════════════════════════════════════════════╝[/#4097e2]
-           │                  │     │
-    ┌──────┴──────┐         ┌───────┴──────┐
-    │             │         │              │
-    │ Host/Server ├─────────┤   Monitor    │
-    │             │         │              │
-    └──────┬──────┘         └───────┬──────┘
-           │                        │
-     ┌─────┴──────┐                 │
-     │   Admin    │                 │
-     │   Tools    ├─────────────────┘
-     │            │
-     └────────────┘
-"""
+    SERVER_INFO = Label(classes="server-info-data")
+    with open("media/Architecture.txt", "r", encoding="utf-8") as file:
+        SYSTEM_ARCH = file.read()
 
     def compose(self) -> ComposeResult:
         # Header
@@ -81,7 +56,6 @@ class MainScreen(Screen):
                 self.menu = OptionList(
                     Option(prompt=" 📦 Root the Box".ljust(20)),
                     Option(prompt=" 🧃 OWASP Juice Shop".ljust(20)),
-                    Option(prompt=" 🐋 Docker".ljust(20)),
                     Option(prompt=" 🔎 Documentation".ljust(20)),
                     Option(prompt=" ↩  Exit".ljust(20)),
                     classes="menu",
@@ -91,31 +65,20 @@ class MainScreen(Screen):
                 yield self.menu
 
                 # Información sobre las opciones
-                placeholder = Placeholder()
-                placeholder.can_focus = False
-                placeholder.styles.height = "20%"
-                placeholder.styles.width = "100%"
-                placeholder.styles.border = ("double", "#14CAF4")
-                placeholder.styles.border_title_color = color.WHITE
-                placeholder.styles.border_title_style = "bold"
-                placeholder.border_title = "Info"
-                placeholder.styles.padding = (1, 1, 1, 1)
-                placeholder.styles.content_align = ("left", "middle")
-                placeholder.styles.background = "#0C1C28"
-                yield placeholder
+                self.info = Static(classes="info-box")
+                self.info.can_focus = False
+                self.info.border_title = "Output"
+                yield self.info
 
             # Contenedor vertical 2
             with Vertical(classes="vcontainer2") as vcontainer2:
                 vcontainer2.can_focus = False
                 # System architecture
-                self.SYSTEM_ARCH = Static(str(self.SYSTEM_ARCH), expand=True)
-                self.SYSTEM_ARCH.styles.content_align = ("center", "middle")
-                self.SYSTEM_ARCH.styles.height = "100%"
-                self.SYSTEM_ARCH.styles.border = ("double", "#14CAF4")
-                self.SYSTEM_ARCH.styles.border_title_align = "right"
-                self.SYSTEM_ARCH.styles.border_title_color = color.WHITE
+                self.SYSTEM_ARCH = Static(
+                    str(self.SYSTEM_ARCH), expand=True, classes="arch-box"
+                )
+
                 self.SYSTEM_ARCH.border_title = "System architecture"
-                self.SYSTEM_ARCH.styles.border_title_style = "bold"
                 arch_container = ScrollableContainer(self.SYSTEM_ARCH)
                 arch_container.scroll_visible(force=True)
                 arch_container.can_focus = False
@@ -125,17 +88,13 @@ class MainScreen(Screen):
                     yield self.SYSTEM_ARCH
 
                 # Server info
-                self.SERVER_INFO.styles.content_align = ("left", "middle")
-                self.SERVER_INFO.styles.width = "100%"
-                self.SERVER_INFO.styles.height = "30%"
-                self.SERVER_INFO.styles.padding = (1, 1, 1, 1)
-                self.SERVER_INFO.styles.border = ("double", "#14CAF4")
-                self.SERVER_INFO.styles.border_title_align = "right"
-                self.SERVER_INFO.styles.border_title_color = color.WHITE
-                self.SERVER_INFO.border_title = "Server info"
-                self.SERVER_INFO.styles.border_title_style = "bold"
-                self.SERVER_INFO.can_focus = False
-                yield self.SERVER_INFO
+                with Horizontal():
+                    self.SERVER_INFO_KEYS = Label(classes="server-info-keys")
+                    yield self.SERVER_INFO_KEYS
+                    self.SERVER_INFO.can_focus = False
+                    self.SERVER_INFO.border_title = " Server info"
+                    yield self.SERVER_INFO
+                    self.get_server_info()
 
         # Footer
         yield get_footer()
@@ -155,18 +114,16 @@ class MainScreen(Screen):
     async def on_option_list_option_selected(
         self, event: OptionList.OptionSelected
     ) -> None:
-        choice = str(event.option.prompt).strip()
+        option: str = str(event.option.prompt).strip()
 
-        # No llames a self.app.exit() aquí; sólo asigna None para “Exit”
         screen_map = {
             "📦 Root the Box": "root",
             "🧃 OWASP Juice Shop": "juice",
-            "🐋 Docker": "docker",
             "🔎 Documentation": "documentation",
             "↩ Exit": None,
         }
 
-        target = screen_map.get(choice)
+        target = screen_map.get(option)
         if target is None:
             # Salimos de la aplicación
             self.app.exit()
@@ -175,3 +132,24 @@ class MainScreen(Screen):
             await self.app.pop_screen()
             # Se cambia a la nueva pantalla
             await self.app.push_screen(target)
+
+    async def on_option_list_option_highlighted(
+        self, event: OptionList.OptionHighlighted
+    ):
+        option: str = str(event.option.prompt).strip()
+        option_map = {
+            "📦 Root the Box": "Admin tools to manage Root the Box docker containers",
+            "🧃 OWASP Juice Shop": "Admin tools to manage OWASP Juice Shop docker containers",
+            "🔎 Documentation": "Read the docs",
+            "↩  Exit": "Close the app",
+        }
+        description = option_map.get(option, "No info available.")
+        self.info.update(description)
+
+    def get_server_info(self) -> None:
+        info = ServerInfo().get_all_info()
+        keys = "\n".join(info.keys())
+        data = "\n".join(str(v) for v in info.values())
+        # __keys_str: str =
+        self.SERVER_INFO_KEYS.update(str(keys))
+        self.SERVER_INFO.update(str(data))

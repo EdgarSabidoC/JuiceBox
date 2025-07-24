@@ -3,6 +3,14 @@ Screen {
   color: $foreground;
 }
 
+Header {
+  text-style: bold;
+}
+
+Footer {
+  text-style: bold;
+}
+
 .github-link {
   color: $link-color;
   width: 50%;
@@ -41,6 +49,15 @@ Screen {
   border-title-style: bold;
 }
 
+.info-box {
+  height: 20%;
+  width: 100%;
+  border: $border;
+  border_title_style: bold;
+  padding: 1 1 1 1;
+  content-align: left middle;
+  background: $surface;
+}
 
 .option-list--option-highlighted {
     text-style: bold;
@@ -48,6 +65,41 @@ Screen {
 
 .option-list--option-hover {
   text-style: bold;
+}
+
+.arch-box {
+  background: $surface;
+  content_align: center middle;
+  height: 100%;
+  width: 100%;
+  border: $border;
+  border_title_align: right;
+  border_title_style: bold;
+}
+
+.server-info-keys {
+  background: $surface;
+  content-align: right middle;
+  width: 50%;
+  height: 100%;
+  padding: 1 1 1 1;
+  border-top: $border;
+  border-left: $border;
+  border-bottom: $border;
+  text-style: bold;
+}
+
+.server-info-data {
+  background: $surface;
+  content-align: left middle;
+  width: 50%;
+  height: 100%;
+  padding: 1 1 1 1;
+  border-top: $border;
+  border-right: $border;
+  border-bottom: $border;
+  border_title_align: right;
+  border_title_style: bold;
 }
 
 .empty {

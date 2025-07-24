@@ -4,7 +4,12 @@ from screens.mainScreen import MainScreen
 from screens.rootTheBoxScreen import RootTheBoxScreen
 from screens.juiceShopScreen import JuiceShopScreen
 from screens.documentationScreen import DocumentationScreen
-from styles.theme import hacker_light_theme, hacker_dark_theme
+from styles.theme import (
+    hacker_dark_blue_theme,
+    hacker_dark_green_theme,
+    hacker_light_blue_theme,
+    hacker_light_green_theme,
+)
 
 
 class JuiceBoxApp(App):
@@ -29,10 +34,12 @@ class JuiceBoxApp(App):
         # Se desactivan los temas por defecto:
         for theme in self.available_themes:
             self.unregister_theme(theme)
-        self.register_theme(hacker_light_theme)
-        self.register_theme(hacker_dark_theme)
-        self.theme = "hacker-dark"
+        self.register_theme(hacker_dark_blue_theme)
+        self.register_theme(hacker_dark_green_theme)
+        self.register_theme(hacker_light_blue_theme)
+        self.register_theme(hacker_light_green_theme)
+        self.theme = "hacker-dark-blue"
 
 
 if __name__ == "__main__":
-    JuiceBoxApp().run(size=(120, 44))
+    JuiceBoxApp().run()
