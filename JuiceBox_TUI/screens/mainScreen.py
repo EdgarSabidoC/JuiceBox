@@ -87,6 +87,7 @@ class MainScreen(Screen):
                     classes="menu",
                 )
                 self.menu.border_title = "Menu"
+                self.menu.styles.color = "#19E6F3"
                 yield self.menu
 
                 # Información sobre las opciones
@@ -94,13 +95,13 @@ class MainScreen(Screen):
                 placeholder.can_focus = False
                 placeholder.styles.height = "20%"
                 placeholder.styles.width = "100%"
-                placeholder.styles.border = ("double", "green")
-                placeholder.styles.border_title_background = "green"
+                placeholder.styles.border = ("double", "#14CAF4")
                 placeholder.styles.border_title_color = color.WHITE
                 placeholder.styles.border_title_style = "bold"
                 placeholder.border_title = "Info"
                 placeholder.styles.padding = (1, 1, 1, 1)
                 placeholder.styles.content_align = ("left", "middle")
+                placeholder.styles.background = "#0C1C28"
                 yield placeholder
 
             # Contenedor vertical 2
@@ -110,9 +111,8 @@ class MainScreen(Screen):
                 self.SYSTEM_ARCH = Static(str(self.SYSTEM_ARCH), expand=True)
                 self.SYSTEM_ARCH.styles.content_align = ("center", "middle")
                 self.SYSTEM_ARCH.styles.height = "100%"
-                self.SYSTEM_ARCH.styles.border = ("double", "green")
+                self.SYSTEM_ARCH.styles.border = ("double", "#14CAF4")
                 self.SYSTEM_ARCH.styles.border_title_align = "right"
-                self.SYSTEM_ARCH.styles.border_title_background = "green"
                 self.SYSTEM_ARCH.styles.border_title_color = color.WHITE
                 self.SYSTEM_ARCH.border_title = "System architecture"
                 self.SYSTEM_ARCH.styles.border_title_style = "bold"
@@ -129,9 +129,8 @@ class MainScreen(Screen):
                 self.SERVER_INFO.styles.width = "100%"
                 self.SERVER_INFO.styles.height = "30%"
                 self.SERVER_INFO.styles.padding = (1, 1, 1, 1)
-                self.SERVER_INFO.styles.border = ("double", "green")
+                self.SERVER_INFO.styles.border = ("double", "#14CAF4")
                 self.SERVER_INFO.styles.border_title_align = "right"
-                self.SERVER_INFO.styles.border_title_background = "green"
                 self.SERVER_INFO.styles.border_title_color = color.WHITE
                 self.SERVER_INFO.border_title = "Server info"
                 self.SERVER_INFO.styles.border_title_style = "bold"

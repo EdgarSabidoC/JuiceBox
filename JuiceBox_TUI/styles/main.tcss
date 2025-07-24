@@ -1,23 +1,14 @@
-$bg: #020610;
-$border: #2de2e6;
-$text: #19E6F3;
-$border_title: #0d0221;
-$highlighted_option: #ff6c11;
-$hover_option: #791e94;
-
-* {
-  background: $bg;
+Screen {
+  background: $background;
+  color: $foreground;
 }
 
 .github-link {
+  color: $link-color;
   width: 50%;
   height: 100%;
-  color: white;
   text-style: bold;
-  link-color: orange;
-  border: double orange;
-  border-title-color: white;
-  border-title-background: red;
+  border: $border;
   border-title-align: left;
   border-title-style: bold;
   content-align: center middle;
@@ -26,13 +17,13 @@ $hover_option: #791e94;
 }
 
 .github-link:hover {
-  color: rgb(30,255,0);
+  color: $link-color-hover;
   text-style: bold;
 }
 
 .juice-box-logo {
-  border: double orange;
-  border_bottom: none orange;
+  border: $border;
+  border_bottom: none;
   content_align: center middle;
   margin: 0 0 0 0;
   padding: 0 0 0 0;
@@ -41,31 +32,21 @@ $hover_option: #791e94;
 }
 
 .menu {
-  color: $text;
   margin: 0 0 0 0;
   padding: 1 0 1 0;
   height: 30%;
   width: 100%;
-  border: double $border;
+  border: $border;
   border-title-align: left;
-  border-title-color: $border_title;
-  border-title-background: $border;
   border-title-style: bold;
-}
-
-.option-list--option {
-    color: $text;
 }
 
 
 .option-list--option-highlighted {
-    background: $highlighted_option;    /* color de fondo */
-    color: $text;          /* color de texto */
+    text-style: bold;
 }
 
 .option-list--option-hover {
-  background: $hover_option;    /* color de fondo */
-  color: white;          /* color de texto */
   text-style: bold;
 }
 
@@ -74,8 +55,8 @@ $hover_option: #791e94;
   height: 100%;
   margin: 0 0 0 0;
   padding: 0 0 0 0;
-  border-bottom: double orange;
-  border-left: double orange;
+  border-bottom: $border;
+  border-left: $border;
   content-align: right bottom;
 }
 
