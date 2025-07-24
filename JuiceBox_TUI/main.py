@@ -6,27 +6,23 @@ from textual.binding import Binding
 from textual.widgets import Label, Static, OptionList, Footer, Header, Placeholder, Link
 
 from screens.mainScreen import MainScreen
-# from screens.rootTheBoxScreen import RootTheBox
-# from screens.juiceShopScreen import JuiceShop
-# from screens.dockerScreen import Docker
-# from screens.documentationScreen import Documentation
+from screens.rootTheBoxScreen import RootTheBoxScreen
+from screens.juiceShopScreen import JuiceShopScreen
+from screens.documentationScreen import DocumentationScreen
 
 
 class JuiceBoxApp(App):
     BINDINGS = [
-      Binding(key="^q", action="quit", description="Quit", show=True),
-      # Binding(key="^r", action="refresh", description="Reload data", show=True),
-      # Binding(key="^h", action="help", description="Help", show=True)
+        Binding(key="^q", action="quit", description="Quit", show=True),
     ]
-    VERSION = 1.1
+    VERSION: float = 1.1
     TITLE = "JuiceBox Manager 🍊"
     SUB_TITLE = f"v.{VERSION}"
     SCREENS = {
-      "main": MainScreen,
-      # "root": RootTheBox,
-      # "juice": JuiceShop,
-      # "docker": Docker,
-      # "documentation": Documentation
+        "main": MainScreen,
+        "root": RootTheBoxScreen,
+        "juice": JuiceShopScreen,
+        "documentation": DocumentationScreen,
     }
 
     async def on_mount(self) -> None:
@@ -34,4 +30,4 @@ class JuiceBoxApp(App):
 
 
 if __name__ == "__main__":
-  JuiceBoxApp().run()
+    JuiceBoxApp().run()

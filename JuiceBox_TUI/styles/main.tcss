@@ -1,3 +1,14 @@
+$bg: #020610;
+$border: #2de2e6;
+$text: #19E6F3;
+$border_title: #0d0221;
+$highlighted_option: #ff6c11;
+$hover_option: #791e94;
+
+* {
+  background: $bg;
+}
+
 .github-link {
   width: 50%;
   height: 100%;
@@ -29,21 +40,33 @@
   width: 100%;
 }
 
-.option-list--option-highlighted {
-    background: orange;    /* color de fondo */
-    color: white;           /* color de texto */
-}
-
 .menu {
+  color: $text;
   margin: 0 0 0 0;
   padding: 1 0 1 0;
   height: 30%;
   width: 100%;
-  border: double green;
+  border: double $border;
   border-title-align: left;
-  border-title-color: white;
-  border-title-background: green;
+  border-title-color: $border_title;
+  border-title-background: $border;
   border-title-style: bold;
+}
+
+.option-list--option {
+    color: $text;
+}
+
+
+.option-list--option-highlighted {
+    background: $highlighted_option;    /* color de fondo */
+    color: $text;          /* color de texto */
+}
+
+.option-list--option-hover {
+  background: $hover_option;    /* color de fondo */
+  color: white;          /* color de texto */
+  text-style: bold;
 }
 
 .empty {
