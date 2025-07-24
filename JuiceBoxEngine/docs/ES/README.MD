@@ -1,12 +1,13 @@
-# JUICE BOX ENGINE
-Este es el **motor** o programa principal y corre directamente en el **host**.
+# MOTOR JUICE BOX
+Este es el **motor** o programa principal y corre en el **servidor/anfitrión**.
 
-Se comunica a través de **eventos** o **señales** por medio de un custom Unix Domain Socket con los clientes:
+La comunicación está basada **eventos** o **señales** por medio de un Unix Domain Socket personalizado.
 
-- **JuiceBox_TUI:** es la interfaz basada en texto para los administradores (Python y Textual).
-- **JuiceShop_API:** es la interfaz gráfica para los usuarios/clientes normales (Go).
+- **JuiceBox_TUI:** interfaz basada en texto para las herramientas administrativas (Python y Textual).
+- **JuiceShop_Client:** interfaz gráfica basada en una aplicación web para los usuarios (Go).
+- **JuiceShop_API:** API REST que conecta la interfaz gráfica del JuiceShop_Client con el motor de Juice Box.
 
-### Estructura de los mensajes para la API de Juice Box Engine:
+### Estructura de los mensajes para la API del motor de Juice Box:
     {
       "prog": ("JS" | "RTB"),
       "command": <string>,
@@ -36,7 +37,7 @@ Comando: `__STATUS__`
 ### Configurar los contenedores:
 Comando: `__CONFIG__`
 
-Modificar el archivo dentro de `JuiceBoxEngine/configs/rootTheBox.json`.
+Modifica el archivo dentro de `JuiceBoxEngine/configs/rootTheBox.json`.
 
 ## OWASP Juice Shop
 
@@ -65,12 +66,12 @@ Comando: `__STATUS__`
 ### Configurar los contenedores:
 Comando: `__CONFIG__`
 
-Modificar el archivo dentro de `JuiceBoxEngine/configs/juiceShop.json`
+Modifica el archivo dentro de `JuiceBoxEngine/configs/juiceShop.json`
 
 **NOTA:** *Los cambios realizados en los archivos de configuración solo surtirán efecto al reiniciar los servicios. Debido a que todos los contenedores de la JuiceShop necesitan la misma **ctf_key** al ejecutar este comando todos los contenedores existentes serán eliminados para mantener la coherencia y la cohesión del motor.* [`Ver: Reiniciar el servicio`](#js-reiniciar-el-sevicio)
 
 ### Generar archivo de configuración XML para Root The Box con misiones/desafíos de la Juice Shop:
-Ejecutar el comando `__GENERATE_XML__`
+Comando: `__GENERATE_XML__`
 
 **NOTA:** *Utiliza internamente el comando `__RESET__`.* [`Ver: Reiniciar el servicio`](#js-reiniciar-el-sevicio)
 

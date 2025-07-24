@@ -1,82 +1,83 @@
 # JUICE BOX ENGINE
-This app run on a **host** machine.
+This app runs on a **host/server** machine.
 
-Se comunica a través de **eventos** o **señales** por medio de un custom Unix Domain Socket con los clientes:
+The communication is based on **events** or **signals** through a custom Unix Domain Socket.
 
-- **JuiceBox_TUI:** Text User Interface for admins (Python y Textual).
-- **JuiceShop_API:** es la interfaz gráfica para los usuarios/clientes normales (Go).
+- **JuiceBox_TUI:** Text User Interface for admins written in Python with Textual.
+- **JuiceShop_Client:** graphic user interface for users based on a webapp.
+- **JuiceShop_API:** REST API which connect the JuiceShop_Client with the Juice Box Engine (written in Go.
 
-### Estructura de los mensajes para la API de Juice Box Engine:
+### Message structure for the Juice Box Engine's API:
     {
       "prog": ("JS" | "RTB"),
       "command": <string>,
       [ "args": { ("port": <integer> | "name": <string> ) } ]
     }
 
-- ***prog:*** Utiliza las constantes `"JS"` (Juice Shop) o `"RTB"` (Root The Box) para indicar el programa dentro del motor que será utilizado.
-- ***command:*** Cadena del comando, escrito en mayúsculas y utiliza como prefijo y sufijo `"__"`, por ejemplo: `__START_CONTAINER__`.
-- ***args:*** Argumentos del comando, aquí se debe añadir el número de puerto del contenedor o su nombre.
+- ***prog:*** It uses `"JS"` (Juice Shop) or `"RTB"` (Root The Box) to choose which program would be used.
+- ***command:*** Command string, written in capital letters with `"__"` as preffix and suffix, e.g.: `__START_CONTAINER__`.
+- ***args:*** Arguments for the command, here you must add a port or name to specify the container.
 
 ## Root The Box
 
-### Iniciar el servicio:
-Comando: `__START__`.
+### Start the service:
+Command: `__START__`.
 
-### Reiniciar el servicio:
-Comando: `__RESTART__`.
+### Restart the service:
+Command: `__RESTART__`.
 
-### Detener el servicio:
-Comando: `__KILL__`.
+### Stop the service:
+Command: `__KILL__`.
 
-**NOTA:** *Destruye **TODOS** los contenedores relacionados a Root The Box.*
+**NOTE:** *Destroys **ALL** containers related to Root The Box.*
 
-### Ver estado del servicio:
-Comando: `__STATUS__`
+### Check the service status:
+Command: `__STATUS__`
 
-### Configurar los contenedores:
-Comando: `__CONFIG__`
+### Configure the service:
+Command: `__CONFIG__`
 
-Modificar el archivo dentro de `JuiceBoxEngine/configs/rootTheBox.json`.
+Modifies the file at `JuiceBoxEngine/configs/rootTheBox.json`.
 
 ## OWASP Juice Shop
 
-### Iniciar un contenedor:
-Comando: `__START_CONTAINER__`.
+### Start the service:
+Command: `__START_CONTAINER__`.
 
-<h3 id="js-reiniciar-el-sevicio">Reiniciar el servicio:</h3>
+<h3 id="js-restart-the-sevice">Restart the service:</h3>
 
-Comando: `__RESTART__`.
+Command: `__RESTART__`.
 
-**NOTA:** *Al reiniciar el servicio también se eliminan todos los contenedores de Juice Shop (utiliza internamente el comando `__KILL_ALL__`).*
+**NOTE:** *All Juice Shop containers will be stopped and destroyed at restart (it uses internally the command `__KILL_ALL__`).*
 
-[`Ver: Detener y destruir TODOS los contenedores`](#detener-y-destruir-todos-los-contenedores)
+[`See: Stop ALL the containers`](#stop-all-the-containers)
 
-### Para y destruir un contenedor en específico:
-Comando:  `__KILL_CONTAINER__`
+### Stop a specific container:
+Command:  `__KILL_CONTAINER__`
 
 Args: (`port` | `name`)
 
-### Detener y destruir **TODOS** los contenedores:
-Comando: `__KILL_ALL__`
+### Stop **ALL** the containers:
+Command: `__KILL_ALL__`
 
-### Ver estado del servicio:
-Comando: `__STATUS__`
+### Check the service status:
+Command: `__STATUS__`
 
-### Configurar los contenedores:
-Comando: `__CONFIG__`
+### Configure the service:
+Command: `__CONFIG__`
 
-Modificar el archivo dentro de `JuiceBoxEngine/configs/juiceShop.json`
+Modifies the file at `JuiceBoxEngine/configs/juiceShop.json`
 
-**NOTA:** *Los cambios realizados en los archivos de configuración solo surtirán efecto al reiniciar los servicios. Debido a que todos los contenedores de la JuiceShop necesitan la misma **ctf_key** al ejecutar este comando todos los contenedores existentes serán eliminados para mantener la coherencia y la cohesión del motor.* [`Ver: Reiniciar el servicio`](#js-reiniciar-el-sevicio)
+**NOTE:** *All changes made on the configuration files will only take effect upon restart. Since all Juice Shop containers depend on the same **ctf_key**, executing this command will destroy all containers to mantain engine cohesion and consistency.* [`See: Restart the service`](#js-restart-the-sevice)
 
-### Generar archivo de configuración XML para Root The Box con misiones/desafíos de la Juice Shop:
-Ejecutar el comando `__GENERATE_XML__`
+### Generate the XML configuration file for Root The Box (missions/challenges from Juice Shop):
+Command: `__GENERATE_XML__`
 
-**NOTA:** *Utiliza internamente el comando `__RESET__`.* [`Ver: Reiniciar el servicio`](#js-reiniciar-el-sevicio)
+**NOTE:** *Internally uses the command `__RESET__`.* [`See: Restart the service`](#js-restart-the-sevice)
 
-## NOTAS
-- Los scripts requieren de una versión de Python (v. 3.9+) que permita el tipado.
-- Por la naturaleza de los contenedores cuando se detienen también se realiza la destrucción.
-- Si se quiere conservar información es importante que el contenedor cree un volumen para la persistencia de datos.
-- Los contenedores se pueden comunicar entre sí de forma predeterminada por medio de la red por defecto de Docker.
-- Si se requiere mayor control sobre la comunicación de los contenedores se pueden crear otras redes que sean para los contenedores deseados en específico.
+## NOTES
+- Scripts require Python v. 3.9+ which allows typing without importing the typing package.
+- Due the nature of Docker containers, when a container is stopped it will alse be destroyed.
+- If you want to persist the data, create a volume between the desired container and the host.
+- By default, the containers can communicate between them through the default Docker network.
+- For a better control on containers communication create specific custom networks.
