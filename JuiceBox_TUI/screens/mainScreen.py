@@ -83,7 +83,7 @@ class MainScreen(Screen):
                 arch_container.scroll_visible(force=True)
                 arch_container.can_focus = False
                 arch_container.styles.content_align = ("center", "middle")
-                arch_container.styles.height = "70%"
+                arch_container.styles.height = "68%"
                 with arch_container:
                     yield self.SYSTEM_ARCH
 
@@ -148,8 +148,9 @@ class MainScreen(Screen):
 
     def get_server_info(self) -> None:
         info = ServerInfo().get_all_info()
-        keys = "\n".join(info.keys())
-        data = "\n".join(str(v) for v in info.values())
-        # __keys_str: str =
-        self.SERVER_INFO_KEYS.update(str(keys))
-        self.SERVER_INFO.update(str(data))
+        if info["Terminal"] != "":
+            keys = "\n".join(info.keys())
+            data = "\n".join(str(v) for v in info.values())
+            # __keys_str: str =
+            self.SERVER_INFO_KEYS.update(str(keys))
+            self.SERVER_INFO.update(str(data))
