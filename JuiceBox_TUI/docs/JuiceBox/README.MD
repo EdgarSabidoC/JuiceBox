@@ -1,13 +1,34 @@
-# MOTOR JUICE BOX
-Este es el **motor** o programa principal y corre en el **servidor/anfitrión**.
+# JUICE BOX
+
+Conjunto de herramientas para la orquestación de contenedores de Docker para los servicios de OWASP JuiceShop y Root The Box.
 
 La comunicación está basada **eventos** o **señales** por medio de un Unix Domain Socket personalizado.
 
+## MÓDULOS DE JUICE BOX
+- **JuiceBox Engine:** **motor** o programa principal que corre en el **servidor/anfitrión**.
 - **JuiceBox_TUI:** interfaz basada en texto para las herramientas administrativas (Python y Textual).
-- **JuiceShop_Client:** interfaz gráfica basada en una aplicación web para los usuarios (Go).
-- **JuiceShop_API:** API REST que conecta la interfaz gráfica del JuiceShop_Client con el motor de Juice Box.
+- **JuiceShop_Client:** interfaz gráfica basada en una aplicación web para los usuarios (HTML+CSS+JS).
+- **JuiceShop_API:** API REST que conecta la interfaz gráfica del JuiceShop_Client con el motor de Juice Box (Go).
 
-## Estructura de mensajes de la API
+## ARQUITECTURA DE JUICE BOX
+
+```
+Contenedores de Docker
+├── NginX
+│   ├── JuiceShop API
+│   │   └── Juice Box Engine API
+│   └── Web Client
+│       └── Monitor
+└── Host/Server
+    ├── TUI (herramientas administrativas)
+    │   └── JuiceBox Engine API
+    └── Monitor
+```
+
+
+## JUICE BOX ENGINE API
+
+### Estructura de mensajes de la API
 - ***prog:*** Utiliza las constantes `"JS"` (Juice Shop) o `"RTB"` (Root The Box) para indicar el programa dentro del motor que será utilizado.
 - ***command:*** Cadena del comando, escrito en mayúsculas y utiliza como prefijo y sufijo `"__"`, por ejemplo: `__START_CONTAINER__`.
 - ***args:*** Argumentos del comando, aquí se debe añadir el número de puerto del contenedor o su nombre.
@@ -19,64 +40,64 @@ La comunicación está basada **eventos** o **señales** por medio de un Unix Do
 }
 ```
 
-## Root The Box
+### Comandos de Root The Box
 
-### Iniciar servicio
-Comando: `__START__`.
+#### Iniciar servicio
+Señal: `__START__`.
 
-### Reiniciar servicio
-Comando: `__RESTART__`.
+#### Reiniciar servicio
+Señal: `__RESTART__`.
 
-### Detener servicio
-Comando: `__KILL__`.
+#### Detener servicio
+Señal: `__KILL__`.
 
 **NOTA:** *Destruye **TODOS** los contenedores relacionados a Root The Box.*
 
-### Ver estado del servicio
-Comando: `__STATUS__`
+#### Ver estado del servicio
+Señal: `__STATUS__`
 
-### Configurar los contenedores
-Comando: `__CONFIG__`
+#### Configurar los contenedores
+Señal: `__CONFIG__`
 
 Modifica el archivo dentro de `JuiceBoxEngine/configs/rootTheBox.json`.
 
-## OWASP Juice Shop
+### Comandos de OWASP Juice Shop
 
-### Iniciar un contenedor
-Comando: `__START_CONTAINER__`.
+#### Iniciar un contenedor
+Señal: `__START_CONTAINER__`.
 
-### Reiniciar el servicio
+#### Reiniciar el servicio
 
-Comando: `__RESTART__`.
+Señal: `__RESTART__`.
 
 **NOTA:** *Al reiniciar el servicio también se eliminan todos los contenedores de Juice Shop (utiliza internamente el comando `__KILL_ALL__`).*
 
 [`Ver: Detener y destruir TODOS los contenedores`](#detener-y-destruir-todos-los-contenedores)
 
-### Para y destruir un contenedor específico
-Comando:  `__KILL_CONTAINER__`
+#### Para y destruir un contenedor específico
+Señal:  `__KILL_CONTAINER__`
 
 Args: (`port` | `name`)
 
-### Detener y destruir **TODOS** los contenedores
-Comando: `__KILL_ALL__`
+#### Detener y destruir **TODOS** los contenedores
+Señal: `__KILL_ALL__`
 
-### Ver estado del servicio
-Comando: `__STATUS__`
+#### Ver estado del servicio
+Señal: `__STATUS__`
 
-### Configurar los contenedores
-Comando: `__CONFIG__`
+#### Configurar los contenedores
+Señal: `__CONFIG__`
 
 Modifica el archivo dentro de `JuiceBoxEngine/configs/juiceShop.json`
 
 **NOTA:** *Los cambios realizados en los archivos de configuración solo surtirán efecto al reiniciar los servicios. Debido a que todos los contenedores de la JuiceShop necesitan la misma **ctf_key** al ejecutar este comando todos los contenedores existentes serán eliminados para mantener la coherencia y la cohesión del motor.* [`Ver: Reiniciar el servicio`](#reiniciar-el-servicio)
 
-### Archivo de configuración XML (RTB)
-Comando: `__GENERATE_XML__`
+#### Archivo de configuración XML (RTB)
+Señal: `__GENERATE_XML__`
 
 **NOTA:** *Este archivo contiene las misiones/desafíos de la Juice Shop. Utiliza internamente el comando `__RESET__`.* [`Ver: Reiniciar el servicio`](#reiniciar-el-servicio)
 
-## NOTAS
+### Notas Adicionales
 - Los scripts requieren de una versión de Python (v. 3.9+) que permita el tipado.
 - Por la naturaleza de los contenedores cuando se detienen también se realiza la destrucción.
 - Si se quiere conservar información es importante que el contenedor cree un volumen para la persistencia de datos.

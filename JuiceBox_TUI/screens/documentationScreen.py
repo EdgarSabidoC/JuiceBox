@@ -22,38 +22,9 @@ from textual.binding import Binding
 
 class DocumentationScreen(Screen):
     CSS_PATH = "../styles/documentation.tcss"
-    with open("media/JuiceBoxLogo.txt", "r", encoding="utf-8") as file:
-        JB_LOGO = file.read()
 
-    server = ServerInfo()
-    SERVER_INFO = Static(server.get_all_info_as_str(), id="server_info")
-    SYSTEM_ARCH = """
-[#4097e2]╔═════════════════════════════════════════════════════╗
-║                ┌───────────┐               [#ffffff]Docker[/#ffffff]   ║
-║          ┌─────│   [#ffffff]NginX[/#ffffff]   │───────┐     [#ffffff]Containers[/#ffffff] ║
-║          │     └───────────┘       │                ║
-║    ┌─────┴─────┐           ┌───────┴─────┐          ║
-║    │ [#ffffff]JuiceShop[/#ffffff] │           │     [#ffffff]Web[/#ffffff]     │          ║
-║    │    [#ffffff]API[/#ffffff]    ├───────────┤    [#ffffff]Client[/#ffffff]   │          ║
-║    │           │           │             │          ║
-║    └─────┬───┬─┘           └──────┬──────┘          ║
-║          │   └──────────────┐     │                 ║
-╚═════════════════════════════════════════════════════╝[/#4097e2]
-           │                  │     │
-    ┌──────┴──────┐         ┌───────┴──────┐
-    │             │         │              │
-    │ Host/Server ├─────────┤   Monitor    │
-    │             │         │              │
-    └──────┬──────┘         └───────┬──────┘
-           │                        │
-     ┌─────┴──────┐                 │
-     │   Admin    │                 │
-     │   Tools    ├─────────────────┘
-     │            │
-     └────────────┘
-"""
     MARKDOWNS = {
-        "JuiceBoxEngine": "docs/JuiceBoxEngine/README.MD",
+        "JuiceBox": "docs/JuiceBox/README.MD",
         "JuiceShop": "docs/JuiceShop/README.MD",
         "RootTheBox": "docs/RootTheBox/README.MD",
     }
@@ -67,19 +38,28 @@ class DocumentationScreen(Screen):
         self.show_toc = True
         # Header
         yield get_header()
+
+        # Markdowns:
         self.jb_engine = MarkdownViewer(
-            self.get_markdown("JuiceBoxEngine"), show_table_of_contents=self.show_toc
+            self.get_markdown("JuiceBox"),
+            show_table_of_contents=self.show_toc,
+            open_links=False,
         )
         self.rtb = MarkdownViewer(
-            self.get_markdown("RootTheBox"), show_table_of_contents=self.show_toc
+            self.get_markdown("RootTheBox"),
+            show_table_of_contents=self.show_toc,
+            open_links=False,
         )
         self.js = MarkdownViewer(
-            self.get_markdown("JuiceShop"), show_table_of_contents=self.show_toc
+            self.get_markdown("JuiceShop"),
+            show_table_of_contents=self.show_toc,
+            open_links=False,
         )
-        with TabbedContent("JuiceBoxEngine", "JuiceShop", "RootTheBox"):
+        with TabbedContent("JuiceBox", "JuiceShop", "RootTheBox"):
             yield self.jb_engine
             yield self.rtb
             yield self.js
+
         # Footer
         yield get_footer()
 
@@ -100,15 +80,15 @@ class DocumentationScreen(Screen):
         """Alterna la visibilidad de la tabla de contenidos en todos los MarkdownViewer."""
         self.show_toc = not self.show_toc
 
-        # Actualiza el estado en cada visor
+        # Actualiza el estado en cada visor para mostrar u ocultar la tabla de contenido:
         self.jb_engine.show_table_of_contents = self.show_toc
-        self.js.show_table_of_contents = self.show_toc
         self.rtb.show_table_of_contents = self.show_toc
+        self.js.show_table_of_contents = self.show_toc
 
         # Redibuja (opcional, dependiendo del comportamiento)
         self.jb_engine.refresh()
-        self.js.refresh()
         self.rtb.refresh()
+        self.js.refresh()
 
     def get_markdown(self, markdown: str) -> str:
         self.content = ""
