@@ -37,7 +37,7 @@ class Monitor:
         self,
         name: str = "JuiceBoxEngine",
         use_syslog: bool = False,
-        syslog_addr: str = "/dev/log",
+        syslog_addr="/dev/log",
         facility: int = Logger.LOG_USER,  # usa el mismo facility por defecto
     ):
         self.logger = Logger(

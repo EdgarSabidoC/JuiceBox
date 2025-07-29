@@ -31,7 +31,7 @@ class Logger:
         self,
         name: str,
         to_syslog: bool = False,
-        syslog_addr: str = "/dev/log",
+        syslog_addr="/dev/log",
         facility: int = SysLogHandler.LOG_USER,
         level: int = logging.INFO,
     ):

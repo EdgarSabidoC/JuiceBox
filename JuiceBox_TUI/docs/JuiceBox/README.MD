@@ -116,54 +116,83 @@ Señal: `__GENERATE_XML__`
 ---
 
 ## LOGS
+Los logs de `JuiceBoxEngine` se centralizan en `journald`, el gestor de logs de `systemd`.
 
 ### Configuración
-#### Crear el archivo /etc/logrotate.d/juicebox
+
+#### Activar persistencia
+Por defecto, journald guarda los registros en memoria y no sobreviven a reinicios. Para habilitar almacenamiento persistente:
+
+Modifica el archivo `/etc/systemd/journald.conf`:
+
 ```
-sudo tee /etc/logrotate.d/juicebox > /dev/null << 'EOF'
-/var/log/juicebox.log {
-    daily                  # rotar una vez al día
-    rotate 7               # mantener 7 archivos antiguos
-    missingok              # no mostrar error si no existe el log
-    notifempty             # no rotar si el archivo está vacío
-    compress               # comprimir los archivos rotados con gzip
-    delaycompress          # comprimir a partir de la segunda copia (evita problemas de lectura)
-    copytruncate           # copiar y truncar el archivo original sin reiniciar el servicio
-    create 0640 juicebox juicebox  # permisos y propietario de los nuevos logs
-    sharedscripts          # ejecutar postrotate solo una vez
-    postrotate
-        # Opcional: reinicia o notifica a tu servicio si es necesario
-        # systemctl restart juicebox.service >/dev/null 2>&1 || true
-    endscript
-}
+[Journal]
+Storage=persistent
+#Compress=yes
+#Seal=yes
+#SplitMode=uid
+#SyncIntervalSec=5m
+#RateLimitIntervalSec=30s
+#RateLimitBurst=10000
+#SystemMaxUse=
+#SystemKeepFree=
+#SystemMaxFileSize=
+#SystemMaxFiles=100
+#RuntimeMaxUse=
+#RuntimeKeepFree=
+#RuntimeMaxFileSize=
+#RuntimeMaxFiles=100
+#MaxRetentionSec=0
+#MaxFileSec=1month
+#ForwardToSyslog=no
+#ForwardToKMsg=no
+#ForwardToConsole=no
+#ForwardToWall=yes
+#TTYPath=/dev/console
+#MaxLevelStore=debug
+#MaxLevelSyslog=debug
+#MaxLevelKMsg=notice
+#MaxLevelConsole=info
+#MaxLevelWall=emerg
+#MaxLevelSocket=debug
+#LineMax=48K
+#ReadKMsg=yes
+#Audit=yes
+
+
 ```
 
-#### Probar la configuración
-Antes de confiar en la tarea programada, ejecuta en modo debug:
-```
-sudo logrotate --debug /etc/logrotate.d/juicebox
-```
-Revisa la salida y asegúrate de que no haya errores. Si todo es correcto, fuerza una rotación de prueba:
-```
-sudo logrotate --debug /etc/logrotate.d/juicebox
-```
-Verifica que:
-- Exista /var/log/juicebox.log.1.gz.
-- El archivo activo /var/log/juicebox.log haya sido truncado.
+Luego reinicia el servicio de `systemd-journald` ejecutando el comando:
 
-### Ubicación para to_syslog=True:
-- En Debian/Ubuntu: /var/log/syslog
-- En RHEL/CentOS/Fedora: /var/log/messages
+```
+sudo systemctl restart systemd-journald
 
-Se puede ejeuctar para seguirlos en tiempo real con:
+```
+
+### Envolver la app con `systemd-cat`
+
+Desde la carpeta raíz de JuiceBox ejecuta en la terminal el comando:
+
+```
+systemd-cat -t JuiceBoxEngine python3 JuiceBoxEngine/main.py
+```
+
+Este comando permite redirigir el stdout y stderr al journal bajo la etiqueta `JuiceBoxEngine`.
+
+### Ver los logs
+Para ver los logs una vez envuelta en `systemd-cat` ejecutar desde la terminal:
+
+#### Ver todas las entradas
+```
+sudo journalctl -t JuiceBoxEngine
+```
+
+#### Ver en tiempo real
 ```
 sudo journalctl -t JuiceBoxEngine -f
 ```
 
-O si se configuró rsyslog para LOCAL0 en /etc/rsyslog.d/juicebox.conf:
+#### Ver solo errores
 ```
-sudo tail -f /var/log/juicebox.log
+sudo journalctl -t JuiceBoxEngine -p err
 ```
-
-### Cuando to_syslog=False:
-Se imprimen en pantalla.
