@@ -5,6 +5,7 @@ from threading import Thread
 from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
+from monitor import Monitor
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -44,11 +45,17 @@ class JuiceBoxEngineServer:
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)
 
-        # Crear socket del servidor
+        # Monitor
+        self.monitor = Monitor(
+            name="JuiceBoxEngine", use_syslog=True
+        )  # use_syslog = False para imprimir en consola
+
+        # Se crea socket del servidor
         self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.server_socket.bind(self.socket_path)
         self.server_socket.listen()
 
+        # Managers
         self.rtb_manager = rtb_manager
         self.js_manager = js_manager
 
@@ -65,7 +72,7 @@ class JuiceBoxEngineServer:
                 conn, raw_data = self.command_queue.get()
                 self.process_request(conn, raw_data)
             except Exception as e:
-                print("Worker failed:", e)
+                self.monitor.error(f"Worker failed: {e}")
             finally:
                 self.command_queue.task_done()
 
@@ -77,13 +84,14 @@ class JuiceBoxEngineServer:
         """
         try:
             data = conn.recv(1024).decode().strip()
+            self.monitor.info(f"Data received: {data}")
+            self.monitor.command_received(conn, data)
             self.command_queue.put((conn, data))
         except Exception as e:
-            print("Handle client failed:", e)
-        finally:
+            self.monitor.client_error(e)
             conn.close()
 
-    def process_request(self, conn, data: str):
+    def process_request(self, conn, data):
         """
         Procesa un mensaje recibido, lo despacha y envía la respuesta.
 
@@ -91,9 +99,17 @@ class JuiceBoxEngineServer:
         :param data: Cadena JSON con el comando
         """
         try:
+            # Se parsea para obtener prog y command y loguearlos
+            payload = json.loads(data)
+            prog = payload.get("prog", "UNKNOWN")
+            command = payload.get("command", "UNKNOWN")
+            self.monitor.command_received(prog, command)
+
             response = self.dispatch_command(data)
             conn.sendall(response.encode())
+            self.monitor.info(f"Response sent to command: {command}")
         except Exception as e:
+            self.monitor.error(f"Error when processing request: {e}")
             error_json = self.format_response("error", str(e))
             conn.sendall(error_json.encode())
         finally:
@@ -141,6 +157,7 @@ class JuiceBoxEngineServer:
         Inicia el servidor y acepta conexiones entrantes indefinidamente.
         """
         print(f"🔌 JuiceBoxEngine listening on {self.socket_path}")
+        self.monitor.info(f"JuiceBoxEngine listening on {self.socket_path}")
         while True:
             conn, _ = self.server_socket.accept()
             threading.Thread(
