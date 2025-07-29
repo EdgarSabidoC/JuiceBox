@@ -81,9 +81,11 @@ class MainScreen(Screen):
                 self.SYSTEM_ARCH.border_title = "System architecture"
                 arch_container = ScrollableContainer(self.SYSTEM_ARCH)
                 arch_container.scroll_visible(force=True)
-                arch_container.can_focus = False
+                arch_container.can_focus = True
                 arch_container.styles.content_align = ("center", "middle")
                 arch_container.styles.height = "68%"
+                arch_container.styles.overflow_x = "auto"
+                arch_container.styles.overflow_y = "auto"
                 with arch_container:
                     yield self.SYSTEM_ARCH
 
@@ -151,6 +153,5 @@ class MainScreen(Screen):
         if info["Terminal"] != "":
             keys = "\n".join(info.keys())
             data = "\n".join(str(v) for v in info.values())
-            # __keys_str: str =
             self.SERVER_INFO_KEYS.update(str(keys))
             self.SERVER_INFO.update(str(data))

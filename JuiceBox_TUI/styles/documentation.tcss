@@ -1,0 +1,20 @@
+MarkdownTableOfContents {
+  overflow-x: auto;
+  overflow-y: auto;
+  width: 40%;
+  border: $border;
+  border-title-style: bold;
+}
+
+MarkdownH2 {
+  text-style: bold italic;
+}
+
+MarkdownH3 {
+  text-style: bold underline;
+}
+
+MarkdownH4 {
+  color: orange;
+  text-style: italic;
+}

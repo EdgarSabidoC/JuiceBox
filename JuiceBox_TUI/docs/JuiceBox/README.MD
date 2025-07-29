@@ -1,30 +1,39 @@
 # JUICE BOX
 
-Conjunto de herramientas para la orquestación de contenedores de Docker para los servicios de OWASP JuiceShop y Root The Box.
+Conjunto de herramientas para la orquestación de contenedores de Docker para los servicios de OWASP Juice Shop y Root The Box.
 
 La comunicación está basada **eventos** o **señales** por medio de un Unix Domain Socket personalizado.
 
-## MÓDULOS DE JUICE BOX
-- **JuiceBox Engine:** **motor** o programa principal que corre en el **servidor/anfitrión**.
-- **JuiceBox_TUI:** interfaz basada en texto para las herramientas administrativas (Python y Textual).
-- **JuiceShop_Client:** interfaz gráfica basada en una aplicación web para los usuarios (HTML+CSS+JS).
-- **JuiceShop_API:** API REST que conecta la interfaz gráfica del JuiceShop_Client con el motor de Juice Box (Go).
+---
+
+## COMPONENTES DE JUICE BOX
+
+|       Componente        | Descripción                                                                                   |
+| :---------------------: | :-------------------------------------------------------------------------------------------- |
+|   `Juice Box Engine`    | **Motor** o programa principal que corre en el **servidor/anfitrión**.                        |
+|     `Juice Box TUI`     | Interfaz basada en texto para las herramientas administrativas (Python y Textual).            |
+|   `Juice Shop Client`   | Interfaz gráfica basada en una aplicación web para los usuarios (HTML+CSS+JS).                |
+| `Juice Shop Client API` | API REST que conecta la interfaz gráfica del JuiceShop_Client con el motor de Juice Box (Go). |
+|        `Monitor`        | Monitor y logger del sistema.                                                                 |
+
+---
 
 ## ARQUITECTURA DE JUICE BOX
 
 ```
 Contenedores de Docker
 ├── NginX
-│   ├── JuiceShop API
-│   │   └── Juice Box Engine API
-│   └── Web Client
-│       └── Monitor
+│   ├── Web Client
+│   │   └── Monitor
+│   └── JuiceShop API
+│       └── Juice Box Engine API
 └── Host/Server
     ├── TUI (herramientas administrativas)
     │   └── JuiceBox Engine API
     └── Monitor
 ```
 
+---
 
 ## JUICE BOX ENGINE API
 
@@ -74,7 +83,7 @@ Señal: `__RESTART__`.
 
 [`Ver: Detener y destruir TODOS los contenedores`](#detener-y-destruir-todos-los-contenedores)
 
-#### Para y destruir un contenedor específico
+#### Detener y destruir un contenedor específico
 Señal:  `__KILL_CONTAINER__`
 
 Args: (`port` | `name`)

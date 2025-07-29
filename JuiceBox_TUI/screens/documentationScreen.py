@@ -1,22 +1,11 @@
 from textual.app import ComposeResult
-from serverInfo import ServerInfo
 from textual.screen import Screen
-from textual.widgets.option_list import Option
 from widgets.footer import get_footer
 from widgets.header import get_header
 from textual.screen import Screen
-from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import (
-    Label,
-    Static,
-    OptionList,
-    Placeholder,
-    Link,
-    MarkdownViewer,
-    Markdown,
-    TabbedContent,
-)
-import textual.color as color
+from textual.widgets import Markdown, MarkdownViewer, TabbedContent, Tree
+from textual.widgets.markdown import MarkdownTableOfContents
+from textual.widgets.tree import TreeNode
 from textual.binding import Binding
 
 
@@ -62,6 +51,19 @@ class DocumentationScreen(Screen):
 
         # Footer
         yield get_footer()
+
+    def on_mount(self) -> None:
+        # Se accede a la TOC de cada viewer tras el compose/mount
+        for name, viewer in (
+            ("JuiceBox", self.jb_engine),
+            ("JuiceShop", self.js),
+            ("RootTheBox", self.rtb),
+        ):
+            toc: MarkdownTableOfContents = viewer.query_one(MarkdownTableOfContents)
+            toc.border_title = "Contenido"
+            tr: Tree = toc.query_one(Tree)
+            tr.ICON_NODE_EXPANDED = "▽ "  # type: ignore[assignment]
+            tr.show_guides = True
 
     async def return_to_main(self) -> None:
         """Regresa a la pantalla del menú principal."""
