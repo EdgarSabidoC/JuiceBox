@@ -10,8 +10,8 @@ import os, sys, subprocess, json
 import docker, argparse, yaml
 from typing import Union
 from docker import errors
-from scripts.utils.config import RTBConfig
-from scripts.utils.validator import validate_container
+from .utils.config import RTBConfig
+from .utils.validator import validate_container
 
 
 LOGO = """

@@ -2,10 +2,10 @@
 import os, socket, threading, json
 from queue import Queue
 from threading import Thread
-from scripts.juiceShopManager import JuiceShopManager
-from scripts.rootTheBoxManager import RootTheBoxManager
-from scripts.utils.config import RTBConfig, JuiceShopConfig
-from scripts.monitor import Monitor
+from .juiceShopManager import JuiceShopManager
+from .rootTheBoxManager import RootTheBoxManager
+from .utils.config import RTBConfig, JuiceShopConfig
+from Monitor import Monitor
 
 # Comandos válidos por programa
 COMMANDS = {

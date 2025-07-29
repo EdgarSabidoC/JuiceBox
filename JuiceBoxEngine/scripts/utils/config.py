@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 import os, json, yaml
 from pathlib import Path
-from scripts.utils.validator import validate_str, validate_port, validate_bool
+from .validator import validate_str, validate_port, validate_bool
+from importlib.resources import files
 
 
 class RTBConfig:
-    def __init__(self, json_path: str = "configs/rootTheBox.json"):
-        # Se lee el archivo JSON
-        config_data = self._load_config(json_path)
+    def __init__(self):
+        # Se lee el json
+        config_data = json.loads(
+            files("JuiceBoxEngine.configs")
+            .joinpath("rootTheBox.json")
+            .read_text(encoding="utf-8")
+        )
 
         # Puerto de la webapp
         self.webapp_port: int = validate_port(
@@ -36,15 +41,6 @@ class RTBConfig:
             "MEMCACHED_CONTAINER_NAME",
         )
 
-    def _load_config(self, path: str) -> dict:
-        path_obj = Path(path)
-        if not path_obj.is_file():
-            raise FileNotFoundError(
-                f"El archivo de configuración JSON no se encontró: {path}"
-            )
-        with open(path_obj, "r", encoding="utf-8") as f:
-            return json.load(f)
-
     def show_config(self) -> dict:
         return {
             "status": "ok",
@@ -59,7 +55,13 @@ class RTBConfig:
 
 
 class JuiceShopConfig:
-    def __init__(self, json_path: str = "configs/juiceShop.json"):
+    def __init__(self):
+        # Se lee el json
+        config_data = json.loads(
+            files("JuiceBoxEngine.configs")
+            .joinpath("juiceShop.json")
+            .read_text(encoding="utf-8")
+        )
         # Directorio donde está este script (utils)
         self.utils_dir = os.path.dirname(os.path.abspath(__file__))
         # Directorio padre de utils (contiene 'utils/')
@@ -68,9 +70,6 @@ class JuiceShopConfig:
         self.project_root = os.path.dirname(self.scripts_dir)
         # Ruta absoluta a configs/
         self.configs_dir = os.path.join(self.project_root, "configs")
-        # Se guarda la ruta del JSON como Path para lectura/escritura
-        self._json_path = Path(json_path)
-        config_data = self._load_config()
 
         # Nombre base de contenedores
         self.juice_shop_containers_name: str = validate_str(
@@ -123,12 +122,6 @@ class JuiceShopConfig:
 
         # Se genera el archivo YAML:
         self.generate_yaml()
-
-    def _load_config(self) -> dict:
-        if not self._json_path.is_file():
-            raise FileNotFoundError(f"JSON config file not found: {self._json_path}")
-        with self._json_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
 
     def show_config(self) -> dict:
         return {
