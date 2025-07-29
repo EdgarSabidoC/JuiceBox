@@ -24,12 +24,14 @@ La comunicación está basada **eventos** o **señales** por medio de un Unix Do
 Contenedores de Docker
 ├── NginX
 │   ├── Web Client
-│   │   └── Monitor
+│   │   └──> Monitor
 │   └── JuiceShop API
-│       └── Juice Box Engine API
+│       └─(UNIX socket)─> Juice Box Engine API
 └── Host/Server
     ├── TUI (herramientas administrativas)
-    │   └── JuiceBox Engine API
+    │   └─(UNIX socket)─> JuiceBox Engine API
+    ├── JuiceBox Engine
+    │   └──> Monitor
     └── Monitor
 ```
 
@@ -127,17 +129,31 @@ Modifica el archivo `/etc/systemd/journald.conf`:
 
 ```
 [Journal]
+# Activa la persistencia
 Storage=persistent
-#Compress=yes
+
+# Habilita la compresión
+Compress=yes
+SystemMaxUse=500M
+SystemKeepFree=100M
+SystemMaxFileSize=50M
+
+# Rotar cada día
+SystemMaxFileSec=1day
+
+# Conservar hasta 7 archivos/días
+SystemMaxFiles=7
+
+# Borrar entradas mayores a 7 días
+MaxRetentionSec=7day
+
+
+# Descoomentar las opciones que quieras configurar
 #Seal=yes
 #SplitMode=uid
 #SyncIntervalSec=5m
 #RateLimitIntervalSec=30s
 #RateLimitBurst=10000
-#SystemMaxUse=
-#SystemKeepFree=
-#SystemMaxFileSize=
-#SystemMaxFiles=100
 #RuntimeMaxUse=
 #RuntimeKeepFree=
 #RuntimeMaxFileSize=
@@ -158,8 +174,6 @@ Storage=persistent
 #LineMax=48K
 #ReadKMsg=yes
 #Audit=yes
-
-
 ```
 
 Luego reinicia el servicio de `systemd-journald` ejecutando el comando:
@@ -169,9 +183,9 @@ sudo systemctl restart systemd-journald
 
 ```
 
-### Envolver la app con `systemd-cat`
+#### Envolver la app con `systemd-cat` (opcional)
 
-Desde la carpeta raíz de JuiceBox ejecuta en la terminal el comando:
+Si no se puede instalar el paquete `python-systemd`, entonces desde la carpeta raíz de JuiceBox ejecuta en la terminal el comando:
 
 ```
 systemd-cat -t JuiceBoxEngine python3 JuiceBoxEngine/main.py

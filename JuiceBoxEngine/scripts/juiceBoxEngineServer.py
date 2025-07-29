@@ -47,7 +47,7 @@ class JuiceBoxEngineServer:
 
         # Monitor
         self.monitor = Monitor(
-            name="JuiceBoxEngine", use_syslog=False
+            name="JuiceBoxEngine", use_journal=True
         )  # use_syslog = False para imprimir en consola
 
         # Se crea socket del servidor

@@ -1,10 +1,11 @@
+import logging
 from .utils.logger import Logger
 
 
 class Monitor:
     """
     Clase para monitorear y registrar eventos importantes del sistema JuiceBoxEngine,
-    usando un logger configurado.
+    usando un Logger con JournalHandler.
 
     Proporciona métodos para registrar distintos niveles de mensajes y eventos comunes,
     como conexión de clientes o recepción de comandos.
@@ -13,8 +14,8 @@ class Monitor:
     -----------
     name : str, opcional (default="JuiceBoxEngine")
         Nombre del logger que se usará para identificar los mensajes de log.
-    use_syslog : bool, opcional (default=False)
-        Si es True, el logger enviará los logs a syslog del sistema; si es False,
+    use_journal : bool, opcional (default=True)
+        Si es True, el logger enviará los logs a journal; si es False,
         los enviará a la consola estándar.
 
     Métodos:
@@ -36,15 +37,15 @@ class Monitor:
     def __init__(
         self,
         name: str = "JuiceBoxEngine",
-        use_syslog: bool = False,
-        syslog_addr="/dev/log",
-        facility: int = Logger.LOG_USER,  # usa el mismo facility por defecto
+        use_journal: bool = True,
+        level: int = logging.DEBUG,
     ):
+        # to_journal=True para usar journald
         self.logger = Logger(
             name=name,
-            to_syslog=use_syslog,
-            syslog_addr=syslog_addr,
-            facility=facility,
+            to_journal=use_journal,
+            identifier=name,
+            level=level,
         ).get()
 
     def info(self, message: str):

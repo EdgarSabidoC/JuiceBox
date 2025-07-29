@@ -1,38 +1,17 @@
 import logging
-import sys
-from logging.handlers import SysLogHandler
+from systemd.journal import JournalHandler, LOG_INFO, LOG_DEBUG, LOG_WARNING, LOG_ERR
 
 
 class Logger:
     """
-    Crea un logger que envía mensajes a syslog o a la consola.
-
-    Parámetros:
-    -----------
-    name         : nombre del logger
-    to_syslog    : si es True, usa SysLogHandler("/dev/log")
-    syslog_addr  : ruta al socket de syslog (por defecto "/dev/log")
-    facility     : facility de syslog (por defecto USER)
-    level        : nivel mínimo de mensajes (DEBUG, INFO, etc.)
-
-    Métodos:
-    --------
-    get()
-        Retorna el objeto logger configurado para usar en la aplicación.
+    Logger que envía mensajes directamente a journald a través de JournalHandler.
     """
-
-    # Facilities más comunes
-    LOG_KERN = SysLogHandler.LOG_KERN
-    LOG_USER = SysLogHandler.LOG_USER
-    LOG_LOCAL0 = SysLogHandler.LOG_LOCAL0
-    LOG_LOCAL1 = SysLogHandler.LOG_LOCAL1
 
     def __init__(
         self,
         name: str,
-        to_syslog: bool = False,
-        syslog_addr="/dev/log",
-        facility: int = SysLogHandler.LOG_USER,
+        to_journal: bool = False,
+        identifier: str | None = None,
         level: int = logging.INFO,
     ):
         self.logger = logging.getLogger(name)
@@ -40,18 +19,19 @@ class Logger:
         self.logger.propagate = False
 
         if not self.logger.handlers:
-            if to_syslog:
-                handler = SysLogHandler(address=syslog_addr, facility=facility)
+            if to_journal:
+                # Crea un JournalHandler con SYSLOG_IDENTIFIER
+                handler = JournalHandler(SYSLOG_IDENTIFIER=identifier or name)
             else:
-                handler = logging.StreamHandler(sys.stdout)
+                # Fallback a salida estándar si no quieres journald
+                handler = logging.StreamHandler()
 
-            fmt = "[%(asctime)s] %(levelname)s - %(name)s - %(message)s"
-            datefmt = "%Y-%m-%d %H:%M:%S"
-            handler.setFormatter(logging.Formatter(fmt, datefmt))
-
+            # Formateo (opcional, journald ya añade timestamp y levels)
+            fmt = "[%(levelname)s] %(name)s: %(message)s"
+            handler.setFormatter(logging.Formatter(fmt))
             self.logger.addHandler(handler)
 
-    def get(self):
+    def get(self) -> logging.Logger:
         """
         Retorna el logger configurado.
 
