@@ -112,3 +112,58 @@ Señal: `__GENERATE_XML__`
 - Si se quiere conservar información es importante que el contenedor cree un volumen para la persistencia de datos.
 - Los contenedores se pueden comunicar entre sí de forma predeterminada por medio de la red por defecto de Docker.
 - Si se requiere mayor control sobre la comunicación de los contenedores se pueden crear otras redes que sean para los contenedores deseados en específico.
+
+---
+
+## LOGS
+
+### Configuración
+#### Crear el archivo /etc/logrotate.d/juicebox
+```
+sudo tee /etc/logrotate.d/juicebox > /dev/null << 'EOF'
+/var/log/juicebox.log {
+    daily                  # rotar una vez al día
+    rotate 7               # mantener 7 archivos antiguos
+    missingok              # no mostrar error si no existe el log
+    notifempty             # no rotar si el archivo está vacío
+    compress               # comprimir los archivos rotados con gzip
+    delaycompress          # comprimir a partir de la segunda copia (evita problemas de lectura)
+    copytruncate           # copiar y truncar el archivo original sin reiniciar el servicio
+    create 0640 juicebox juicebox  # permisos y propietario de los nuevos logs
+    sharedscripts          # ejecutar postrotate solo una vez
+    postrotate
+        # Opcional: reinicia o notifica a tu servicio si es necesario
+        # systemctl restart juicebox.service >/dev/null 2>&1 || true
+    endscript
+}
+```
+
+#### Probar la configuración
+Antes de confiar en la tarea programada, ejecuta en modo debug:
+```
+sudo logrotate --debug /etc/logrotate.d/juicebox
+```
+Revisa la salida y asegúrate de que no haya errores. Si todo es correcto, fuerza una rotación de prueba:
+```
+sudo logrotate --debug /etc/logrotate.d/juicebox
+```
+Verifica que:
+- Exista /var/log/juicebox.log.1.gz.
+- El archivo activo /var/log/juicebox.log haya sido truncado.
+
+### Ubicación para to_syslog=True:
+- En Debian/Ubuntu: /var/log/syslog
+- En RHEL/CentOS/Fedora: /var/log/messages
+
+Se puede ejeuctar para seguirlos en tiempo real con:
+```
+sudo journalctl -t JuiceBoxEngine -f
+```
+
+O si se configuró rsyslog para LOCAL0 en /etc/rsyslog.d/juicebox.conf:
+```
+sudo tail -f /var/log/juicebox.log
+```
+
+### Cuando to_syslog=False:
+Se imprimen en pantalla.

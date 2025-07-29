@@ -2,10 +2,10 @@
 import os, socket, threading, json
 from queue import Queue
 from threading import Thread
-from .juiceShopManager import JuiceShopManager
-from .rootTheBoxManager import RootTheBoxManager
-from .utils.config import RTBConfig, JuiceShopConfig
-from Monitor import Monitor
+from scripts.juiceShopManager import JuiceShopManager
+from scripts.rootTheBoxManager import RootTheBoxManager
+from scripts.utils.config import RTBConfig, JuiceShopConfig
+from Monitor.monitor import Monitor
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -85,7 +85,7 @@ class JuiceBoxEngineServer:
         try:
             data = conn.recv(1024).decode().strip()
             self.monitor.info(f"Data received: {data}")
-            self.monitor.command_received(conn, data)
+            self.monitor.command_received(conn, data, conn.getpeername())
             self.command_queue.put((conn, data))
         except socket.timeout:
             self.monitor.warning("Timeout: client couldn't send data.")
@@ -106,7 +106,7 @@ class JuiceBoxEngineServer:
             payload = json.loads(data)
             prog = payload.get("prog", "UNKNOWN")
             command = payload.get("command", "UNKNOWN")
-            self.monitor.command_received(prog, command)
+            self.monitor.command_received(prog, command, conn.getpeername())
 
             response = self.dispatch_command(data)
             conn.sendall(response.encode())

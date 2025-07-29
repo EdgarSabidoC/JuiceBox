@@ -107,13 +107,15 @@ class RootTheBoxScreen(Screen):
 
     async def on_mount(self) -> None:
         __resp: str = await self.send_command("RTB", "__STATUS__")
-
+        self.log(f"{__resp}")
         if "ok" in __resp:
             self.power.value = True
             self.SERVER_INFO.update("Webapp: ✔")
+            self.SERVER_INFO.update(f"{__resp}")
         else:
             self.power.value = False
             self.SERVER_INFO.update("Webapp: ✘")
+            self.SERVER_INFO.update(f"{__resp}")
 
     async def on_switch_changed(self, event: Switch.Changed) -> None:
         # 1) Solo nos interesan eventos del switch "power"
@@ -130,17 +132,19 @@ class RootTheBoxScreen(Screen):
 
         try:
             if event.value:
-                await self.send_command("RTB", "__START__")
+                status = await self.send_command("RTB", "__START__")
                 self.info.update("Se mandó __START__")
                 self.SERVER_INFO.update("Running ✔")
+                self.SERVER_INFO.update(f"{status}")
             else:
-                await self.send_command("RTB", "__KILL__")
+                status = await self.send_command("RTB", "__KILL__")
                 self.info.update("Se mandó __KILL__")
                 self.SERVER_INFO.update("Stopped ✘")
+                self.SERVER_INFO.update(f"{status}")
         except Exception as e:
             # Si falla, revertimos el valor y mostramos error
             event.switch.value = not event.value
-            self.info.update(f"Error en comando: {e}")
+            self.SERVER_INFO.update(f"Error en comando: {e}")
         finally:
             # 4) Siempre reactivamos el switch y el lock
             event.switch.disabled = False
@@ -183,21 +187,36 @@ class RootTheBoxScreen(Screen):
     async def send_command(
         self, prog: str, command: str, args: dict | None = None
     ) -> str:
-        reader, writer = await asyncio.open_unix_connection(path=SOCKET_PATH)
+        # 1) DEBUG: indicar que vamos a conectar
+        self.log(f"CLIENTE: intentando conectar al socket… {SOCKET_PATH}")
+        try:
+            reader, writer = await asyncio.open_unix_connection(path=SOCKET_PATH)
+        except Exception as e:
+            self.log(f"CLIENTE: error al conectar: {e}")
+            raise
+
+        # 2) Montar payload y añadir '\n'
         payload: dict[str, Union[str, dict[str, Union[str, int]]]] = {
             "prog": prog,
             "command": command,
         }
-        if args is not None:
+        if args:
             payload["args"] = args
-
-        data = json.dumps(payload).encode()
-        writer.write(data)
+        raw = json.dumps(payload)
+        self.log(f"CLIENTE: enviando JSON: {raw}")
+        writer.write(raw.encode("utf-8") + b"\n")
         await writer.drain()
 
-        # lee hasta EOF o máximo 4096 bytes
-        response = await reader.read(4096)
-        writer.close()
-        await writer.wait_closed()
+        # 3) Leer hasta la línea
+        try:
+            line = await reader.readline()
+        except Exception as e:
+            self.log(f"CLIENTE: error al leer respuesta: {e}")
+            raise
+        finally:
+            writer.close()
+            await writer.wait_closed()
 
-        return response.decode()
+        resp = line.decode("utf-8", errors="replace").strip()
+        self.log(f"CLIENTE: respuesta cruda: {repr(resp)}")
+        return resp

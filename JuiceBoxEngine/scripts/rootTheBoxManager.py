@@ -10,9 +10,9 @@ import os, sys, subprocess, json
 import docker, argparse, yaml
 from typing import Union
 from docker import errors
-from .utils.config import RTBConfig
-from .utils.validator import validate_container
-
+from scripts.utils.config import RTBConfig
+from scripts.utils.validator import validate_container
+from importlib.resources import files
 
 LOGO = """
 \t\t        ▄▄▄▄   ▄▄▄▄▄  ▄▄▄▄▄  ▄▄▄▄▄
@@ -261,8 +261,7 @@ Manage Docker containers for the Root the Box server: run, kill, status, config.
 
     result: dict = {"status": "ok", "message": "No action or command specified"}
 
-    RTB_CONF_PATH = "configs/rootTheBox.json"
-    rtb_config = RTBConfig(RTB_CONF_PATH)
+    rtb_config = RTBConfig()
     rtb = RootTheBoxManager(rtb_config)
 
     result: dict

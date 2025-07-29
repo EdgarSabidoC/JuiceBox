@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-from .scripts.juiceBoxEngineServer import JuiceBoxEngineServer
-from .scripts.juiceShopManager import JuiceShopManager
-from .scripts.rootTheBoxManager import RootTheBoxManager
-from .scripts.utils.config import JuiceShopConfig, RTBConfig
+import os, sys
+
+ROOT = os.path.dirname(os.path.abspath(__file__))  # …/project_root/JuiceBoxEngine
+sys.path.insert(0, os.path.dirname(ROOT))  # …/project_root
+from scripts.juiceBoxEngineServer import JuiceBoxEngineServer
+from scripts.juiceShopManager import JuiceShopManager
+from scripts.rootTheBoxManager import RootTheBoxManager
+from scripts.utils.config import JuiceShopConfig, RTBConfig
 from types import FrameType
 import sys, signal, atexit
 

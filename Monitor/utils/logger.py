@@ -5,18 +5,15 @@ from logging.handlers import SysLogHandler
 
 class Logger:
     """
-    Clase envoltorio para crear un logger configurado para escribir mensajes
-    ya sea a syslog de Linux (/dev/log) o a la salida estándar (consola).
+    Crea un logger que envía mensajes a syslog o a la consola.
 
     Parámetros:
     -----------
-    name : str
-        Nombre del logger (usualmente el nombre del módulo o componente).
-    to_syslog : bool, opcional (default=False)
-        Si es True, el logger enviará los mensajes a syslog usando SysLogHandler
-        apuntando a /dev/log. Si es False, se enviarán a la consola estándar (stdout).
-    level : int, opcional (default=logging.INFO)
-        Nivel mínimo de mensajes que serán registrados. Ejemplos: DEBUG, INFO, WARNING, ERROR.
+    name         : nombre del logger
+    to_syslog    : si es True, usa SysLogHandler("/dev/log")
+    syslog_addr  : ruta al socket de syslog (por defecto "/dev/log")
+    facility     : facility de syslog (por defecto USER)
+    level        : nivel mínimo de mensajes (DEBUG, INFO, etc.)
 
     Métodos:
     --------
@@ -24,29 +21,34 @@ class Logger:
         Retorna el objeto logger configurado para usar en la aplicación.
     """
 
-    def __init__(self, name: str, to_syslog=False, level=logging.INFO):
-        # Obtiene o crea un logger con el nombre dado
+    # Facilities más comunes
+    LOG_KERN = SysLogHandler.LOG_KERN
+    LOG_USER = SysLogHandler.LOG_USER
+    LOG_LOCAL0 = SysLogHandler.LOG_LOCAL0
+    LOG_LOCAL1 = SysLogHandler.LOG_LOCAL1
+
+    def __init__(
+        self,
+        name: str,
+        to_syslog: bool = False,
+        syslog_addr: str = "/dev/log",
+        facility: int = SysLogHandler.LOG_USER,
+        level: int = logging.INFO,
+    ):
         self.logger = logging.getLogger(name)
-        # Configura el nivel mínimo de severidad para el logger
         self.logger.setLevel(level)
+        self.logger.propagate = False
 
-        # Evita añadir múltiples handlers si ya hay alguno configurado
         if not self.logger.handlers:
-            # Elige el handler: SysLogHandler para syslog o StreamHandler para consola
-            handler = (
-                SysLogHandler(address="/dev/log")
-                if to_syslog
-                else logging.StreamHandler(sys.stdout)
-            )
+            if to_syslog:
+                handler = SysLogHandler(address=syslog_addr, facility=facility)
+            else:
+                handler = logging.StreamHandler(sys.stdout)
 
-            # Define el formato de los mensajes de log con fecha, nivel, nombre y mensaje
-            formatter = logging.Formatter(
-                "[%(asctime)s] %(levelname)s - %(name)s - %(message)s",
-                "%Y-%m-%d %H:%M:%S",
-            )
-            # Asocia el formato al handler
-            handler.setFormatter(formatter)
-            # Añade el handler al logger
+            fmt = "[%(asctime)s] %(levelname)s - %(name)s - %(message)s"
+            datefmt = "%Y-%m-%d %H:%M:%S"
+            handler.setFormatter(logging.Formatter(fmt, datefmt))
+
             self.logger.addHandler(handler)
 
     def get(self):

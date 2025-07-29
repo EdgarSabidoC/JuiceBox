@@ -1,0 +1,22 @@
+[Unit]
+Description=JuiceBoxEngine daemon (user service)
+After=network.target
+
+[Service]
+Type=simple
+# Trabaja en tu carpeta de desarrollo
+WorkingDirectory=/home/hunterzx/Documents/CSLab/JuiceBox/JuiceBoxEngine
+# Elimina socket viejo para evitar colisiones
+ExecStartPre=/bin/rm -f /tmp/juiceboxengine.sock
+# Arranca tu script con tu Python de usuario
+ExecStart=/usr/bin/env python3 /home/hunterzx/Documents/CSLab/JuiceBox/JuiceBoxEngine/main.py
+Restart=on-failure
+RestartSec=5
+
+# Salida y errores van a tu journal de usuario
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=JuiceBoxEngine
+
+[Install]
+WantedBy=default.target

@@ -33,9 +33,19 @@ class Monitor:
         Registra un error relacionado con un cliente.
     """
 
-    def __init__(self, name="JuiceBoxEngine", use_syslog=False):
-        # Crea un logger usando la clase Logger y obtiene el objeto logger
-        self.logger = Logger(name, to_syslog=use_syslog).get()
+    def __init__(
+        self,
+        name: str = "JuiceBoxEngine",
+        use_syslog: bool = False,
+        syslog_addr: str = "/dev/log",
+        facility: int = Logger.LOG_USER,  # usa el mismo facility por defecto
+    ):
+        self.logger = Logger(
+            name=name,
+            to_syslog=use_syslog,
+            syslog_addr=syslog_addr,
+            facility=facility,
+        ).get()
 
     def info(self, message: str):
         """Registra un mensaje informativo."""
@@ -49,9 +59,9 @@ class Monitor:
         """Registra un mensaje de error."""
         self.logger.error(message)
 
-    def command_received(self, prog: str, command: str):
+    def command_received(self, prog: str, command: str, address: str):
         """Registra la recepción de un comando específico."""
-        self.logger.info(f"Comando recibido: {prog} -> {command}")
+        self.logger.info(f"[{address}] {prog} -> {command}")
 
     def client_connected(self, address=None):
         """
@@ -62,10 +72,9 @@ class Monitor:
         address : Optional
             Dirección o información adicional del cliente que se conectó.
         """
-        self.logger.info(
-            "Nuevo cliente conectado" + (f" desde {address}" if address else "")
-        )
+        suffix = f" desde {address}" if address else ""
+        self.logger.info(f"New client connected: {suffix}")
 
     def client_error(self, err: Exception):
         """Registra un error que ocurrió en la conexión o interacción con un cliente."""
-        self.logger.warning(f"Error en cliente: {err}")
+        self.logger.warning(f"Client error: {err}")

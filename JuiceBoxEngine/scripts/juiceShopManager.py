@@ -11,10 +11,10 @@ from typing import Union
 import docker, argparse
 from typing import overload
 from docker import errors
-from .utils.config import JuiceShopConfig
-from .utils.validator import validate_container
+from scripts.utils.config import JuiceShopConfig
+from scripts.utils.validator import validate_container
+from importlib.resources import files
 
-JS_CONF_PATH = "configs/juiceShop.json"
 LOGO = """
 \t\t  ▄▄▄▄▄   ▄   ▄   ▄▄▄▄▄    ▄▄▄▄   ▄▄▄▄▄
 \t\t      █   █   █     █     █       █
@@ -347,7 +347,7 @@ Manage Docker containers for the Juice Shop: run, kill, status, config.
         # print(json.dumps(result))
         sys.exit(1)
 
-    js_config = JuiceShopConfig(JS_CONF_PATH)
+    js_config = JuiceShopConfig()
     js = JuiceShopManager(js_config)
 
     # Se valida que el puerto de --port sea válido:
