@@ -5,7 +5,7 @@ from threading import Thread
 from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
-from monitor import Monitor
+from scripts.monitor import Monitor
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -87,6 +87,9 @@ class JuiceBoxEngineServer:
             self.monitor.info(f"Data received: {data}")
             self.monitor.command_received(conn, data)
             self.command_queue.put((conn, data))
+        except socket.timeout:
+            self.monitor.warning("Timeout: client couldn't send data.")
+            conn.close()
         except Exception as e:
             self.monitor.client_error(e)
             conn.close()
@@ -108,10 +111,15 @@ class JuiceBoxEngineServer:
             response = self.dispatch_command(data)
             conn.sendall(response.encode())
             self.monitor.info(f"Response sent to command: {command}")
+        except (BrokenPipeError, ConnectionResetError) as e:
+            self.monitor.warning(f"Client disconnected before get answer: {e}")
         except Exception as e:
             self.monitor.error(f"Error when processing request: {e}")
             error_json = self.format_response("error", str(e))
-            conn.sendall(error_json.encode())
+            try:
+                conn.sendall(error_json.encode())
+            except Exception:
+                pass
         finally:
             conn.close()
 
@@ -160,6 +168,7 @@ class JuiceBoxEngineServer:
         self.monitor.info(f"JuiceBoxEngine listening on {self.socket_path}")
         while True:
             conn, _ = self.server_socket.accept()
+            conn.settimeout(10)
             threading.Thread(
                 target=self.handle_client, args=(conn,), daemon=True
             ).start()
