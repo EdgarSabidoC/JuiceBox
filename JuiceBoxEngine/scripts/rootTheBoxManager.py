@@ -8,6 +8,7 @@ y gestiona los contenedores via Docker Compose y Docker SDK.
 
 import os, sys, subprocess, json
 import docker, argparse, yaml
+from typing import Union
 from docker import errors
 from scripts.utils.config import RTBConfig
 from scripts.utils.validator import validate_container
@@ -45,6 +46,7 @@ class RootTheBoxManager:
     def __init__(self, config: RTBConfig) -> None:
         if not isinstance(config, RTBConfig):
             raise TypeError("Required: RTBConfig instance.")
+
         # Cliente Docker
         self.client = docker.from_env()
 
@@ -103,6 +105,8 @@ class RootTheBoxManager:
 
     def run_containers(self) -> dict:
         try:
+            # Se eliminan los contenedores en caso de existir:
+            self.kill_all()
             compose_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
             __status, __message = self.__generate_docker_compose(compose_path)
             if not __status:
@@ -191,8 +195,8 @@ class RootTheBoxManager:
         except errors.NotFound:
             return False
 
-    def are_running(self) -> dict:
-        results = []
+    def status(self) -> dict[str, Union[str, list]]:
+        results: list[dict] = []
         overall_ok = True
 
         for name in (self.webapp_container_name, self.cache_container_name):
@@ -206,6 +210,13 @@ class RootTheBoxManager:
                 results.append({"container": name, "running": False, "message": str(e)})
 
         return {"status": "ok" if overall_ok else "error", "containers": results}
+
+    def cleanup(self) -> None:
+        """
+        Cierra la conexión al Docker client para liberar sockets/tokens y elimina todos los contenedores.
+        """
+        self.kill_all()
+        self.client.close()
 
 
 if __name__ == "__main__":
@@ -233,8 +244,8 @@ Manage Docker containers for the Root the Box server: run, kill, status, config.
         help="Shows the configuration for the containers.",
     )
     parser.add_argument(
-        "-a",
-        "--are-running",
+        "-s",
+        "--status",
         action="store_true",
         help="Shows if the RTB containers are running.",
     )
@@ -262,8 +273,8 @@ Manage Docker containers for the Root the Box server: run, kill, status, config.
         result = rtb.run_containers()
     elif args.kill_all:
         result = rtb.kill_all()
-    elif args.are_running:
-        result = rtb.are_running()
+    elif args.status:
+        result = rtb.status()
 
     print(json.dumps(result))
 

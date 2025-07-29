@@ -27,12 +27,12 @@ class RTBConfig:
         )
         # Nombre del contenedor de la webapp
         self.webapp_container_name: str = validate_str(
-            config_data.get("WEB_APP_CONTAINER_NAME", "rootthebox-webapp-1"),
+            config_data.get("WEB_APP_CONTAINER_NAME", "rootthebox-webapp"),
             "WEB_APP_CONTAINER_NAME",
         )
         # Nombre del contenedore del caché
         self.cache_container_name: str = validate_str(
-            config_data.get("MEMCACHED_CONTAINER_NAME", "rootthebox-memcached-1"),
+            config_data.get("MEMCACHED_CONTAINER_NAME", "rootthebox-memcached"),
             "MEMCACHED_CONTAINER_NAME",
         )
 

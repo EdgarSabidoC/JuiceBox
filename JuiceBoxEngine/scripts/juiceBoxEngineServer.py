@@ -2,6 +2,7 @@
 import os, socket, threading, json
 from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager
+from scripts.utils.config import RTBConfig, JuiceShopConfig
 
 COMMANDS = {
     "RTB": ["__START__", "__KILL__", "__RESTART__", "__CONFIG__", "__STATUS__"],
@@ -38,12 +39,43 @@ class JuiceBoxEngineServer:
         self.rtb_manager = rtb_manager
         self.js_manager = js_manager
 
+    def __rtb_restart(self) -> dict[str, str]:
+        """
+        Desecha la instancia vieja de RootTheBoxManager y crea una nueva.
+        """
+        try:
+            self.rtb_manager.cleanup()
+        except AttributeError:
+            pass
+
+        # Crea una nueva instancia usando la misma configuración
+        self.rtb_manager = RootTheBoxManager(RTBConfig())
+        status = self.rtb_manager.run_containers()
+
+        return status
+
+    def __js_restart(self) -> dict[str, str]:
+        """
+        Desecha la instancia vieja de JuiceShopManager y crea una nueva.
+        """
+        try:
+            self.js_manager.cleanup()
+        except AttributeError:
+            pass
+
+        self.js_manager = JuiceShopManager(JuiceShopConfig())
+        return {
+            "status": "ok",
+            "message": "JuiceShop manager reiniciado",
+        }
+
     def set_managers(self, rtb, js):
         self.rtb_manager = rtb
         self.js_manager = js
 
     def start(self):
         print(f"🔌 JuiceBoxEngine escuchando en {self.socket_path}")
+        print(f"Root The Box: {self.rtb_manager.webapp_port}")
         while True:
             conn, _ = self.server_socket.accept()
             threading.Thread(
@@ -59,51 +91,51 @@ class JuiceBoxEngineServer:
             except Exception as e:
                 conn.sendall(f"Error: {e}".encode())
 
-    def __handle_rtb_command(self, command, args) -> str:
+    def __handle_rtb_command(self, command) -> str:
         if command == "__START__":
-            self.rtb_manager.run_containers()
-            return self.format_response("ok", "RootTheBox iniciado")
+            status = self.rtb_manager.run_containers()
+            return json.dumps(status)
         elif command == "__RESTART__":
-            self.rtb_manager.restart()
-            return self.format_response("ok", "RootTheBox reiniciado")
+            status = self.__rtb_restart()
+            return json.dumps(status)
         elif command == "__KILL__":
-            self.rtb_manager.kill_all()
-            return self.format_response("ok", "RootTheBox detenido")
+            status = self.rtb_manager.kill_all()
+            return json.dumps(status)
         elif command == "__STATUS__":
             status = self.rtb_manager.status()
-            return self.format_response("ok", "Estado obtenido", status)
+            return self.format_response("ok", str(status))
         elif command == "__CONFIG__":
-            self.rtb_manager.configure(args)
-            return self.format_response("ok", "RootTheBox configurado")
+            status = self.rtb_manager.show_config()
+            return json.dumps(status)
         else:
-            return self.format_response("error", "Comando RTB no implementado")
+            return self.format_response("error", "RTB command not found")
 
     def __handle_js_command(self, command, args) -> str:
         if command == "__START_CONTAINER__":
-            self.js_manager.run_container()
-            return self.format_response("ok", "Contenedor Juice Shop iniciado")
+            status = self.js_manager.run_container()
+            return json.dumps(status)
         elif command == "__RESTART__":
-            self.js_manager.restart()
-            return self.format_response("ok", "Juice Shop reiniciado")
+            status = self.__js_restart()
+            return json.dumps(status)
         elif command == "__KILL_CONTAINER__":
-            self.js_manager.kill_container(args)
-            return self.format_response("ok", "Contenedor detenido")
+            port = args["port"]
+            status = self.js_manager.kill_container(port)
+            return json.dumps(status)
         elif command == "__KILL_ALL__":
-            self.js_manager.kill_all()
-            return self.format_response(
-                "ok", "Todos los contenedores Juice Shop detenidos"
-            )
+            status = self.js_manager.kill_all()
+            return json.dumps(status)
         elif command == "__STATUS__":
-            status = self.js_manager.status()
-            return self.format_response("ok", "Estado obtenido", status)
+            port = args["port"]
+            status = self.js_manager.status(port)
+            return json.dumps(status)
         elif command == "__CONFIG__":
-            self.js_manager.configure(args)
-            return self.format_response("ok", "Juice Shop configurado")
+            status = self.js_manager.show_config()
+            return json.dumps(status)
         elif command == "__GENERATE_XML__":
-            self.js_manager.generate_xml()
-            return self.format_response("ok", "XML generado")
+            status = self.js_manager.generate_rtb_config()
+            return json.dumps(status)
         else:
-            return self.format_response("error", "Comando JS no implementado")
+            return self.format_response("error", "JS command not found")
 
     def dispatch_command(self, raw_data: str) -> str:
         try:
@@ -121,11 +153,11 @@ class JuiceBoxEngineServer:
                 )
 
             # Root The Box
-            if prog == "RTB":
-                return self.__handle_rtb_command(command, args)
+            if prog == "RTB" and command in COMMANDS["RTB"]:
+                return self.__handle_rtb_command(command)
 
             # Juice Shop
-            if prog == "JS":
+            if prog == "JS" and command in COMMANDS["JS"]:
                 return self.__handle_js_command(command, args)
 
             return self.format_response("error", "Programa no soportado")
@@ -136,7 +168,13 @@ class JuiceBoxEngineServer:
             return self.format_response("error", str(e))
 
     def cleanup(self):
-        self.server_socket.close()
+        """
+        Cierra la conexión al socket y elimina todos los contenedores de RTB y JuiceShop.
+        """
+        self.server_socket.close()  # Se cierra el socket
+        self.js_manager.cleanup()
+        self.rtb_manager.cleanup()
+
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)
 

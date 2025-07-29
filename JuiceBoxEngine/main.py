@@ -3,6 +3,9 @@ from scripts.juiceBoxEngineServer import JuiceBoxEngineServer
 from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.utils.config import JuiceShopConfig, RTBConfig
+from types import FrameType
+import sys, signal, atexit
+
 
 if __name__ == "__main__":
     # Se instancian los managers
@@ -10,5 +13,25 @@ if __name__ == "__main__":
     js = JuiceShopManager(JuiceShopConfig())  # Juice Shop
 
     # Se instancia el motor:
-    jb_server = JuiceBoxEngineServer(js, rtb)
+    jb_server = JuiceBoxEngineServer(js, rtb)  # Juice Box Engine
+
+    # Función para manejar el cierre del programa:
+    def handle_exit(signum: int, frame: FrameType | None):
+        print(f"\n📶 Received signal: {signum}. Closing socket...")
+        jb_server.cleanup()  # Se limpia el socket
+        sys.exit(0)
+
+    # Se capturan las señales de interrupción
+    signal.signal(signal.SIGINT, handle_exit)  # Ctrl+C
+    signal.signal(signal.SIGTERM, handle_exit)  # kill
+    signal.signal(signal.SIGHUP, handle_exit)  # cierre de terminal (hangup)
+
+    # En Windows existe SIGBREAK para Ctrl+Break
+    if hasattr(signal, "SIGBREAK"):
+        signal.signal(signal.SIGBREAK, handle_exit)
+
+    # Atexit para cualquier otra salida limpia
+    atexit.register(lambda: jb_server.cleanup())
+
+    # Arranca el motor:
     jb_server.start()

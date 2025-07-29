@@ -6,7 +6,8 @@ Clase JuiceBoxManager que carga configuración desde JuiceShopConfig
 y gestiona los contenedores via Docker SDK.
 """
 
-import os, sys, json, yaml
+import os, sys, json
+from typing import Union
 import docker, argparse
 from typing import overload
 from docker import errors
@@ -122,13 +123,7 @@ class JuiceShopManager:
             # Devolver error con mensaje
             return {"status": "error", "container": __container, "message": str(e)}
 
-    @overload
-    def kill_container(self, container: str) -> dict: ...
-
-    @overload
-    def kill_container(self, container: int) -> dict: ...
-
-    def kill_container(self, container) -> dict:
+    def kill_container(self, container: Union[str, int]) -> dict[str, str]:
         __container: str = ""
         try:
             if isinstance(container, int):
@@ -151,7 +146,7 @@ class JuiceShopManager:
                 return {
                     "container": __container,
                     "status": "not_found",
-                    "message": "Container not found",
+                    "message": f"Container not found {__container}",
                 }
         except Exception as e:
             return {"container": __container, "status": "error", "message": str(e)}
@@ -198,13 +193,7 @@ class JuiceShopManager:
         except errors.NotFound:
             return False
 
-    @overload
-    def is_running(self, container: int) -> dict: ...
-
-    @overload
-    def is_running(self, container: str) -> dict: ...
-
-    def is_running(self, container) -> dict:
+    def status(self, container: Union[int, str]) -> dict[str, Union[str, bool]]:
         __container: str = ""
         try:
             if isinstance(container, str):
@@ -217,12 +206,12 @@ class JuiceShopManager:
                     "container": __container,
                     "status": "error",
                     "running": False,
-                    "message": "Container is not running",
+                    "message": f"Container is not running: {__container}",
                 }
             else:
                 return {
                     "container": __container,
-                    "status": "error",
+                    "status": "ok",
                     "running": True,
                     "message": "Container is running",
                 }
@@ -278,6 +267,13 @@ class JuiceShopManager:
         except Exception as e:
             return {"status": "error", "message": f"No se pudo generar XML: {e}"}
 
+    def cleanup(self) -> None:
+        """
+        Cierra la conexión al Docker client para liberar sockets/tokens.
+        """
+        self.kill_all()
+        self.client.close()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -319,8 +315,8 @@ Manage Docker containers for the Juice Shop: run, kill, status, config.
         help="Shows the configuration for the Juice Shop containers.",
     )
     parser.add_argument(
-        "-i",
-        "--is-running",
+        "-s",
+        "--status",
         action="store_true",
         help="Shows if the Juice Shop container is running. It needs the command [-p/--port | -n/--name].",
     )
@@ -343,12 +339,12 @@ Manage Docker containers for the Juice Shop: run, kill, status, config.
     result: dict = {"status": "ok", "message": "No action or command specified"}
 
     # Se valida que --port o --name se le pase a los comandos --kill e --is-running:
-    if (args.kill or args.is_running) and (args.port is None and args.name is None):
+    if (args.kill or args.status) and (args.port is None and args.name is None):
         result = {
             "status": "error",
             "message": "Argument [-p/--port | -n/--name] is required when using [-k/--kill | -i/--is-running]",
         }
-        print(json.dumps(result))
+        # print(json.dumps(result))
         sys.exit(1)
 
     js_config = JuiceShopConfig(JS_CONF_PATH)
@@ -360,7 +356,7 @@ Manage Docker containers for the Juice Shop: run, kill, status, config.
             "status": "error",
             "message": f"Argument [-p/--port] should be in range [{js.starting_port},{js.ending_port}]",
         }
-        print(json.dumps(result))
+        # print(json.dumps(result))
         sys.exit(1)
 
     if args.show_config:
@@ -376,12 +372,12 @@ Manage Docker containers for the Juice Shop: run, kill, status, config.
             result = js.kill_container(args.name)
     elif args.kill_all:
         result = js.kill_all()
-    elif args.is_running:
+    elif args.status:
         if args.port:
-            result = js.is_running(args.port)
+            result = js.status(args.port)
         elif args.name:
-            result = js.is_running(args.name)
+            result = js.status(args.name)
 
-    print(json.dumps(result))
+    # print(json.dumps(result))
 
     sys.exit(0 if result["status"] == "ok" else 1)
