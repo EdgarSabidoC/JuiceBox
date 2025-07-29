@@ -24,8 +24,8 @@ COMMANDS = {
 
 class JuiceBoxEngineServer:
     """
-    Servidor del motor JuiceBox que expone una interfaz mediante sockets Unix para
-    gestionar contenedores de Juice Shop y Root The Box de manera concurrente pero segura.
+    Servidor del motor JuiceBox que expone una interfaz mediante sockets de Unix para
+    gestionar contenedores Docker de Juice Shop y Root The Box de manera concurrente pero segura.
     """
 
     def __init__(
