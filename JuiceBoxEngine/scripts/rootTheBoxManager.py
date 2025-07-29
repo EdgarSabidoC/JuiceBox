@@ -276,6 +276,6 @@ Manage Docker containers for the Root the Box server: run, kill, status, config.
     elif args.status:
         result = rtb.status()
 
-    print(json.dumps(result))
+    # print(json.dumps(result))
 
     sys.exit(0 if result.get("status") == "ok" else 1)

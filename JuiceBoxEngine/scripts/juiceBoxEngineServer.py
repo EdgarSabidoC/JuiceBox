@@ -74,8 +74,7 @@ class JuiceBoxEngineServer:
         self.js_manager = js
 
     def start(self):
-        print(f"🔌 JuiceBoxEngine escuchando en {self.socket_path}")
-        print(f"Root The Box: {self.rtb_manager.webapp_port}")
+        print(f"🔌 JuiceBoxEngine listening on {self.socket_path}")
         while True:
             conn, _ = self.server_socket.accept()
             threading.Thread(
@@ -103,7 +102,7 @@ class JuiceBoxEngineServer:
             return json.dumps(status)
         elif command == "__STATUS__":
             status = self.rtb_manager.status()
-            return self.format_response("ok", str(status))
+            return json.dumps(status)
         elif command == "__CONFIG__":
             status = self.rtb_manager.show_config()
             return json.dumps(status)

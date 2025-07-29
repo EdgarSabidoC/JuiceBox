@@ -31,7 +31,8 @@ if __name__ == "__main__":
     # print(send_command("RTB", "__RESTART__"))
     # print(send_command("RTB", "__KILL__"))
     # # Iniciar RootTheBox
-    print(send_command("RTB", "__START__"))
+    # print(send_command("RTB", "__START__"))
+    print(send_command("RTB", "__STATUS__"))
 
     # # Iniciar un contenedor de Juice Shop
     # print(send_command("JS", "__START_CONTAINER__"))
