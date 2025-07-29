@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os, json, yaml
 from pathlib import Path
-from utils.validator import validate_str, validate_port, validate_bool
+from scripts.utils.validator import validate_str, validate_port, validate_bool
 
 
 class RTBConfig:

@@ -9,8 +9,8 @@ y gestiona los contenedores via Docker Compose y Docker SDK.
 import os, sys, subprocess, json
 import docker, argparse, yaml
 from docker import errors
-from utils.config import RTBConfig
-from utils.validator import validate_container
+from scripts.utils.config import RTBConfig
+from scripts.utils.validator import validate_container
 
 
 LOGO = """

@@ -10,8 +10,8 @@ import os, sys, json, yaml
 import docker, argparse
 from typing import overload
 from docker import errors
-from utils.config import JuiceShopConfig
-from utils.validator import validate_container
+from scripts.utils.config import JuiceShopConfig
+from scripts.utils.validator import validate_container
 
 JS_CONF_PATH = "configs/juiceShop.json"
 LOGO = """

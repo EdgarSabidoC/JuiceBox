@@ -11,3 +11,4 @@ if __name__ == "__main__":
 
     # Se instancia el motor:
     jb_server = JuiceBoxEngineServer(js, rtb)
+    jb_server.start()
