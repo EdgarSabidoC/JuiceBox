@@ -15,6 +15,6 @@ MarkdownH3 {
 }
 
 MarkdownH4 {
-  color: orange;
+  color: $secondary;
   text-style: italic;
 }

@@ -60,7 +60,7 @@ class DocumentationScreen(Screen):
             ("RootTheBox", self.rtb),
         ):
             toc: MarkdownTableOfContents = viewer.query_one(MarkdownTableOfContents)
-            toc.border_title = "Contenido"
+            toc.border_title = "Index"
             tr: Tree = toc.query_one(Tree)
             tr.ICON_NODE_EXPANDED = "▽ "  # type: ignore[assignment]
             tr.show_guides = True

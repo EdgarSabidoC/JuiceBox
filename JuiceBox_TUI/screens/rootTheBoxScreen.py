@@ -106,16 +106,19 @@ class RootTheBoxScreen(Screen):
         yield get_footer()
 
     async def on_mount(self) -> None:
-        __resp: str = await self.send_command("RTB", "__STATUS__")
-        self.log(f"{__resp}")
-        if "ok" in __resp:
-            self.power.value = True
-            self.SERVER_INFO.update("Webapp: ✔")
-            self.SERVER_INFO.update(f"{__resp}")
-        else:
-            self.power.value = False
-            self.SERVER_INFO.update("Webapp: ✘")
-            self.SERVER_INFO.update(f"{__resp}")
+        try:
+            __resp: str = await self.send_command("RTB", "__STATUS__")
+            self.log(f"{__resp}")
+            if "ok" in __resp:
+                self.power.value = True
+                self.SERVER_INFO.update("Webapp: ✔")
+                self.SERVER_INFO.update(f"{__resp}")
+            else:
+                self.power.value = False
+                self.SERVER_INFO.update("Webapp: ✘")
+                self.SERVER_INFO.update(f"{__resp}")
+        except Exception:
+            pass
 
     async def on_switch_changed(self, event: Switch.Changed) -> None:
         # 1) Solo nos interesan eventos del switch "power"

@@ -19,6 +19,13 @@ class MainScreen(Screen):
     with open("media/Architecture.txt", "r", encoding="utf-8") as file:
         SYSTEM_ARCH = file.read()
 
+    MENU_OPTIONS = {
+        "📦 Root the Box": "Admin tools to manage Root the Box docker containers",
+        "🧃 OWASP Juice Shop": "Admin tools to manage OWASP Juice Shop docker containers",
+        "🔎 Documentation": "Read the docs",
+        "↩  Exit": "Close the app",
+    }
+
     def compose(self) -> ComposeResult:
         # Header
         yield get_header()
@@ -54,20 +61,16 @@ class MainScreen(Screen):
 
                 # Menú
                 self.menu = OptionList(
-                    Option(prompt=" 📦 Root the Box".ljust(20)),
-                    Option(prompt=" 🧃 OWASP Juice Shop".ljust(20)),
-                    Option(prompt=" 🔎 Documentation".ljust(20)),
-                    Option(prompt=" ↩  Exit".ljust(20)),
                     classes="menu",
                 )
+                self.menu.add_options(self.MENU_OPTIONS.keys())
                 self.menu.border_title = "Menu"
-                self.menu.styles.color = "#19E6F3"
                 yield self.menu
 
                 # Información sobre las opciones
                 self.info = Static(classes="info-box")
                 self.info.can_focus = False
-                self.info.border_title = "Output"
+                self.info.border_title = "Menu option info"
                 yield self.info
 
             # Contenedor vertical 2
@@ -75,22 +78,21 @@ class MainScreen(Screen):
                 vcontainer2.can_focus = False
                 # System architecture
                 self.SYSTEM_ARCH = Static(
-                    str(self.SYSTEM_ARCH), expand=True, classes="arch-box"
+                    str(self.SYSTEM_ARCH), expand=True, classes="arch-box", markup=True
                 )
 
                 self.SYSTEM_ARCH.border_title = "System architecture"
-                arch_container = ScrollableContainer(self.SYSTEM_ARCH)
-                arch_container.scroll_visible(force=True)
-                arch_container.can_focus = True
-                arch_container.styles.content_align = ("center", "middle")
-                arch_container.styles.height = "68%"
-                arch_container.styles.overflow_x = "auto"
-                arch_container.styles.overflow_y = "auto"
-                with arch_container:
+                self.arch_container = ScrollableContainer(
+                    self.SYSTEM_ARCH, classes="arch-container"
+                )
+                self.arch_container.scroll_visible(force=True)
+                self.arch_container.can_focus = True
+                with self.arch_container:
                     yield self.SYSTEM_ARCH
 
                 # Server info
-                with Horizontal():
+                self.server_info_container = Horizontal(classes="server-info-container")
+                with self.server_info_container:
                     self.SERVER_INFO_KEYS = Label(classes="server-info-keys")
                     yield self.SERVER_INFO_KEYS
                     self.SERVER_INFO.can_focus = False
@@ -139,13 +141,7 @@ class MainScreen(Screen):
         self, event: OptionList.OptionHighlighted
     ):
         option: str = str(event.option.prompt).strip()
-        option_map = {
-            "📦 Root the Box": "Admin tools to manage Root the Box docker containers",
-            "🧃 OWASP Juice Shop": "Admin tools to manage OWASP Juice Shop docker containers",
-            "🔎 Documentation": "Read the docs",
-            "↩  Exit": "Close the app",
-        }
-        description = option_map.get(option, "No info available.")
+        description = self.MENU_OPTIONS.get(option, "No info available.")
         self.info.update(description)
 
     def get_server_info(self) -> None:

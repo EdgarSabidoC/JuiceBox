@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import platform
 import psutil
 import os
@@ -32,9 +33,14 @@ class ServerInfo:
     def get_kernel(self) -> dict:
         return {"Kernel": self.kernel}
 
-    def get_ram(self) -> dict:
+    def get_ram(self, show_current: bool = False) -> dict:
+        if show_current:
+            # Retorna el estado y uso actual de la RAM:
+            return {
+                "RAM": f"{round(psutil.virtual_memory().used / 1e9, 2)} GiB / {round(psutil.virtual_memory().total / 1e9, 2)} GiB ({psutil.virtual_memory().percent}%)"
+            }
+        # Retorna el total de RAM reconocida por el sistema:
         return {"RAM": f"{round(psutil.virtual_memory().total / 1e9, 2)} GiB"}
-        # return {"RAM": f"{round(psutil.virtual_memory().used / 1e9, 2)} GiB / {round(psutil.virtual_memory().total / 1e9, 2)} GiB ({psutil.virtual_memory().percent}%)"}
 
     def get_python_version(self) -> dict:
         return {"Python version": self.python_version}
@@ -66,10 +72,12 @@ class ServerInfo:
             info += f"{key}: {raw_data[key]}\n"
         return info
 
-    def detect_terminal_emulator(self):
+    def detect_terminal_emulator(self) -> str | None:
         # PID de Python
         pid_py = os.getpid()
-        # padre = shell, abuelo = terminal
+        # padre == shell, abuelo == terminal
         shell = psutil.Process(pid_py).parent()
-        terminal = shell.parent()
-        return terminal.name()
+        if shell:
+            terminal = shell.parent()
+            if terminal:
+                return terminal.name()

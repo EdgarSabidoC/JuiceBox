@@ -194,7 +194,7 @@ systemd-cat -t JuiceBoxEngine python3 JuiceBoxEngine/main.py
 Este comando permite redirigir el stdout y stderr al journal bajo la etiqueta `JuiceBoxEngine`.
 
 ### Ver los logs
-Para ver los logs una vez envuelta en `systemd-cat` ejecutar desde la terminal:
+Para ver los logs ejecutar desde la terminal:
 
 #### Ver todas las entradas
 ```

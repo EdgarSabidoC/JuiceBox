@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from textual.app import App
 from textual.binding import Binding
 from screens.mainScreen import MainScreen
@@ -5,10 +6,10 @@ from screens.rootTheBoxScreen import RootTheBoxScreen
 from screens.juiceShopScreen import JuiceShopScreen
 from screens.documentationScreen import DocumentationScreen
 from styles.theme import (
+    juice_box_dark_theme,
     hacker_dark_blue_theme,
     hacker_dark_green_theme,
-    hacker_light_blue_theme,
-    hacker_light_green_theme,
+    synthwave_80s_theme,
 )
 
 
@@ -32,14 +33,16 @@ class JuiceBoxApp(App):
         await self.push_screen("main")  # inicia en pantalla principal
 
     def set_themes(self) -> None:
-        # Se desactivan los temas por defecto:
-        for theme in self.available_themes:
-            self.unregister_theme(theme)
+        self.register_theme(juice_box_dark_theme)
         self.register_theme(hacker_dark_blue_theme)
         self.register_theme(hacker_dark_green_theme)
-        self.register_theme(hacker_light_blue_theme)
-        self.register_theme(hacker_light_green_theme)
-        self.theme = "hacker-dark-blue"
+        self.register_theme(synthwave_80s_theme)
+        # Se desactivan los temas light:
+        for theme in self.available_themes:
+            current = self.get_theme(theme)
+            if current and not current.dark:
+                self.unregister_theme(theme)
+        self.theme = "juice-box"
 
 
 if __name__ == "__main__":
