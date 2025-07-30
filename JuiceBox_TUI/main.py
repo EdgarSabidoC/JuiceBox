@@ -6,7 +6,7 @@ from screens.rootTheBoxScreen import RootTheBoxScreen
 from screens.juiceShopScreen import JuiceShopScreen
 from screens.documentationScreen import DocumentationScreen
 from styles.theme import (
-    juice_box_dark_theme,
+    juice_box_theme,
     hacker_dark_blue_theme,
     hacker_dark_green_theme,
     synthwave_80s_theme,
@@ -33,7 +33,7 @@ class JuiceBoxApp(App):
         await self.push_screen("main")  # inicia en pantalla principal
 
     def set_themes(self) -> None:
-        self.register_theme(juice_box_dark_theme)
+        self.register_theme(juice_box_theme)
         self.register_theme(hacker_dark_blue_theme)
         self.register_theme(hacker_dark_green_theme)
         self.register_theme(synthwave_80s_theme)

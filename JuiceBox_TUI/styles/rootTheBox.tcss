@@ -1,0 +1,56 @@
+.rtb-logo {
+  height: 50%;
+  width: 100%;
+  content-align: center middle;
+  border: $border;
+  hatch: right $accent 40%;
+}
+
+.controllers-container{
+  height: 30%;
+  width: 100%;
+  align: center middle;
+  content-align: center middle;
+  border: $border;
+}
+
+.controllers {
+  height: auto;
+  width: auto;
+  align: center middle;
+  content-align: center middle;
+}
+
+.controller-label {
+  height: auto;
+  content-align: center middle;
+  align: center middle;
+  width: auto;
+  padding: 1 1 1 1;
+  text-style: bold;
+}
+
+Button:focus {
+  border: vkey $secondary;
+}
+
+CustomSwitch {
+  height: auto;
+  width: auto;
+  content-align: center middle;
+  align: center middle;
+}
+
+CustomSwitch:focus {
+  border: hkey $accent;
+}
+
+/* Cambiar el color del slider cuando está apagado */
+CustomSwitch.off > .switch--slider {
+    color: $error;
+}
+
+/* Cambiar el color del slider cuando está encendido */
+CustomSwitch.on > .switch--slider {
+    color: $success;
+}

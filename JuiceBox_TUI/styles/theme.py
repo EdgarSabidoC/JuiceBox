@@ -2,12 +2,10 @@ from textual.theme import Theme
 
 # Dark themes
 
-from textual.theme import Theme
-
-juice_box_dark_theme = Theme(
+juice_box_theme = Theme(
     name="juice-box",
     primary="#FF8C00",  # naranja vibrante
-    secondary="#32CD32",  # verde lima
+    secondary="#1eff00",  # verde lima
     accent="#FFD700",  # amarillo dorado
     foreground="#FFFFFF",  # blanco puro para texto
     background="#0B0A0A",  # casi negro profundo
@@ -25,6 +23,7 @@ juice_box_dark_theme = Theme(
         "block-cursor-text-style": "none",
         "footer-key-foreground": "#FFFFFF",  # pie de página en blanco
         "input-selection-background": "#FFD700 35%",  # selección en amarillo suave
+        "button-focus-text-style": "bold",
     },
 )
 
@@ -49,6 +48,7 @@ hacker_dark_blue_theme = Theme(
         "block-cursor-text-style": "none",
         "footer-key-foreground": "#88C0D0",
         "input-selection-background": "#81a1c1 35%",
+        "button-focus-text-style": "bold",
     },
 )
 
@@ -73,6 +73,7 @@ hacker_dark_green_theme = Theme(
         "block-cursor-text-style": "none",
         "footer-key-foreground": "#95A5A6",  # gris suave para pie de página
         "input-selection-background": "#27AE60 35%",  # selección semitransparente
+        "button-focus-text-style": "bold",
     },
 )
 
@@ -97,6 +98,7 @@ synthwave_80s_theme = Theme(
         "block-cursor-text-style": "none",
         "footer-key-foreground": "#F8F8F2",  # pie de página en blanco suave
         "input-selection-background": "#9D00FF 35%",  # selección púrpura semitransparente
+        "button-focus-text-style": "bold",
     },
 )
 
@@ -123,6 +125,7 @@ hacker_light_blue_theme = Theme(
         "block-cursor-text-style": "none",
         "footer-key-foreground": "#88C0D0",
         "input-selection-background": "#81a1c1 35%",
+        "button-focus-text-style": "bold",
     },
 )
 
@@ -147,5 +150,6 @@ hacker_light_green_theme = Theme(
         "block-cursor-text-style": "none",
         "footer-key-foreground": "#95A5A6",  # pie de página gris suave
         "input-selection-background": "#82E0AA 35%",  # selección semitransparente
+        "button-focus-text-style": "bold",
     },
 )

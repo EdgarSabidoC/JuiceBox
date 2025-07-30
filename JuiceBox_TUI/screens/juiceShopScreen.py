@@ -17,7 +17,7 @@ class JuiceShopScreen(Screen):
         JB_LOGO = file.read()
 
     BINDINGS = [
-        Binding("escape", "go_back", "Back", show=True),
+        Binding("^b", "go_back", "Back", show=True),
         Binding("^q", "quit", "Quit", show=True),
     ]
 

@@ -2,8 +2,7 @@ from textual.app import ComposeResult
 from textual.screen import Screen
 from widgets.footer import get_footer
 from widgets.header import get_header
-from textual.screen import Screen
-from textual.widgets import Markdown, MarkdownViewer, TabbedContent, Tree
+from textual.widgets import Markdown, MarkdownViewer, TabbedContent, Tree, TabPane
 from textual.widgets.markdown import MarkdownTableOfContents
 from textual.widgets.tree import TreeNode
 from textual.binding import Binding
@@ -44,26 +43,26 @@ class DocumentationScreen(Screen):
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
+
         with TabbedContent("JuiceBox", "JuiceShop", "RootTheBox"):
             yield self.jb_engine
-            yield self.rtb
             yield self.js
-
+            yield self.rtb
         # Footer
         yield get_footer()
 
-    def on_mount(self) -> None:
-        # Se accede a la TOC de cada viewer tras el compose/mount
-        for name, viewer in (
-            ("JuiceBox", self.jb_engine),
-            ("JuiceShop", self.js),
-            ("RootTheBox", self.rtb),
-        ):
-            toc: MarkdownTableOfContents = viewer.query_one(MarkdownTableOfContents)
-            toc.border_title = "Index"
-            tr: Tree = toc.query_one(Tree)
-            tr.ICON_NODE_EXPANDED = "▽ "  # type: ignore[assignment]
-            tr.show_guides = True
+    # async def on_mount(self) -> None:
+    #     # Se accede a la TOC de cada viewer tras el compose/mount
+    #     for name, viewer in (
+    #         ("JuiceBox", self.jb_engine),
+    #         ("JuiceShop", self.js),
+    #         ("RootTheBox", self.rtb),
+    #     ):
+    #         toc: MarkdownTableOfContents = viewer.query(MarkdownTableOfContents).first()
+    #         toc.border_title = "Index"
+    #         tr: Tree = toc.query_one(Tree)
+    #         tr.ICON_NODE_EXPANDED = "▽ "  # type: ignore[assignment]
+    #         tr.show_guides = True
 
     async def return_to_main(self) -> None:
         """Regresa a la pantalla del menú principal."""

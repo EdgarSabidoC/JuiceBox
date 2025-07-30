@@ -6,6 +6,11 @@ MarkdownTableOfContents {
   border-title-style: bold;
 }
 
+TabbedContent {
+  height: 100%;
+  width: 100%;
+}
+
 MarkdownH2 {
   text-style: bold italic;
 }

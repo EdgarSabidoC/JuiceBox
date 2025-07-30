@@ -1,16 +1,15 @@
 from textual.app import ComposeResult
-from serverInfo import ServerInfo
 from textual.screen import Screen
-from textual.widgets.option_list import Option
 from widgets.footer import get_footer
 from widgets.header import get_header
 from textual.screen import Screen
-from textual.events import Mount, ScreenResume
+from textual.events import ScreenResume
 from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Label, Static, OptionList, Link, Switch
+from textual.widgets import Label, Static, Switch, Button
 from textual.binding import Binding
-from typing import Optional, Union
-import socket, json, asyncio
+from typing import Union
+import json, asyncio
+from widgets.customSwitch import CustomSwitch
 
 SOCKET_PATH = "/tmp/juiceboxengine.sock"
 
@@ -26,10 +25,9 @@ class RootTheBoxScreen(Screen):
     ]
 
     _power_busy: bool = False
+    _ignore_switch_event: bool = True
 
     SERVER_INFO = Label(classes="server-info-data")
-    with open("media/Architecture.txt", "r", encoding="utf-8") as file:
-        SYSTEM_ARCH = file.read()
 
     def compose(self) -> ComposeResult:
         # Header
@@ -41,32 +39,24 @@ class RootTheBoxScreen(Screen):
             # Contenedor vertical 1
             with Vertical(classes="vcontainer1") as vcontainer1:
                 vcontainer1.can_focus = False
-                # Contenedor vertical 3
-                with Vertical(classes="vinnercontainer") as vinnercontainer:
-                    vinnercontainer.can_focus = False
-                    # Logo de JuiceBox
-                    jb_logo = Static(self.JB_LOGO, classes="juice-box-logo")
-                    jb_logo.can_focus = False
-                    yield jb_logo
-                    # Contenedor horizontal interior
-                    with Horizontal(classes="hinnercontainer"):
-                        # Espacio vacío
-                        empty_space = Static("", classes="empty")
-                        empty_space.can_focus = False
-                        yield empty_space
-                        # Link de Github
-                        about_link = Link(
-                            text="github/EdgarSabidoC",
-                            url="https://github.com/EdgarSabidoC",
-                            classes="github-link",
-                        )
-                        about_link.can_focus = False
-                        about_link.border_title = "Developed by"
-                        yield about_link
+                # Logo de RTB
+                jb_logo = Static(self.JB_LOGO, classes="rtb-logo")
+                jb_logo.can_focus = False
+                yield jb_logo
 
-                self.power = Switch(value=True, name="power")
-                self.power.border_title = "Menu"
-                yield self.power
+                self.controllers_container = Vertical(classes="controllers-container")
+                with self.controllers_container:
+                    with Horizontal(classes="controllers"):
+                        yield Label("Power:", classes="controller-label")
+                        self.power = CustomSwitch(value=True, name="power")
+                        yield self.power
+                    with Horizontal(classes="controllers"):
+                        self.reset = Button(
+                            label="Restart",
+                            variant="default",
+                            name="reset",
+                        )
+                        yield self.reset
 
                 # Información sobre las opciones
                 self.info = Static(classes="info-box")
@@ -77,21 +67,12 @@ class RootTheBoxScreen(Screen):
             # Contenedor vertical 2
             with Vertical(classes="vcontainer2") as vcontainer2:
                 vcontainer2.can_focus = False
-                # System architecture
-                self.SYSTEM_ARCH = Static(
-                    str(self.SYSTEM_ARCH), expand=True, classes="arch-box"
-                )
-
-                self.SYSTEM_ARCH.border_title = "System architecture"
-                arch_container = ScrollableContainer(self.SYSTEM_ARCH)
-                arch_container.scroll_visible(force=True)
-                arch_container.can_focus = True
-                arch_container.styles.content_align = ("center", "middle")
-                arch_container.styles.height = "68%"
-                arch_container.styles.overflow_x = "auto"
-                arch_container.styles.overflow_y = "auto"
-                with arch_container:
-                    yield self.SYSTEM_ARCH
+                self.config_container = ScrollableContainer()
+                self.config_static = Static()
+                self.config_container.can_focus = False
+                self.config_static.can_focus = False
+                with self.config_container:
+                    yield self.config_static
 
                 # Server info
                 with Horizontal():
@@ -106,23 +87,11 @@ class RootTheBoxScreen(Screen):
         yield get_footer()
 
     async def on_mount(self) -> None:
-        try:
-            __resp: str = await self.send_command("RTB", "__STATUS__")
-            self.log(f"{__resp}")
-            if "ok" in __resp:
-                self.power.value = True
-                self.SERVER_INFO.update("Webapp: ✔")
-                self.SERVER_INFO.update(f"{__resp}")
-            else:
-                self.power.value = False
-                self.SERVER_INFO.update("Webapp: ✘")
-                self.SERVER_INFO.update(f"{__resp}")
-        except Exception:
-            pass
+        await self.init()
 
     async def on_switch_changed(self, event: Switch.Changed) -> None:
         # 1) Solo nos interesan eventos del switch "power"
-        if event.switch.name != "power":
+        if event.switch.name != "power" or self._ignore_switch_event:
             return
 
         # 2) Si ya estamos procesando, ignoramos nuevas pulsaciones
@@ -135,15 +104,18 @@ class RootTheBoxScreen(Screen):
 
         try:
             if event.value:
-                status = await self.send_command("RTB", "__START__")
-                self.info.update("Se mandó __START__")
-                self.SERVER_INFO.update("Running ✔")
-                self.SERVER_INFO.update(f"{status}")
+                __resp = await self.send_command("RTB", "__START__")
+                __resp = json.loads(__resp)
+                if __resp["status"] == "ok":
+                    self.info.update("Se mandó __START__")
+                    self.SERVER_INFO.update("[green]✔[/green]")
+                else:
+                    self.info.update("Se mandó __START__")
+                    self.SERVER_INFO.update("[red]✘[red]")
             else:
-                status = await self.send_command("RTB", "__KILL__")
+                __resp = await self.send_command("RTB", "__KILL__")
                 self.info.update("Se mandó __KILL__")
-                self.SERVER_INFO.update("Stopped ✘")
-                self.SERVER_INFO.update(f"{status}")
+                self.SERVER_INFO.update("[red]✘[/red]")
         except Exception as e:
             # Si falla, revertimos el valor y mostramos error
             event.switch.value = not event.value
@@ -153,6 +125,38 @@ class RootTheBoxScreen(Screen):
             event.switch.disabled = False
             self._power_busy = False
 
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.name != "reset":
+            return
+        # Se presionó el botón
+        try:
+            event.button.disabled = True
+            resp = await self.send_command("RTB", "__RESTART__")
+            resp = json.loads(resp)
+            if resp["status"] == "ok":
+                self.notify(
+                    title="Successful reset!",
+                    message="Root The Box services reseted.",
+                    severity="information",
+                    timeout=5,
+                    markup=True,
+                )
+            else:
+                self.notify(
+                    title="Reset ERROR!",
+                    message=f"{resp["status"]}",
+                    severity="error",
+                    timeout=10,
+                    markup=True,
+                )
+        except Exception as e:
+            self.notify(title="Error!", message=str(e), severity="error", timeout=10)
+        finally:
+            await self.init()
+            await self.power.recompose()
+            event.button.disabled = False
+            self.set_focus(self.power)
+
     async def on_screen_resume(self, event: ScreenResume) -> None:
         """
         Este evento salta cada vez que la pantalla vuelve a activarse (show).
@@ -160,19 +164,6 @@ class RootTheBoxScreen(Screen):
         """
         # Se asegura de que el widget tenga el foco
         self.power.focus()
-
-    async def on_option_list_option_highlighted(
-        self, event: OptionList.OptionHighlighted
-    ):
-        option: str = str(event.option.prompt).strip()
-        option_map = {
-            "📦 Root the Box": "Admin tools to manage Root the Box docker containers",
-            "🧃 OWASP Juice Shop": "Admin tools to manage OWASP Juice Shop docker containers",
-            "🔎 Documentation": "Read the docs",
-            "↩  Exit": "Close the app",
-        }
-        description = option_map.get(option, "No info available.")
-        self.info.update(description)
 
     async def return_to_main(self) -> None:
         """Regresa a la pantalla del menú principal."""
@@ -223,3 +214,34 @@ class RootTheBoxScreen(Screen):
         resp = line.decode("utf-8", errors="replace").strip()
         self.log(f"CLIENTE: respuesta cruda: {repr(resp)}")
         return resp
+
+    async def get_conf(self) -> str:
+        try:
+            resp = await self.send_command("RTB", "__CONFIG__")
+            return str(json.loads(resp))
+        except Exception:
+            return '"status": "error"'
+
+    async def init(self) -> None:
+        try:
+            __resp = await self.send_command("RTB", "__STATUS__")
+            __resp = json.loads(__resp)
+            if __resp["status"] == "ok":
+                self._ignore_switch_event = True
+                self.power.value = True
+                self.SERVER_INFO.update("[green]✔[/green]")
+            else:
+                self._ignore_switch_event = True
+                self.power.value = False
+                self.SERVER_INFO.update("[red]✘[/red]")
+
+            __resp = await self.send_command("RTB", "__CONFIG__")
+            __resp = json.loads(__resp)
+            if __resp["status"] == "ok":
+                self.config_static.update(f"{__resp}")
+            else:
+                self.config_static.update(f"{__resp}")
+        except Exception:
+            pass
+        finally:
+            self._ignore_switch_event = False

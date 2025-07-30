@@ -4,7 +4,6 @@ from textual.screen import Screen
 from textual.widgets.option_list import Option
 from widgets.footer import get_footer
 from widgets.header import get_header
-from textual.screen import Screen
 from textual.events import ScreenResume
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Label, Static, OptionList, Link
