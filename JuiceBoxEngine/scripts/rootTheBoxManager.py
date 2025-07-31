@@ -99,11 +99,11 @@ class RootTheBoxManager:
                 capture_output=True,
                 text=True,
             )
-            return (True, "Docker compose subprocess succeed")
+            return (True, "Docker compose subprocess successful")
         except subprocess.CalledProcessError as e:
             return (False, str(e.stdout) + ". " + str(e.stderr))
 
-    def run_containers(self) -> dict:
+    def run_containers(self) -> dict[str, str]:
         try:
             # Se eliminan los contenedores en caso de existir:
             self.kill_all()
@@ -134,14 +134,18 @@ class RootTheBoxManager:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def __kill_container(self, container, containers):
-        # Mata o destruye un contenedor
-        _container = containers.get(container)
-        _container.stop()
-        _container.remove()
+    def __kill_container(self, container, containers) -> tuple[bool, str]:
+        try:
+            # Mata o destruye un contenedor
+            _container = containers.get(container)
+            _container.stop()
+            _container.remove()
+            return (True, f"{container} has been stopped and removed from system!")
+        except Exception as e:
+            return (False, f"{container} couldn't be stopped or removed: {str(e)}")
 
-    def kill_all(self) -> dict:
-        results = []
+    def kill_all(self) -> dict[str, str | list[dict[str, str]]]:
+        results: list[dict[str, str]] = []
         overall_ok = True
 
         # Lista los dos contenedores a procesar
@@ -149,22 +153,32 @@ class RootTheBoxManager:
             try:
                 if validate_container(self.client, name):
                     containers = self.client.containers
-                    self.__kill_container(name, containers)
-                    results.append(
-                        {
-                            "container": name,
-                            "status": "ok",
-                            "message": "Container has been stopped and removed from system",
-                        }
-                    )
+                    res = self.__kill_container(name, containers)
+                    # Se valida que se haya eliminado correctamente el contenedor
+                    if res[0] == True:
+                        results.append(
+                            {
+                                "container": name,
+                                "status": "ok",
+                                "message": res[1],
+                            }
+                        )
+                    else:
+                        results.append(
+                            {
+                                "container": name,
+                                "status": "error",
+                                "message": res[1],
+                            }
+                        )
                 else:
-                    # No estaba corriendo
+                    # No estaba corriendo el contenedor
                     overall_ok = False
                     results.append(
                         {
                             "container": name,
                             "status": "error",
-                            "message": "Container not found",
+                            "message": "Container not found!",
                         }
                     )
             except Exception as e:
@@ -195,7 +209,7 @@ class RootTheBoxManager:
         except errors.NotFound:
             return False
 
-    def status(self) -> dict[str, Union[str, list]]:
+    def status(self) -> dict[str, str | list]:
         results: list[dict] = []
         overall_ok = True
 
@@ -211,70 +225,13 @@ class RootTheBoxManager:
 
         return {"status": "ok" if overall_ok else "error", "containers": results}
 
-    def cleanup(self) -> None:
+    def cleanup(self) -> bool:
         """
         Cierra la conexión al Docker client para liberar sockets/tokens y elimina todos los contenedores.
         """
-        self.kill_all()
-        self.client.close()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="rootTheBoxManager.py",
-        description=f"""
-{LOGO}
-Manage Docker containers for the Root the Box server: run, kill, status, config.
-        """,
-        epilog=f"""
-\t\t    Developed by: {DEVELOPER}
-\t\t         github.com/{GITHUB_USER}
-        """,
-        add_help=False,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument("-r", "--run", action="store_true", help="Run the containers.")
-    parser.add_argument(
-        "-k", "--kill-all", action="store_true", help="Stop and remove the containers."
-    )
-    parser.add_argument(
-        "-c",
-        "--show-config",
-        action="store_true",
-        help="Shows the configuration for the containers.",
-    )
-    parser.add_argument(
-        "-s",
-        "--status",
-        action="store_true",
-        help="Shows if the RTB containers are running.",
-    )
-    parser.add_argument(
-        "-h",
-        "--help",
-        action="help",
-        help="Shows this message and exit.",
-        default=argparse.SUPPRESS,
-    )
-
-    args = parser.parse_args()
-
-    result: dict = {"status": "ok", "message": "No action or command specified"}
-
-    rtb_config = RTBConfig()
-    rtb = RootTheBoxManager(rtb_config)
-
-    result: dict
-
-    if args.show_config:
-        result = rtb.show_config()
-    elif args.run:
-        result = rtb.run_containers()
-    elif args.kill_all:
-        result = rtb.kill_all()
-    elif args.status:
-        result = rtb.status()
-
-    # print(json.dumps(result))
-
-    sys.exit(0 if result.get("status") == "ok" else 1)
+        try:
+            self.kill_all()
+            self.client.close()
+            return True
+        except Exception:
+            return False

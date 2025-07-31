@@ -84,7 +84,7 @@ class JuiceShopManager:
     def detach_mode(self) -> bool:
         return self.config.detach_mode
 
-    def __get_available_port(self) -> tuple:
+    def __get_available_port(self) -> tuple[int, str]:
         for port in self.ports_range:
             __container: str = self.container_prefix + str(port)
             # Se verifica que no exista el contenedor
@@ -95,7 +95,7 @@ class JuiceShopManager:
     def is_valid_port(self, port: int) -> bool:
         return port in self.ports_range
 
-    def run_container(self) -> dict:
+    def run_container(self) -> dict[str, str]:
         __container: str = ""
         __port: int
         try:
@@ -123,7 +123,7 @@ class JuiceShopManager:
             # Devolver error con mensaje
             return {"status": "error", "container": __container, "message": str(e)}
 
-    def kill_container(self, container: Union[str, int]) -> dict[str, str]:
+    def kill_container(self, container: str | int) -> dict[str, str]:
         __container: str = ""
         try:
             if isinstance(container, int):
@@ -151,9 +151,9 @@ class JuiceShopManager:
         except Exception as e:
             return {"container": __container, "status": "error", "message": str(e)}
 
-    def kill_all(self) -> dict:
+    def kill_all(self) -> dict[str, str | list[dict[str, str]]]:
         # Destruye todos los contenedores de la JuiceShop
-        results = []
+        results: list[dict[str, str]] = []
         overall_ok = True
         for port in self.ports_range:
             res = self.kill_container(self.container_prefix + str(port))
@@ -171,7 +171,7 @@ class JuiceShopManager:
             }
         return {"status": "ok" if overall_ok else "error", "results": results}
 
-    def show_config(self) -> dict:
+    def show_config(self) -> dict[str, str | dict[str, str | list[int] | int | bool]]:
         return {
             "status": "ok",
             "config": {
@@ -227,7 +227,7 @@ class JuiceShopManager:
         self,
         input_filename: str = "juiceShopRTBConfig.yml",
         output_filename: str = "missions.xml",
-    ) -> dict:
+    ) -> dict[str, str]:
         """
         Lanza el contenedor juice-shop-ctf y genera el archivo XML de configuración para Root The Box en configs/.
         Es equivalente a:
@@ -267,117 +267,13 @@ class JuiceShopManager:
         except Exception as e:
             return {"status": "error", "message": f"No se pudo generar XML: {e}"}
 
-    def cleanup(self) -> None:
+    def cleanup(self) -> bool:
         """
         Cierra la conexión al Docker client para liberar sockets/tokens.
         """
-        self.kill_all()
-        self.client.close()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="juiceShopManager.py",
-        description=f"""
-{LOGO}
-Manage Docker containers for the Juice Shop: run, kill, status, config.
-        """,
-        epilog=f"""
-\t\t    Developed by: {DEVELOPER}
-\t\t         github.com/{GITHUB_USER}
-        """,
-        add_help=False,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "-r", "--run", action="store_true", help="Run the Juice Shop container."
-    )
-    parser.add_argument("-p", "--port", help="Port for the container.", type=int)
-    parser.add_argument(
-        "-n",
-        "--name",
-        help="Name of the container.",
-        type=str,
-    )
-    parser.add_argument(
-        "-a", "--kill-all", action="store_true", help="Stop and remove the containers."
-    )
-    parser.add_argument(
-        "-k",
-        "--kill",
-        action="store_true",
-        help="Stop and remove a specific container. It needs the command [-p/--port | -n/--name].",
-    )
-    parser.add_argument(
-        "-c",
-        "--show-config",
-        action="store_true",
-        help="Shows the configuration for the Juice Shop containers.",
-    )
-    parser.add_argument(
-        "-s",
-        "--status",
-        action="store_true",
-        help="Shows if the Juice Shop container is running. It needs the command [-p/--port | -n/--name].",
-    )
-    parser.add_argument(
-        "-x",
-        "--generate-xml",
-        action="store_true",
-        help="Generates the XML file for Root The Box.",
-    )
-    parser.add_argument(
-        "-h",
-        "--help",
-        action="help",
-        help="Shows this message and exit.",
-        default=argparse.SUPPRESS,
-    )
-
-    args = parser.parse_args()
-
-    result: dict = {"status": "ok", "message": "No action or command specified"}
-
-    # Se valida que --port o --name se le pase a los comandos --kill e --is-running:
-    if (args.kill or args.status) and (args.port is None and args.name is None):
-        result = {
-            "status": "error",
-            "message": "Argument [-p/--port | -n/--name] is required when using [-k/--kill | -i/--is-running]",
-        }
-        # print(json.dumps(result))
-        sys.exit(1)
-
-    js_config = JuiceShopConfig()
-    js = JuiceShopManager(js_config)
-
-    # Se valida que el puerto de --port sea válido:
-    if args.port and not js.is_valid_port(args.port):
-        result = {
-            "status": "error",
-            "message": f"Argument [-p/--port] should be in range [{js.starting_port},{js.ending_port}]",
-        }
-        # print(json.dumps(result))
-        sys.exit(1)
-
-    if args.show_config:
-        result = js.show_config()
-    elif args.run:
-        result = js.run_container()
-    elif args.generate_xml:
-        result = js.generate_rtb_config()
-    elif args.kill:
-        if args.port:
-            result = js.kill_container(args.port)
-        elif args.name:
-            result = js.kill_container(args.name)
-    elif args.kill_all:
-        result = js.kill_all()
-    elif args.status:
-        if args.port:
-            result = js.status(args.port)
-        elif args.name:
-            result = js.status(args.name)
-
-    # print(json.dumps(result))
-
-    sys.exit(0 if result["status"] == "ok" else 1)
+        try:
+            self.kill_all()
+            self.client.close()
+            return True
+        except Exception:
+            return False

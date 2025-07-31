@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, socket, threading, json
+import os, socket, threading, json, redis, time
 from queue import Queue
 from threading import Thread
 from scripts.juiceShopManager import JuiceShopManager
@@ -58,6 +58,15 @@ class JuiceBoxEngineServer:
         # Managers
         self.rtb_manager = rtb_manager
         self.js_manager = js_manager
+        self.__manager_lock = threading.Lock()
+
+        # Redis:
+        redis_url = os.getenv("REDIS_URL", "redis://:C5L48@127.0.0.1:6379/0")
+        self.redis = redis.Redis.from_url(redis_url)
+
+        # Canales de Redis:
+        self.admin_channel = "admin_channel"
+        self.client_channel = "client_channel"
 
         # Cola para recibir y procesar comandos de los clientes
         self.command_queue = Queue()
@@ -115,7 +124,7 @@ class JuiceBoxEngineServer:
             self.monitor.warning(f"Client disconnected before get answer: {e}")
         except Exception as e:
             self.monitor.error(f"Error when processing request: {e}")
-            error_json = self.format_response("error", str(e))
+            error_json = json.dumps(self.format_response("error", str(e)))
             try:
                 conn.sendall(error_json.encode())
             except Exception:
@@ -157,15 +166,18 @@ class JuiceBoxEngineServer:
         :param rtb: Nueva instancia de RootTheBoxManager
         :param js: Nueva instancia de JuiceShopManager
         """
-        self.rtb_manager = rtb
-        self.js_manager = js
+        with self.__manager_lock:
+            self.rtb_manager = rtb
+            self.js_manager = js
 
     def start(self):
         """
         Inicia el servidor y acepta conexiones entrantes indefinidamente.
         """
-        print(f"🔌 JuiceBoxEngine listening on {self.socket_path}")
-        self.monitor.info(f"JuiceBoxEngine listening on {self.socket_path}")
+        print(f"🔌 JuiceBoxEngine started and listening on port: {self.socket_path}")
+        self.monitor.info(
+            f"JuiceBoxEngine started and listening on port: {self.socket_path}"
+        )
         while True:
             conn, _ = self.server_socket.accept()
             conn.settimeout(10)
@@ -173,28 +185,46 @@ class JuiceBoxEngineServer:
                 target=self.handle_client, args=(conn,), daemon=True
             ).start()
 
-    def __handle_rtb_command(self, command: str) -> str:
+    def __handle_rtb_command(self, command: str) -> dict:
         """
         Ejecuta un comando específico para Root The Box.
 
         :param command: Comando recibido
         :return: Respuesta JSON serializada
         """
+        # Lee el manager dentro del lock para asegurar coherencia.
+        with self.__manager_lock:
+            __manager = self.rtb_manager
+        __resp: dict
         match command:
             case "__START__":
-                return json.dumps(self.rtb_manager.run_containers())
+                __resp = __manager.run_containers()
             case "__RESTART__":
-                return json.dumps(self.__rtb_restart())
+                __resp = self.__rtb_restart()
             case "__KILL__":
-                return json.dumps(self.rtb_manager.kill_all())
+                __resp = __manager.kill_all()
             case "__STATUS__":
-                return json.dumps(self.rtb_manager.status())
+                __resp = __manager.status()
             case "__CONFIG__":
-                return json.dumps(self.rtb_manager.show_config())
+                __resp = __manager.show_config()
             case _:
-                return self.format_response("error", "RTB command not found")
+                __resp = self.format_response("error", "Root The Box command not found")
+        # Se publica en Redis
+        self.redis.publish(
+            self.admin_channel,
+            json.dumps(
+                {
+                    "prog": "RTB",
+                    "command": command,
+                    "result": __resp,
+                    "timestamp": time.time(),
+                }
+            ),
+        )
+        # Retorno
+        return __resp
 
-    def __handle_js_command(self, command: str, args: dict) -> str:
+    def __handle_js_command(self, command: str, args: dict) -> dict:
         """
         Ejecuta un comando específico para Juice Shop.
 
@@ -202,23 +232,54 @@ class JuiceBoxEngineServer:
         :param args: Argumentos adicionales como puerto o nombre
         :return: Respuesta JSON serializada
         """
+        # Lee el manager dentro del lock para asegurar coherencia.
+        with self.__manager_lock:
+            __manager = self.js_manager
+        __resp: dict
         match command:
             case "__START_CONTAINER__":
-                return json.dumps(self.js_manager.run_container())
+                __resp = __manager.run_container()
             case "__RESTART__":
-                return json.dumps(self.__js_restart())
+                __resp = self.__js_restart()
             case "__KILL_CONTAINER__":
-                return json.dumps(self.js_manager.kill_container(args["port"]))
+                __resp = __manager.kill_container(args["port"])
             case "__KILL_ALL__":
-                return json.dumps(self.js_manager.kill_all())
+                __resp = __manager.kill_all()
             case "__STATUS__":
-                return json.dumps(self.js_manager.status(args["port"]))
+                __resp = __manager.status(args["port"])
             case "__CONFIG__":
-                return json.dumps(self.js_manager.show_config())
+                __resp = __manager.show_config()
             case "__GENERATE_XML__":
-                return json.dumps(self.js_manager.generate_rtb_config())
+                __resp = __manager.generate_rtb_config()
             case _:
-                return self.format_response("error", "JS command not found")
+                __resp = self.format_response(
+                    status="error", message="Juice Shop command not found"
+                )
+        # Se publica en Redis
+        self.redis.publish(
+            self.admin_channel,
+            json.dumps(
+                {
+                    "prog": "JS",
+                    "command": command,
+                    "result": __resp,
+                    "timestamp": time.time(),
+                }
+            ),
+        )
+        self.redis.publish(
+            self.client_channel,
+            json.dumps(
+                {
+                    "prog": "JS",
+                    "command": command,
+                    "result": __resp,
+                    "timestamp": time.time(),
+                }
+            ),
+        )
+        # Retorno
+        return __resp
 
     def dispatch_command(self, raw_data: str) -> str:
         """
@@ -227,6 +288,7 @@ class JuiceBoxEngineServer:
         :param raw_data: Cadena JSON enviada por el cliente
         :return: Respuesta serializada en formato JSON
         """
+        __resp: dict = self.format_response("error", "Program not supported by engine")
         try:
             payload = json.loads(raw_data)
             prog = payload.get("prog")
@@ -234,44 +296,48 @@ class JuiceBoxEngineServer:
             args = payload.get("args", {})
 
             if prog not in COMMANDS:
-                return self.format_response("error", "Programa no reconocido")
-            if command not in COMMANDS[prog]:
-                return self.format_response(
-                    "error", "Comando no válido para el programa"
+                __resp = self.format_response(
+                    status="error", message="Program not recognized"
                 )
-
-            if prog == "RTB":
-                return self.__handle_rtb_command(command)
-            if prog == "JS":
-                return self.__handle_js_command(command, args)
-
-            return self.format_response("error", "Programa no soportado")
-
+            elif command not in COMMANDS[prog]:
+                __resp = self.format_response(
+                    status="error", message="Command not recognized by program"
+                )
+            elif prog == "RTB":
+                __resp = self.__handle_rtb_command(command)
+            else:
+                # prog == "JS"
+                __resp = self.__handle_js_command(command, args)
         except json.JSONDecodeError:
-            return self.format_response("error", "Formato JSON inválido")
+            __resp = self.format_response("error", "Invalid JSON format")
         except Exception as e:
-            return self.format_response("error", str(e))
+            __resp = self.format_response("error", str(e))
+        return json.dumps(__resp)
 
     def cleanup(self):
         """
         Limpieza general del servidor: cierra el socket y elimina los contenedores.
         """
+        # Lee el manager dentro del lock para asegurar coherencia.
+        with self.__manager_lock:
+            __rtb_manager = self.rtb_manager
+            __js_manager = self.js_manager
         self.server_socket.close()
-        self.js_manager.cleanup()
-        self.rtb_manager.cleanup()
+        __js_manager.cleanup()
+        __rtb_manager.cleanup()
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)
 
-    def format_response(self, status: str, message: str, data=None) -> str:
+    def format_response(self, status: str, message: str, data=None) -> dict:
         """
         Estandariza el formato de las respuestas enviadas a los clientes.
 
         :param status: 'ok' o 'error'
         :param message: Mensaje descriptivo
         :param data: Objeto opcional con datos extra
-        :return: Cadena JSON
+        :return: Objeto dict (JSON)
         """
-        response = {"status": status, "message": message}
+        response: dict = {"status": status, "message": message}
         if data:
             response["data"] = data
-        return json.dumps(response)
+        return response

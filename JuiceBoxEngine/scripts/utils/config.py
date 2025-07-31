@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os, json, yaml
-from pathlib import Path
 from .validator import validate_str, validate_port, validate_bool
 from importlib.resources import files
 
