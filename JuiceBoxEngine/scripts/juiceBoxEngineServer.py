@@ -6,6 +6,8 @@ from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from Monitor.monitor import Monitor
+from pydantic import BaseModel, Field
+from typing import Optional, Literal, Union
 
 # Comandos válidos por programa
 COMMANDS = {
