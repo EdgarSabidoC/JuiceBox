@@ -198,7 +198,7 @@ class Monitor:
             container = self.__get_container(container_name)
             if not container:
                 continue
-            self.__process_single_container(container, container_name, timestamp)
+            self.__process_single_container(container, timestamp)
 
     def __get_container(self, container_name: str):
         """
@@ -215,18 +215,16 @@ class Monitor:
         except docker.errors.NotFound:
             return None
 
-    def __process_single_container(
-        self, container, container_name: str, timestamp: str
-    ):
+    def __process_single_container(self, container, timestamp: str):
         """
         Procesa un único contenedor: detecta cambios de estado y publica eventos.
 
         Args:
             container: Objeto del contenedor Docker.
-            container_name (str): Nombre del contenedor.
             timestamp (str): Marca de tiempo actual.
         """
         current_status = container.status
+        container_name = container.name
         last_status = self.__last_statuses.get(container_name)
 
         # Si el estado no ha cambiado, no se hace nada
@@ -245,9 +243,9 @@ class Monitor:
         }
 
         # Publicación en Redis
-        self.__publish(self.admin_channel, payload)
+        self.__publish(self.admin_channel, payload)  # Canal administrativo
         if container_name in self.js_containers:
-            self.__publish(self.client_channel, payload)
+            self.__publish(self.client_channel, payload)  # Canal de clientes
 
         # Se actualiza el último estado registrado
         self.__last_statuses[container_name] = current_status
