@@ -14,12 +14,7 @@ from docker import errors
 from scripts.utils.config import JuiceShopConfig
 from scripts.utils.validator import validate_container
 from importlib.resources import files
-from scripts.utils.schemas import (
-    ContainerRunResponse,
-    KillAllResponse,
-    ConfigResponse,
-    GenericResponse,
-)
+from scripts.utils.schemas import Response, Status
 
 LOGO = """
 \t\t  ▄▄▄▄▄   ▄   ▄   ▄▄▄▄▄    ▄▄▄▄   ▄▄▄▄▄
@@ -101,13 +96,13 @@ class JuiceShopManager:
     def is_valid_port(self, port: int) -> bool:
         return port in self.ports_range
 
-    def run_container(self) -> dict[str, str]:
+    def run_container(self) -> Response:
         __container: str = ""
         __port: int
         try:
             __port, __port_status = self.__get_available_port()  # Se obtiene el puerto
             if __port_status != "available":
-                return {"status": "error", "message": "No available ports"}
+                return Response.error(message="No available ports")
             __container = self.container_prefix + str(__port)
             self.client.containers.run(
                 image=self.image,
@@ -119,17 +114,15 @@ class JuiceShopManager:
                     f"NODE_ENV={self.node_env}",
                 ],
             )
-            # Devolver success con el nombre del contenedor
-            return {
-                "status": "ok",
-                "container": __container,
-                "message": "Container has been created and now is running",
-            }
+            return Response.ok(
+                message="Container has been created and now is running",
+                data={"container": __container},
+            )
         except Exception as e:
             # Devolver error con mensaje
-            return {"status": "error", "container": __container, "message": str(e)}
+            return Response.error(message=str(e), data={"container": __container})
 
-    def kill_container(self, container: str | int) -> dict[str, str]:
+    def kill_container(self, container: str | int) -> Response:
         __container: str = ""
         try:
             if isinstance(container, int):
@@ -142,55 +135,74 @@ class JuiceShopManager:
                 _container = containers.get(__container)
                 _container.stop()
                 _container.remove()
-                return {
-                    "container": __container,
-                    "status": "ok",
-                    "message": "Container has been stopped and removed from system",
-                }
+                return Response.ok(
+                    message="Container has been stopped and removed from system",
+                    data={"container": __container},
+                )
             else:
                 # No existe el contenedor
-                return {
-                    "container": __container,
-                    "status": "not_found",
-                    "message": f"Container not found {__container}",
-                }
+                return Response.not_found(
+                    message="Container not found",
+                    data={
+                        "container": __container,
+                    },
+                )
         except Exception as e:
-            return {"container": __container, "status": "error", "message": str(e)}
+            return Response.error(message=str(e), data={"container": __container})
 
-    def kill_all(self) -> dict[str, str | list[dict[str, str]]]:
+    def kill_all(self) -> Response:
         # Destruye todos los contenedores de la JuiceShop
-        results: list[dict[str, str]] = []
+        containers: list[Response] = []
         overall_ok = True
         for port in self.ports_range:
             res = self.kill_container(self.container_prefix + str(port))
 
-            if res["status"] != "ok" and res["status"] != "not_found":
+            if res.status == Status.ERROR:
                 overall_ok = False
-            elif res["status"] == "ok":
-                results.append(res)
-        if not results:
+            elif res.status == Status.OK:
+                containers.append(res)
+        if not containers and overall_ok:
             # Si results está vacío
-            return {
-                "status": "ok" if overall_ok else "error",
-                "results": results,
-                "message": "There are no Juice Shop running containers",
-            }
-        return {"status": "ok" if overall_ok else "error", "results": results}
-
-    def show_config(self) -> dict[str, str | dict[str, str | list[int] | int | bool]]:
-        return {
-            "status": "ok",
-            "config": {
-                "container_prefix": self.container_prefix,
-                "ports_range": self.ports_range,
-                "starting_port": self.starting_port,
-                "ending_port": self.ending_port,
-                "ctf_key": self.ctf_key,
-                "node_env": self.node_env,
-                "detach_mode": self.detach_mode,
-                "image": self.image,
+            return Response.ok(
+                message="There are no Juice Shop running containers",
+                data={
+                    "containers": containers,
+                },
+            )
+        elif not containers and not overall_ok:
+            return Response.error(
+                message="Something went wrong with Juice Shop containers",
+                data={
+                    "containers": containers,
+                },
+            )
+        elif overall_ok:
+            return Response.ok(
+                data={
+                    "containers": containers,
+                },
+            )
+        return Response.error(
+            data={
+                "containers": containers,
             },
-        }
+        )
+
+    def show_config(self) -> Response:
+        return Response.ok(
+            data={
+                "config": {
+                    "container_prefix": self.container_prefix,
+                    "ports_range": self.ports_range,
+                    "starting_port": self.starting_port,
+                    "ending_port": self.ending_port,
+                    "ctf_key": self.ctf_key,
+                    "node_env": self.node_env,
+                    "detach_mode": self.detach_mode,
+                    "image": self.image,
+                },
+            }
+        )
 
     def __is_running(self, container_name: str) -> bool:
         try:
@@ -199,7 +211,7 @@ class JuiceShopManager:
         except errors.NotFound:
             return False
 
-    def status(self, container: Union[int, str]) -> dict[str, Union[str, bool]]:
+    def status(self, container: Union[int, str]) -> Response:
         __container: str = ""
         try:
             if isinstance(container, str):
@@ -208,32 +220,32 @@ class JuiceShopManager:
                 __container = self.container_prefix + str(container)
             running = self.__is_running(__container)
             if not running:
-                return {
-                    "container": __container,
-                    "status": "error",
-                    "running": False,
-                    "message": f"Container is not running: {__container}",
-                }
+                return Response.error(
+                    message="Container is not running",
+                    data={"container": __container, "running": False},
+                )
             else:
-                return {
-                    "container": __container,
-                    "status": "ok",
-                    "running": True,
-                    "message": "Container is running",
-                }
+                return Response.ok(
+                    message="Container is running",
+                    data={
+                        "container": __container,
+                        "running": True,
+                    },
+                )
         except Exception as e:
-            return {
-                "container": __container,
-                "status": "error",
-                "running": False,
-                "message": str(e),
-            }
+            return Response.error(
+                message=str(e),
+                data={
+                    "container": __container,
+                    "running": False,
+                },
+            )
 
     def generate_rtb_config(
         self,
         input_filename: str = "juiceShopRTBConfig.yml",
         output_filename: str = "missions.xml",
-    ) -> dict[str, str]:
+    ) -> Response:
         """
         Lanza el contenedor juice-shop-ctf y genera el archivo XML de configuración para Root The Box en configs/.
         Es equivalente a:
@@ -244,10 +256,7 @@ class JuiceShopManager:
             full_config_path = os.path.join(self.configs_dir, input_filename)
 
             if not os.path.isfile(full_config_path):
-                return {
-                    "status": "error",
-                    "message": f"YAML file not found: {full_config_path}",
-                }
+                return Response.error(f"YAML file not found: {full_config_path}")
 
             # Monta configs/ en /data, usa /data como working_dir
             self.client.containers.run(
@@ -265,21 +274,18 @@ class JuiceShopManager:
                 remove=True,  # --rm
             )
 
-            return {
-                "status": "ok",
-                "message": f"{output_filename} generated at {self.configs_dir}",
-            }
+            return Response.ok(f"{output_filename} generated at {self.configs_dir}")
 
         except Exception as e:
-            return {"status": "error", "message": f"No se pudo generar XML: {e}"}
+            return Response.error(f"No se pudo generar XML: {e}")
 
-    def cleanup(self) -> bool:
+    def cleanup(self) -> Response:
         """
         Cierra la conexión al Docker client para liberar sockets/tokens.
         """
         try:
             self.kill_all()
             self.client.close()
-            return True
+            return Response.ok()
         except Exception:
-            return False
+            return Response.error()

@@ -13,12 +13,7 @@ from docker import errors
 from scripts.utils.config import RTBConfig
 from scripts.utils.validator import validate_container
 from importlib.resources import files
-from scripts.utils.schemas import (
-    ContainerRunResponse,
-    KillAllResponse,
-    ConfigResponse,
-    GenericResponse,
-)
+from scripts.utils.schemas import Response, Status
 
 LOGO = """
 \t\t        ▄▄▄▄   ▄▄▄▄▄  ▄▄▄▄▄  ▄▄▄▄▄
@@ -71,7 +66,7 @@ class RootTheBoxManager:
         self.webapp_container_name: str = config.webapp_container_name
         self.cache_container_name: str = config.cache_container_name
 
-    def __generate_docker_compose(self, output_path: str) -> tuple[bool, str]:
+    def __generate_docker_compose(self, output_path: str) -> Response:
         if not output_path:
             output_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
 
@@ -92,11 +87,14 @@ class RootTheBoxManager:
         try:
             with open(output_path, "w") as f:
                 yaml.dump(compose_dict, f, sort_keys=False)
-            return (True, "Dockercompose file created")
+            return Response.ok(message="docker-compose file created", data=compose_dict)
         except (yaml.YAMLError, OSError) as e:
-            return (False, str(e))
+            return Response.error(
+                message=f"docker-compose file could not be created: {str(e)}",
+                data=compose_dict,
+            )
 
-    def __run(self) -> tuple[bool, str]:
+    def __run(self) -> Response:
         try:
             subprocess.run(
                 ["docker", "compose", "-f", self.__rtb_yaml, "up", "-d"],
@@ -105,53 +103,53 @@ class RootTheBoxManager:
                 capture_output=True,
                 text=True,
             )
-            return (True, "Docker compose subprocess successful")
+            return Response.ok(message="Docker compose subprocess successful")
         except subprocess.CalledProcessError as e:
-            return (False, str(e.stdout) + ". " + str(e.stderr))
+            return Response.error(message=str(e.stdout) + ". " + str(e.stderr))
 
-    def run_containers(self) -> dict[str, str]:
+    def run_containers(self) -> Response:
         try:
+            __response: Response
             # Se eliminan los contenedores en caso de existir:
             self.kill_all()
             compose_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
-            __status, __message = self.__generate_docker_compose(compose_path)
-            if not __status:
-                return {
-                    "status": "error",
-                    "message": f"Docker Compose could not be created: {__message}",
-                }
+            __response = self.__generate_docker_compose(compose_path)
+            if __response.status == Status.ERROR:
+                return __response
             if not os.path.isfile(compose_path):
-                return {
-                    "status": "error",
-                    "message": "Docker Compose file not found",
-                }
+                return Response.not_found(message="Docker Compose file not found!")
 
-            __status, __message = self.__run()
-            if __status:
-                return {
-                    "status": "ok",
-                    "message": f"Containers started and now are running. {__message}",
-                }
+            __response: Response = self.__run()
+            if __response.status == Status.OK:
+                return Response.ok(
+                    message="Containers started and now are running",
+                    data=__response.data,
+                )
             else:
-                return {
-                    "status": "error",
-                    "message": f"Failed to start containers. {__message}",
-                }
+                return Response.error(
+                    message="Failed to start containers", data=__response.data
+                )
         except Exception as e:
-            return {"status": "error", "message": str(e)}
+            return Response.error(message=str(e))
 
-    def __kill_container(self, container, containers) -> tuple[bool, str]:
+    def __kill_container(self, container, containers) -> Response:
         try:
             # Mata o destruye un contenedor
             _container = containers.get(container)
             _container.stop()
             _container.remove()
-            return (True, f"{container} has been stopped and removed from system!")
+            return Response.ok(
+                f"{container} has been stopped and removed from system!",
+                data={"container": container},
+            )
         except Exception as e:
-            return (False, f"{container} couldn't be stopped or removed: {str(e)}")
+            return Response.error(
+                f"{container} couldn't be stopped or removed: {str(e)}",
+                data={"container": container},
+            )
 
-    def kill_all(self) -> dict[str, str | list[dict[str, str]]]:
-        results: list[dict[str, str]] = []
+    def kill_all(self) -> Response:
+        containers_results: list[Response] = []
         overall_ok = True
 
         # Lista los dos contenedores a procesar
@@ -159,54 +157,42 @@ class RootTheBoxManager:
             try:
                 if validate_container(self.client, name):
                     containers = self.client.containers
-                    res = self.__kill_container(name, containers)
-                    # Se valida que se haya eliminado correctamente el contenedor
-                    if res[0] == True:
-                        results.append(
-                            {
-                                "container": name,
-                                "status": "ok",
-                                "message": res[1],
-                            }
-                        )
-                    else:
-                        results.append(
-                            {
-                                "container": name,
-                                "status": "error",
-                                "message": res[1],
-                            }
-                        )
+                    __response: Response = self.__kill_container(name, containers)
+                    containers_results.append(__response)
+                    if __response.status == Status.ERROR:
+                        overall_ok = False
                 else:
-                    # No estaba corriendo el contenedor
-                    overall_ok = False
-                    results.append(
-                        {
-                            "container": name,
-                            "status": "error",
-                            "message": "Container not found!",
-                        }
+                    # No existe el contenedor
+                    containers_results.append(
+                        Response.not_found(
+                            "Container not found!", data={"container": name}
+                        )
                     )
             except Exception as e:
                 overall_ok = False
-                results.append(
-                    {"container": name, "status": "error", "message": str(e)}
+                containers_results.append(
+                    Response.error(message=str(e), data={"container": name})
                 )
+        __resp: Response
+        if overall_ok:
+            __resp = Response.ok(data={"containers": containers_results})
+        else:
+            __resp = Response.error(data={"containers": containers_results})
+        return __resp
 
-        return {"status": "ok" if overall_ok else "error", "details": results}
-
-    def show_config(self) -> dict:
-        return {
-            "status": "ok",
-            "config": {
-                "webapp_container_name": self.webapp_container_name,
-                "cache_container_name": self.cache_container_name,
-                "webapp_port": self.webapp_port,
-                "memcached_port": self.memcached_port,
-                "rtb_dir": self.rtb_dir,
-                "network_name": self.network_name,
-            },
-        }
+    def show_config(self) -> Response:
+        return Response.ok(
+            data={
+                "config": {
+                    "webapp_container_name": self.webapp_container_name,
+                    "cache_container_name": self.cache_container_name,
+                    "webapp_port": self.webapp_port,
+                    "memcached_port": self.memcached_port,
+                    "rtb_dir": self.rtb_dir,
+                    "network_name": self.network_name,
+                },
+            }
+        )
 
     def __is_running(self, name: str) -> bool:
         try:
@@ -215,29 +201,41 @@ class RootTheBoxManager:
         except errors.NotFound:
             return False
 
-    def status(self) -> dict[str, str | list]:
-        results: list[dict] = []
+    def status(self) -> Response:
+        results: list[Response] = []
         overall_ok = True
 
         for name in (self.webapp_container_name, self.cache_container_name):
             try:
-                running = self.__is_running(name)
-                if not running:
+                __running = self.__is_running(name)
+                _data: dict[str, str | bool] = {"container": name, "running": __running}
+                if not __running:
                     overall_ok = False
-                results.append({"container": name, "running": running})
+                    results.append(Response.error(data=_data))
+                else:
+                    results.append(Response.ok(data=_data))
             except Exception as e:
                 overall_ok = False
-                results.append({"container": name, "running": False, "message": str(e)})
+                results.append(
+                    Response.error(
+                        message=str(e), data={"container": name, "running": False}
+                    )
+                )
+        __response: Response
+        __data: dict[str, list[Response]] = {"containers": results}
+        if overall_ok:
+            __response = Response.ok(data=__data)
+        else:
+            __response = Response.error(data=__data)
+        return __response
 
-        return {"status": "ok" if overall_ok else "error", "containers": results}
-
-    def cleanup(self) -> bool:
+    def cleanup(self) -> Response:
         """
         Cierra la conexión al Docker client para liberar sockets/tokens y elimina todos los contenedores.
         """
         try:
             self.kill_all()
             self.client.close()
-            return True
+            return Response.ok()
         except Exception:
-            return False
+            return Response.error()

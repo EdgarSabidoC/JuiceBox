@@ -6,8 +6,7 @@ from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from scripts.monitor import Monitor
-from pydantic import BaseModel, Field
-from typing import Optional, Literal, Union
+from scripts.utils.schemas import Response
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -72,22 +71,22 @@ class JuiceBoxEngineServer:
 
         # Cola para recibir y procesar comandos de los clientes
         self.command_queue = Queue()
-        Thread(target=self.worker, daemon=True).start()
+        Thread(target=self.__worker, daemon=True).start()
 
-    def worker(self):
+    def __worker(self):
         """
         Hilo que atiende solicitudes de la cola una a una.
         """
         while True:
             try:
                 conn, raw_data = self.command_queue.get()
-                self.process_request(conn, raw_data)
+                self.__process_request(conn, raw_data)
             except Exception as e:
                 self.monitor.error(f"Worker failed: {e}")
             finally:
                 self.command_queue.task_done()
 
-    def handle_client(self, conn) -> None:
+    def __handle_client(self, conn) -> None:
         """
         Maneja la conexión de un cliente y pone su mensaje en la cola.
 
@@ -105,7 +104,7 @@ class JuiceBoxEngineServer:
             self.monitor.client_error(e)
             conn.close()
 
-    def process_request(self, conn, data):
+    def __process_request(self, conn, data):
         """
         Procesa un mensaje recibido, lo despacha y envía la respuesta.
 
@@ -126,7 +125,7 @@ class JuiceBoxEngineServer:
             self.monitor.warning(f"Client disconnected before get answer: {e}")
         except Exception as e:
             self.monitor.error(f"Error when processing request: {e}")
-            error_json = json.dumps(self.format_response("error", str(e)))
+            error_json = Response.error(str(e)).to_json()
             try:
                 conn.sendall(error_json.encode())
             except Exception:
@@ -134,32 +133,29 @@ class JuiceBoxEngineServer:
         finally:
             conn.close()
 
-    def __rtb_restart(self) -> dict[str, str]:
+    def __rtb_restart(self) -> Response:
         """
         Reinicia la instancia del manager de RTB.
         """
         try:
             self.rtb_manager.cleanup()
-        except AttributeError:
-            pass
+        except AttributeError as e:
+            return Response.error(message=str(e))
 
         self.rtb_manager = RootTheBoxManager(RTBConfig())
         return self.rtb_manager.run_containers()
 
-    def __js_restart(self) -> dict[str, str]:
+    def __js_restart(self) -> Response:
         """
         Reinicia la instancia del manager de Juice Shop.
         """
         try:
             self.js_manager.cleanup()
-        except AttributeError:
-            pass
+        except AttributeError as e:
+            return Response.error(message=str(e))
 
         self.js_manager = JuiceShopManager(JuiceShopConfig())
-        return {
-            "status": "ok",
-            "message": "JuiceShop manager reiniciado",
-        }
+        return Response.ok("JuiceShop manager reiniciado")
 
     def set_managers(self, rtb, js):
         """
@@ -184,10 +180,10 @@ class JuiceBoxEngineServer:
             conn, _ = self.server_socket.accept()
             conn.settimeout(10)
             threading.Thread(
-                target=self.handle_client, args=(conn,), daemon=True
+                target=self.__handle_client, args=(conn,), daemon=True
             ).start()
 
-    def __handle_rtb_command(self, command: str) -> dict:
+    def __handle_rtb_command(self, command: str) -> Response:
         """
         Ejecuta un comando específico para Root The Box.
 
@@ -197,7 +193,7 @@ class JuiceBoxEngineServer:
         # Lee el manager dentro del lock para asegurar coherencia.
         with self.__manager_lock:
             __manager = self.rtb_manager
-        __resp: dict
+        __resp: Response
         match command:
             case "__START__":
                 __resp = __manager.run_containers()
@@ -210,23 +206,11 @@ class JuiceBoxEngineServer:
             case "__CONFIG__":
                 __resp = __manager.show_config()
             case _:
-                __resp = self.format_response("error", "Root The Box command not found")
-        # Se publica en Redis
-        self.redis.publish(
-            self.admin_channel,
-            json.dumps(
-                {
-                    "prog": "RTB",
-                    "command": command,
-                    "result": __resp,
-                    "timestamp": time.time(),
-                }
-            ),
-        )
+                __resp = Response.error("Root The Box command not found")
         # Retorno
         return __resp
 
-    def __handle_js_command(self, command: str, args: dict) -> dict:
+    def __handle_js_command(self, command: str, args: dict) -> Response:
         """
         Ejecuta un comando específico para Juice Shop.
 
@@ -237,7 +221,7 @@ class JuiceBoxEngineServer:
         # Lee el manager dentro del lock para asegurar coherencia.
         with self.__manager_lock:
             __manager = self.js_manager
-        __resp: dict
+        __resp: Response
         match command:
             case "__START_CONTAINER__":
                 __resp = __manager.run_container()
@@ -254,32 +238,7 @@ class JuiceBoxEngineServer:
             case "__GENERATE_XML__":
                 __resp = __manager.generate_rtb_config()
             case _:
-                __resp = self.format_response(
-                    status="error", message="Juice Shop command not found"
-                )
-        # Se publica en Redis
-        self.redis.publish(
-            self.admin_channel,
-            json.dumps(
-                {
-                    "prog": "JS",
-                    "command": command,
-                    "result": __resp,
-                    "timestamp": time.time(),
-                }
-            ),
-        )
-        self.redis.publish(
-            self.client_channel,
-            json.dumps(
-                {
-                    "prog": "JS",
-                    "command": command,
-                    "result": __resp,
-                    "timestamp": time.time(),
-                }
-            ),
-        )
+                __resp = Response.error(message="Juice Shop command not found")
         # Retorno
         return __resp
 
@@ -290,7 +249,7 @@ class JuiceBoxEngineServer:
         :param raw_data: Cadena JSON enviada por el cliente
         :return: Respuesta serializada en formato JSON
         """
-        __resp: dict = self.format_response("error", "Program not supported by engine")
+        __resp: Response = Response.error(message="Program not supported by engine")
         try:
             payload = json.loads(raw_data)
             prog = payload.get("prog")
@@ -298,23 +257,19 @@ class JuiceBoxEngineServer:
             args = payload.get("args", {})
 
             if prog not in COMMANDS:
-                __resp = self.format_response(
-                    status="error", message="Program not recognized"
-                )
+                __resp = Response.error(message="Program not recognized")
             elif command not in COMMANDS[prog]:
-                __resp = self.format_response(
-                    status="error", message="Command not recognized by program"
-                )
+                __resp = Response.error(message="Command not recognized by program")
             elif prog == "RTB":
                 __resp = self.__handle_rtb_command(command)
             else:
                 # prog == "JS"
                 __resp = self.__handle_js_command(command, args)
         except json.JSONDecodeError:
-            __resp = self.format_response("error", "Invalid JSON format")
+            __resp = Response.error(message="Invalid JSON format")
         except Exception as e:
-            __resp = self.format_response("error", str(e))
-        return json.dumps(__resp)
+            __resp = Response.error(message=str(e))
+        return __resp.to_json()
 
     def cleanup(self):
         """
@@ -330,16 +285,18 @@ class JuiceBoxEngineServer:
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)
 
-    def format_response(self, status: str, message: str, data=None) -> dict:
-        """
-        Estandariza el formato de las respuestas enviadas a los clientes.
+    # ─── Métodos de Redis ──────────────────────────────────────────────────────
 
-        :param status: 'ok' o 'error'
-        :param message: Mensaje descriptivo
-        :param data: Objeto opcional con datos extra
-        :return: Objeto dict (JSON)
+    def __publish_to_redis(self, channel: str, response: Response):
         """
-        response: dict = {"status": status, "message": message}
-        if data:
-            response["data"] = data
-        return response
+        Publica un mensaje en un canal Redis.
+
+        Args:
+            channel (str): Nombre del canal.
+            response (Response): Mensaje a publicar.
+        """
+        try:
+            payload = json.dumps(response)
+            self.redis.publish(channel, payload)
+        except Exception as e:
+            Response.error(message=f"Redis publish failed: {e}")

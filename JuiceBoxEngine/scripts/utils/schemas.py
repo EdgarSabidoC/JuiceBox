@@ -1,75 +1,115 @@
-from pydantic import BaseModel
 from typing import Optional, Literal, Union, List, Dict, Any
+import json
+
+"""
+Módulo de utilidades para generar respuestas estándar en JSON o diccionario
+con un formato consistente: status, message y datos opcionales.
+"""
 
 
-# ----------- ENTRADA: COMANDOS ------------
+class Status:
+    """
+    Constantes de estado para la clase Response.
+
+    Atributos:
+        OK (str): Operación exitosa.
+        ERROR (str): Error genérico.
+        NOT_FOUND (str): Recurso no encontrado.
+    """
+
+    OK = "ok"
+    ERROR = "error"
+    NOT_FOUND = "not_found"
 
 
-class RTBCommand(BaseModel):
-    prog: Literal["RTB"]
-    command: Literal["__START__", "__KILL__", "__RESTART__", "__CONFIG__", "__STATUS__"]
-    args: Optional[dict] = None
+class Response:
+    """
+    Representa una respuesta estándar con un código de estado, un mensaje
+    descriptivo y datos adicionales.
 
+    Atributos:
+        status (str): Código de estado (Status.OK, Status.ERROR, etc.).
+        message (str): Mensaje legible para el usuario.
+        data (dict): Carga útil con información adicional.
+    """
 
-class JSCommand(BaseModel):
-    prog: Literal["JS"]
-    command: Literal[
-        "__RESTART__",
-        "__CONFIG__",
-        "__STATUS__",
-        "__START_CONTAINER__",
-        "__KILL_CONTAINER__",
-        "__KILL_ALL__",
-        "__GENERATE_XML__",
-    ]
-    args: Optional[dict] = None
+    def __init__(self, status: str, message: str, data: dict = {}):
+        """
+        Inicializa una instancia de Response.
 
+        Args:
+            status (str): Código de estado (p.ej., Status.OK).
+            message (str): Mensaje descriptivo.
+            data (dict, opcional): Datos extra. Por defecto {}.
 
-# Unión de ambos tipos de entrada
-CommandRequest = Union[RTBCommand, JSCommand]
+        Nota:
+            Se usa `data or {}` para evitar que self.data quede como None
+            o que varios objetos compartan la misma referencia a un dict.
+        """
+        self.status = status
+        self.message = message
+        self.data = data or {}
 
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convierte la respuesta a un diccionario.
 
-# ----------- RESPUESTA: MODELOS BASE Y EXTENDIDOS ------------
+        Returns:
+            Dict[str, Any]: Estructura con las claves "status", "message" y "data".
+        """
+        return {"status": self.status, "message": self.message, "data": self.data}
 
+    def to_json(self) -> str:
+        """
+        Serializa la respuesta a JSON.
 
-class BaseResponse(BaseModel):
-    status: Literal["ok", "error"]
-    message: str
+        Returns:
+            str: Cadena JSON con la estructura de to_dict().
+        """
+        return json.dumps(self.to_dict())
 
+    @classmethod
+    def ok(cls, message: str = "Success", data: Dict[str, Any] = {}) -> "Response":
+        """
+        Crea una respuesta con estado OK.
 
-class GenericResponse(BaseResponse):
-    data: Optional[Dict[str, Any]] = None
+        Args:
+            message (str, opcional): Mensaje descriptivo. Por defecto "Success".
+            data (Dict[str, Any], opcional): Datos extra. Por defecto {}.
 
+        Returns:
+            Response: Instancia con status Status.OK.
+        """
+        return cls(Status.OK, message, data)
 
-# ---------- RESPUESTAS ESPECÍFICAS (data con estructura definida) ----------
+    @classmethod
+    def error(
+        cls, message: str = "Something went wrong", data: Dict[str, Any] = {}
+    ) -> "Response":
+        """
+        Crea una respuesta con estado ERROR.
 
+        Args:
+            message (str, opcional): Mensaje descriptivo. Por defecto "Something went wrong".
+            data (Dict[str, Any], opcional): Datos extra. Por defecto {}.
 
-class ContainerStatus(BaseModel):
-    """Estado específico de un contenedor va dentro de data"""
+        Returns:
+            Response: Instancia con status Status.ERROR.
+        """
+        return cls(Status.ERROR, message, data)
 
-    container: str
-    status: str
-    message: str
-    running: Optional[bool] = None
+    @classmethod
+    def not_found(
+        cls, message: str = "Not found", data: Dict[str, Any] = {}
+    ) -> "Response":
+        """
+        Crea una respuesta con estado NOT_FOUND.
 
+        Args:
+            message (str, opcional): Mensaje descriptivo. Por defecto "Not found".
+            data (Dict[str, Any], opcional): Datos extra. Por defecto {}.
 
-class ContainerRunResponse(BaseResponse):
-    container: str
-
-
-class KillAllResponse(BaseResponse):
-    results: List[ContainerStatus]
-
-
-class ConfigResponse(BaseResponse):
-    config: Dict[str, Any]
-
-
-# ---------- OPCIONAL: RESPUESTA UNION (para tipar salidas variadas) ----------
-
-ResponseUnion = Union[
-    GenericResponse,
-    ContainerRunResponse,
-    KillAllResponse,
-    ConfigResponse,
-]
+        Returns:
+            Response: Instancia con status Status.NOT_FOUND.
+        """
+        return cls(Status.NOT_FOUND, message, data)
