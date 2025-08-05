@@ -117,19 +117,21 @@ class Monitor:
 
     # ─── Métodos de Redis ──────────────────────────────────────────────────────
 
-    def __publish_to_redis(self, channel: str, message):
+    def __publish_to_redis(
+        self, channel: str, message: dict[str, str | dict[str, str]]
+    ):
         """
         Publica un mensaje en un canal Redis.
 
         Args:
             channel (str): Nombre del canal.
-            message (str | dict): Mensaje a publicar.
+            message (dict[ str, str | dict[ str, str ] ]): Mensaje a publicar.
         """
         try:
-            payload = message if isinstance(message, str) else repr(message)
+            payload = json.dumps(message)
             self._redis.publish(channel, payload)
         except Exception as e:
-            self.logger.error(f"Redis publish failed: {e}")
+            self.error(f"---> Redis publish failed: {e}")
 
     # ─── Métodos de monitorización de Docker ───────────────────────────────────
 
