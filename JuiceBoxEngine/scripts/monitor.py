@@ -28,7 +28,7 @@ class Monitor:
         redis_password: str = "C5L48",
         admin_channel: str = "admin_channel",
         client_channel: str = "client_channel",
-        # Lista de contenedores de RTB y JS:
+        # Lista de contenedores de RootTheBox y JuiceShop:
         rtb_containers: list[str] | None = None,
         js_containers: list[str] | None = None,
     ):
@@ -117,7 +117,7 @@ class Monitor:
 
     # ─── Métodos de Redis ──────────────────────────────────────────────────────
 
-    def __publish(self, channel: str, message):
+    def __publish_to_redis(self, channel: str, message):
         """
         Publica un mensaje en un canal Redis.
 
@@ -219,9 +219,9 @@ class Monitor:
         }
 
         # Publicación en Redis
-        self.__publish(self.admin_channel, payload)  # Canal administrativo
+        self.__publish_to_redis(self.admin_channel, payload)  # Canal administrativo
         if container_name in self.js_containers:
-            self.__publish(self.client_channel, payload)  # Canal de clientes
+            self.__publish_to_redis(self.client_channel, payload)  # Canal de clientes
 
         # Se actualiza el último estado registrado
         self.__last_statuses[container_name] = current_status
