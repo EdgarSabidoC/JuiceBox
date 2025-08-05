@@ -144,30 +144,6 @@ class Monitor:
         self.rtb_containers = rtb if rtb else []
         self.js_containers = js if js else []
 
-    def start_container_monitoring(self):
-        """
-        Inicia el hilo de monitoreo de contenedores Docker.
-        """
-        if self._monitoring:
-            return
-        self._monitoring = True
-        self._monitor_thread = threading.Thread(
-            target=self.__container_monitor_loop, daemon=True
-        )
-        self._monitor_thread.start()
-        self.info("Docker container monitoring started...")
-
-    def stop_container_monitoring(self):
-        """
-        Detiene el monitoreo de contenedores Docker.
-        """
-        if not self._monitoring:
-            return
-        self._monitoring = False
-        if self._monitor_thread:
-            self._monitor_thread.join(timeout=self._interval + 1)
-        self.info("Docker container monitoring stopped")
-
     def __container_monitor_loop(self):
         """
         Bucle de vigilancia de contenedores. Ejecutado en segundo plano.
@@ -249,3 +225,27 @@ class Monitor:
 
         # Se actualiza el último estado registrado
         self.__last_statuses[container_name] = current_status
+
+    def start_container_monitoring(self):
+        """
+        Inicia el hilo de monitoreo de contenedores Docker.
+        """
+        if self._monitoring:
+            return
+        self._monitoring = True
+        self._monitor_thread = threading.Thread(
+            target=self.__container_monitor_loop, daemon=True
+        )
+        self._monitor_thread.start()
+        self.info("Docker container monitoring started...")
+
+    def stop_container_monitoring(self):
+        """
+        Detiene el monitoreo de contenedores Docker.
+        """
+        if not self._monitoring:
+            return
+        self._monitoring = False
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=self._interval + 1)
+        self.info("Docker container monitoring stopped")
