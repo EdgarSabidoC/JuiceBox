@@ -61,14 +61,6 @@ class JuiceBoxEngineServer:
         self.js_manager = js_manager
         self.__manager_lock = threading.Lock()
 
-        # Redis:
-        redis_url = os.getenv("REDIS_URL", "redis://:C5L48@127.0.0.1:6379/0")
-        self.redis = redis.Redis.from_url(redis_url)
-
-        # Canales de Redis:
-        self.admin_channel = "admin_channel"
-        self.client_channel = "client_channel"
-
         # Cola para recibir y procesar comandos de los clientes
         self.command_queue = Queue()
         Thread(target=self.__worker, daemon=True).start()
@@ -284,19 +276,3 @@ class JuiceBoxEngineServer:
         __rtb_manager.cleanup()
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)
-
-    # ─── Métodos de Redis ──────────────────────────────────────────────────────
-
-    def __publish_to_redis(self, channel: str, response: Response):
-        """
-        Publica un mensaje en un canal Redis.
-
-        Args:
-            channel (str): Nombre del canal.
-            response (Response): Mensaje a publicar.
-        """
-        try:
-            payload = json.dumps(response)
-            self.redis.publish(channel, payload)
-        except Exception as e:
-            Response.error(message=f"Redis publish failed: {e}")

@@ -1,5 +1,7 @@
 import logging, time, threading, docker, docker.errors, redis, json
 from scripts.utils.logger import Logger
+from scripts.redisManager import RedisManager
+from scripts.utils.schemas import Response, Status
 
 
 class Monitor:
@@ -21,13 +23,6 @@ class Monitor:
         # Monitor:
         monitor_containers: bool = True,
         container_poll_interval: float = 5.0,
-        # Parámetros para Redis
-        redis_host: str = "localhost",
-        redis_port: int = 6379,
-        redis_db: int = 0,
-        redis_password: str = "C5L48",
-        admin_channel: str = "admin_channel",
-        client_channel: str = "client_channel",
         # Lista de contenedores de RootTheBox y JuiceShop:
         rtb_containers: list[str] | None = None,
         js_containers: list[str] | None = None,
@@ -61,16 +56,9 @@ class Monitor:
         # Cliente Docker para vigilancia
         self._docker = docker.from_env()
 
-        # Cliente Redis autenticado
-        self._redis = redis.Redis(
-            host=redis_host,
-            port=redis_port,
-            db=redis_db,
-            password=redis_password,
-            decode_responses=True,
-        )
-        self.admin_channel = admin_channel
-        self.client_channel = client_channel
+        # Redis:
+        if redis:
+            self._redis = RedisManager()
 
         # Control del hilo de monitorización Docker
         self._monitoring = False
@@ -114,24 +102,6 @@ class Monitor:
         """Registra un error ocurrido con un cliente."""
         text = f"Client error: {err}"
         self.logger.warning(text)
-
-    # ─── Métodos de Redis ──────────────────────────────────────────────────────
-
-    def __publish_to_redis(
-        self, channel: str, message: dict[str, str | dict[str, str]]
-    ):
-        """
-        Publica un mensaje en un canal Redis.
-
-        Args:
-            channel (str): Nombre del canal.
-            message (dict[ str, str | dict[ str, str ] ]): Mensaje a publicar.
-        """
-        try:
-            payload = json.dumps(message)
-            self._redis.publish(channel, payload)
-        except Exception as e:
-            self.error(f"---> Redis publish failed: {e}")
 
     # ─── Métodos de monitorización de Docker ───────────────────────────────────
 
@@ -210,20 +180,19 @@ class Monitor:
             return
 
         # Construcción del mensaje
-        payload: dict[str, str | dict[str, str]] = {
-            "type": container,
-            "data": {
+        payload: str = json.dumps(
+            {
                 "id": container.id,
                 "container": container_name,
                 "status": current_status,
                 "timestamp": timestamp,
             },
-        }
+        )
 
         # Publicación en Redis
-        self.__publish_to_redis(self.admin_channel, payload)  # Canal administrativo
+        self._redis.publish_to_admin(payload)  # Canal administrativo
         if container_name in self.js_containers:
-            self.__publish_to_redis(self.client_channel, payload)  # Canal de clientes
+            self._redis.publish_to_client(payload)  # Canal de clientes
 
         # Se actualiza el último estado registrado
         self.__last_statuses[container_name] = current_status

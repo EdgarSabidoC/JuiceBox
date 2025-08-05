@@ -222,14 +222,14 @@ class JuiceShopManager:
             if not running:
                 return Response.error(
                     message="Container is not running",
-                    data={"container": __container, "running": False},
+                    data={"container": __container, "status": False},
                 )
             else:
                 return Response.ok(
                     message="Container is running",
                     data={
                         "container": __container,
-                        "running": True,
+                        "status": True,
                     },
                 )
         except Exception as e:
@@ -237,7 +237,7 @@ class JuiceShopManager:
                 message=str(e),
                 data={
                     "container": __container,
-                    "running": False,
+                    "status": False,
                 },
             )
 
