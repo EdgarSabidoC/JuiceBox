@@ -180,9 +180,21 @@ class RootTheBoxManager(BaseManager):
                 )
         __resp: Response
         if overall_ok:
-            __resp = Response.ok(data={"containers": containers_results})
+            __resp = Response.ok(
+                data={
+                    "containers": [
+                        container.to_dict() for container in containers_results
+                    ]
+                }
+            )
         else:
-            __resp = Response.error(data={"containers": containers_results})
+            __resp = Response.error(
+                data={
+                    "containers": [
+                        container.to_dict() for container in containers_results
+                    ]
+                }
+            )
         return __resp
 
     def show_config(self) -> Response:
