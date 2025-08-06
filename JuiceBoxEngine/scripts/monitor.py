@@ -29,6 +29,8 @@ class Monitor:
         # Lista de contenedores de RootTheBox y JuiceShop:
         rtb_containers: list[str] | None = None,
         js_containers: list[str] | None = None,
+        # Redis:
+        redis: RedisManager | None = None,
     ):
         """
         Inicializa el monitor del sistema.
@@ -59,10 +61,6 @@ class Monitor:
         # Cliente Docker para vigilancia
         self.__docker_client: DockerClient = docker.from_env()
 
-        # Redis:
-        if redis:
-            self._redis = RedisManager()
-
         # Control del hilo de monitorización Docker
         self._monitoring = False
         self._monitor_thread = None
@@ -76,6 +74,10 @@ class Monitor:
 
         if monitor_containers:
             self.start_container_monitoring()
+
+        # Cliente Redis
+        if redis:
+            self.__redis: RedisManager = redis
 
     # ─── Métodos de Logging ─────────────────────────────────────────────────────
 
@@ -181,9 +183,9 @@ class Monitor:
             return
 
         # Publicación en Redis
-        self._redis.publish_to_admin(container)  # Canal administrativo
+        self.__redis.publish_to_admin(container)  # Canal administrativo
         if container_name in self.js_containers:
-            self._redis.publish_to_client(container)  # Canal de clientes
+            self.__redis.publish_to_client(container)  # Canal de clientes
 
         # Se actualiza el último estado registrado
         self.__last_statuses[container_name] = current_status

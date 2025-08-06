@@ -8,6 +8,7 @@ from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.redisManager import RedisManager
 from scripts.utils.config import JuiceShopConfig, RTBConfig
+from scripts.monitor import Monitor
 from types import FrameType
 import sys, signal, atexit
 
@@ -17,10 +18,12 @@ if __name__ == "__main__":
     rtb = RootTheBoxManager(RTBConfig())  # Root the Box
     js = JuiceShopManager(JuiceShopConfig())  # Juice Shop
     redis = RedisManager()  # Redis
-    redis.start()  # Arranca el servicio de redis
+
+    # Se instancia el monitor
+    monitor = Monitor(name="JuiceBoxEngine", use_journal=True, redis=redis)
 
     # Se instancia el motor
-    jb_server = JuiceBoxEngineServer(js, rtb, redis)  # Juice Box Engine
+    jb_server = JuiceBoxEngineServer(monitor, js, rtb, redis)  # Juice Box Engine
 
     # Función para manejar el cierre del programa
     def handle_exit(signum: int, frame: FrameType | None):

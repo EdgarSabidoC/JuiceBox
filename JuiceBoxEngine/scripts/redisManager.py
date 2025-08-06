@@ -36,7 +36,7 @@ class RedisManager(BaseManager):
         self.__docker_client: DockerClient = docker.from_env()
 
         # Cliente Redis
-        self._redis = redis.Redis(
+        self.__redis = redis.Redis(
             host=redis_host,
             port=redis_port,
             db=redis_db,
@@ -113,7 +113,7 @@ class RedisManager(BaseManager):
         """
         try:
             message: str = payload.to_json()
-            self._redis.publish(channel, message)
+            self.__redis.publish(channel, message)
             return Response.ok(data={"channel": channel})
         except Exception as e:
             return Response.error(message=f"Redis publish failed: {e}")
@@ -143,8 +143,9 @@ class RedisManager(BaseManager):
         Destruye el contenedor y cierra la conexión al __docker_client para liberar sockets/tokens.
         """
         try:
+            self.__redis.close()  # Cierra la conexión al cliente Redis
             self.stop()
-            self.__docker_client.close()
-            return Response.ok()
-        except Exception:
-            return Response.error()
+            self.__docker_client.close()  # Cierra el cliente Docker
+            return Response.ok(message="Redis cleanup successful!")
+        except Exception as e:
+            return Response.error(message=f"Redis could not be cleaned up: {str(e)}")

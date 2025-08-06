@@ -7,7 +7,7 @@ from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.redisManager import RedisManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from scripts.monitor import Monitor
-from JuiceBoxEngine.models.schemas import Response
+from JuiceBoxEngine.models.schemas import BaseManager, Response, Status
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -24,7 +24,7 @@ COMMANDS = {
 }
 
 
-class JuiceBoxEngineServer:
+class JuiceBoxEngineServer(BaseManager):
     """
     Servidor del motor JuiceBox que expone una interfaz mediante sockets de Unix para
     gestionar contenedores Docker de Juice Shop y Root The Box de manera concurrente pero segura.
@@ -32,6 +32,7 @@ class JuiceBoxEngineServer:
 
     def __init__(
         self,
+        monitor: Monitor,
         js_manager: JuiceShopManager,
         rtb_manager: RootTheBoxManager,
         redis_manager: RedisManager,
@@ -49,9 +50,7 @@ class JuiceBoxEngineServer:
             os.remove(self.socket_path)
 
         # Monitor
-        self.monitor = Monitor(
-            name="JuiceBoxEngine", use_journal=True
-        )  # use_syslog = False para imprimir en consola
+        self.monitor = monitor
 
         # Se crea socket del servidor
         self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -140,7 +139,7 @@ class JuiceBoxEngineServer:
             return Response.error(message=str(e))
 
         self.rtb_manager = RootTheBoxManager(RTBConfig())
-        return self.rtb_manager.run_containers()
+        return self.rtb_manager.start()
 
     def __js_restart(self) -> Response:
         """
@@ -165,20 +164,34 @@ class JuiceBoxEngineServer:
             self.rtb_manager = rtb
             self.js_manager = js
 
-    def start(self):
+    def start(self) -> Response:
         """
-        Inicia el servidor y acepta conexiones entrantes indefinidamente.
+        Arranca el motor y acepta conexiones entrantes indefinidamente.
         """
         print(f"🔌 JuiceBoxEngine started and listening on port: {self.socket_path}")
         self.monitor.info(
             f"JuiceBoxEngine started and listening on port: {self.socket_path}"
         )
+        self.redis_manager.start()  # Arranca el servicio de redis
+        self.monitor.start_container_monitoring()  # Arranca la monitorización de contenedores
         while True:
             conn, _ = self.server_socket.accept()
             conn.settimeout(10)
             threading.Thread(
                 target=self.__handle_client, args=(conn,), daemon=True
             ).start()
+
+    def stop(self) -> Response:
+        """
+        Detiene el motor y cierra el socket.
+        """
+        try:
+            self.server_socket.close()
+            if os.path.exists(self.socket_path):
+                os.remove(self.socket_path)
+            return Response.ok("Engine stopped and socket removed")
+        except Exception as e:
+            return Response.error(f"Error stopping server: {str(e)}")
 
     def __handle_rtb_command(self, command: str) -> Response:
         """
@@ -193,7 +206,7 @@ class JuiceBoxEngineServer:
         __resp: Response
         match command:
             case "__START__":
-                __resp = __manager.run_containers()
+                __resp = __manager.start()
             case "__RESTART__":
                 __resp = self.__rtb_restart()
             case "__STOP__":
@@ -221,7 +234,7 @@ class JuiceBoxEngineServer:
         __resp: Response
         match command:
             case "__START_CONTAINER__":
-                __resp = __manager.run_container()
+                __resp = __manager.start()
             case "__RESTART__":
                 __resp = self.__js_restart()
             case "__STOP_CONTAINER__":
@@ -268,18 +281,27 @@ class JuiceBoxEngineServer:
             __resp = Response.error(message=str(e))
         return __resp.to_json()
 
-    def cleanup(self):
+    def cleanup(self) -> Response:
         """
         Limpieza general del servidor: cierra el socket y elimina los contenedores.
         """
-        # Lee el manager dentro del lock para asegurar coherencia.
-        with self.__manager_lock:
-            __rtb_manager = self.rtb_manager
-            __js_manager = self.js_manager
-            __redis_manager = self.redis_manager
-        self.server_socket.close()
-        __js_manager.cleanup()
-        __rtb_manager.cleanup()
-        __redis_manager.cleanup()
-        if os.path.exists(self.socket_path):
-            os.remove(self.socket_path)
+        try:
+            # Lee el manager dentro del lock para asegurar coherencia.
+            with self.__manager_lock:
+                __rtb_manager = self.rtb_manager
+                __js_manager = self.js_manager
+                __redis_manager = self.redis_manager
+            # Eliminación de los contenedores y las conexiones
+            __js_manager.cleanup()
+            __rtb_manager.cleanup()
+            __redis_manager.cleanup()
+            _resp: Response = self.stop()
+        except Exception as e:
+            self.monitor.error(f"Error during cleanup: {str(e)}")
+            return Response.error(f"Error during cleanup: {str(e)}")
+        if _resp.status == Status.OK:
+            self.monitor.info("Server cleaned up and socket removed!")
+            return Response.ok("Server cleaned up and socket removed!")
+        else:
+            self.monitor.error("Server cleaned up, but socket could not be removed!")
+            return Response.error("Server cleaned up, but socket could not be removed!")

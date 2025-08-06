@@ -98,7 +98,7 @@ class JuiceShopManager(BaseManager):
     def is_valid_port(self, port: int) -> bool:
         return port in self.ports_range
 
-    def run_container(self) -> Response:
+    def start(self) -> Response:
         __container: str = ""
         __port: int
         try:

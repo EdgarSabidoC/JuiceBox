@@ -13,6 +13,7 @@ from scripts.utils.config import RTBConfig
 from scripts.utils.validator import validate_container
 from JuiceBoxEngine.models.schemas import Response, Status, BaseManager
 from docker import DockerClient
+from docker.models.containers import Container
 
 LOGO = """
 \t\t        ▄▄▄▄   ▄▄▄▄▄  ▄▄▄▄▄  ▄▄▄▄▄
@@ -95,7 +96,7 @@ class RootTheBoxManager(BaseManager):
                 data=compose_dict,
             )
 
-    def __run(self) -> Response:
+    def __create(self) -> Response:
         try:
             subprocess.run(
                 ["docker", "compose", "-f", self.__rtb_yaml, "up", "-d"],
@@ -104,11 +105,19 @@ class RootTheBoxManager(BaseManager):
                 capture_output=True,
                 text=True,
             )
+            if validate_container(self.__docker_client, self.webapp_container_name):
+                self.webapp_container: Container = self.__docker_client.containers.get(
+                    self.webapp_container_name
+                )
+            if validate_container(self.__docker_client, self.cache_container_name):
+                self.cache_container: Container = self.__docker_client.containers.get(
+                    self.cache_container_name
+                )
             return Response.ok(message="Docker compose subprocess successful")
         except subprocess.CalledProcessError as e:
             return Response.error(message=str(e.stdout) + ". " + str(e.stderr))
 
-    def run_containers(self) -> Response:
+    def start(self) -> Response:
         try:
             __response: Response
             # Se eliminan los contenedores en caso de existir:
@@ -120,7 +129,7 @@ class RootTheBoxManager(BaseManager):
             if not os.path.isfile(compose_path):
                 return Response.not_found(message="Docker Compose file not found!")
 
-            __response: Response = self.__run()
+            __response: Response = self.__create()
             if __response.status == Status.OK:
                 return Response.ok(
                     message="Containers started and now are running",
