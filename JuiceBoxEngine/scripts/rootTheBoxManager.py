@@ -11,7 +11,7 @@ import docker, yaml
 from docker import errors
 from scripts.utils.config import RTBConfig
 from scripts.utils.validator import validate_container
-from JuiceBoxEngine.models.schemas import Response, Status
+from JuiceBoxEngine.models.schemas import Response, Status, BaseManager
 from docker import DockerClient
 
 LOGO = """
@@ -40,7 +40,7 @@ DEVELOPER = "Edgar Sabido"
 GITHUB_USER = "EdgarSabidoC"
 
 
-class RootTheBoxManager:
+class RootTheBoxManager(BaseManager):
     __rtb_yaml = "rtb-docker-compose.yml"
 
     def __init__(self, config: RTBConfig) -> None:
@@ -112,7 +112,7 @@ class RootTheBoxManager:
         try:
             __response: Response
             # Se eliminan los contenedores en caso de existir:
-            self.kill_all()
+            self.stop()
             compose_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
             __response = self.__generate_docker_compose(compose_path)
             if __response.status == Status.ERROR:
@@ -133,7 +133,7 @@ class RootTheBoxManager:
         except Exception as e:
             return Response.error(message=str(e))
 
-    def __kill_container(self, container, containers) -> Response:
+    def __stop_container(self, container, containers) -> Response:
         try:
             # Mata o destruye un contenedor
             _container = containers.get(container)
@@ -149,7 +149,7 @@ class RootTheBoxManager:
                 data={"container": container},
             )
 
-    def kill_all(self) -> Response:
+    def stop(self) -> Response:
         containers_results: list[Response] = []
         overall_ok = True
 
@@ -158,7 +158,7 @@ class RootTheBoxManager:
             try:
                 if validate_container(self.__docker_client, name):
                     containers = self.__docker_client.containers
-                    __response: Response = self.__kill_container(name, containers)
+                    __response: Response = self.__stop_container(name, containers)
                     containers_results.append(__response)
                     if __response.status == Status.ERROR:
                         overall_ok = False
@@ -235,7 +235,7 @@ class RootTheBoxManager:
         Cierra la conexión al Docker __docker_client para liberar sockets/tokens y elimina todos los contenedores.
         """
         try:
-            self.kill_all()
+            self.stop()
             self.__docker_client.close()
             return Response.ok()
         except Exception:

@@ -1,5 +1,5 @@
 import redis, subprocess, os, docker, atexit
-from JuiceBoxEngine.models.schemas import Response
+from JuiceBoxEngine.models.schemas import Response, BaseManager
 from importlib.resources import path
 from scripts.utils.validator import validate_container
 from JuiceBoxEngine.models.schemas import RedisResponse
@@ -13,7 +13,7 @@ class JuiceBoxChannels:
     CLIENT = "client_channel"
 
 
-class RedisManager:
+class RedisManager(BaseManager):
 
     def __init__(
         self,
@@ -31,9 +31,9 @@ class RedisManager:
             with path("JuiceBoxEngine.configs", "redis-docker-compose.yml") as p:
                 self.__compose_file = str(p)
         self.container_name = container_name
-        # Arranca el servicio:
+
+        # Cliente Docker
         self.__docker_client: DockerClient = docker.from_env()
-        self.__start()
 
         # Cliente Redis
         self._redis = redis.Redis(
@@ -43,8 +43,6 @@ class RedisManager:
             password=redis_password,
             decode_responses=True,
         )
-
-        atexit.register(self.cleanup)
 
     def __create(self) -> Response:
         try:
@@ -67,7 +65,7 @@ class RedisManager:
         except subprocess.CalledProcessError as e:
             return Response.error(message=str(e.stdout) + ". " + str(e.stderr))
 
-    def __start(self) -> Response:
+    def start(self) -> Response:
         try:
             # Se valida si existe el contenedor
             if validate_container(self.__docker_client, self.container_name):
@@ -87,7 +85,7 @@ class RedisManager:
         except APIError as e:
             return Response.error(str(e))
 
-    def __kill_all(self) -> Response:
+    def stop(self) -> Response:
         try:
             # Mata o destruye el contenedor de Redis
             self.__container.stop()
@@ -145,7 +143,7 @@ class RedisManager:
         Destruye el contenedor y cierra la conexión al __docker_client para liberar sockets/tokens.
         """
         try:
-            self.__kill_all()
+            self.stop()
             self.__docker_client.close()
             return Response.ok()
         except Exception:

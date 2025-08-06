@@ -12,7 +12,7 @@ import docker
 from docker import errors
 from scripts.utils.config import JuiceShopConfig
 from scripts.utils.validator import validate_container
-from JuiceBoxEngine.models.schemas import Response, Status
+from JuiceBoxEngine.models.schemas import Response, Status, BaseManager
 from docker import DockerClient
 
 
@@ -37,7 +37,7 @@ DEVELOPER = "Edgar Sabido"
 GITHUB_USER = "EdgarSabidoC"
 
 
-class JuiceShopManager:
+class JuiceShopManager(BaseManager):
     def __init__(self, config: JuiceShopConfig) -> None:
         if not isinstance(config, JuiceShopConfig):
             raise TypeError("Required: JuiceShopConfig instance.")
@@ -124,7 +124,7 @@ class JuiceShopManager:
             # Devolver error con mensaje
             return Response.error(message=str(e), data={"container": __container})
 
-    def kill_container(self, container: str | int) -> Response:
+    def stop_container(self, container: str | int) -> Response:
         __container: str = ""
         try:
             if isinstance(container, int):
@@ -152,12 +152,12 @@ class JuiceShopManager:
         except Exception as e:
             return Response.error(message=str(e), data={"container": __container})
 
-    def kill_all(self) -> Response:
+    def stop(self) -> Response:
         # Destruye todos los contenedores de la JuiceShop
         containers: list[Response] = []
         overall_ok = True
         for port in self.ports_range:
-            res = self.kill_container(self.container_prefix + str(port))
+            res = self.stop_container(self.container_prefix + str(port))
 
             if res.status == Status.ERROR:
                 overall_ok = False
@@ -286,7 +286,7 @@ class JuiceShopManager:
         Cierra la conexión al Docker __docker_client para liberar sockets/tokens.
         """
         try:
-            self.kill_all()
+            self.stop()
             self.__docker_client.close()
             return Response.ok()
         except Exception:

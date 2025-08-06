@@ -10,6 +10,17 @@ con un formato consistente: status, message y datos opcionales.
 """
 
 
+class BaseManager:
+    def start(self) -> Response:
+        raise NotImplementedError
+
+    def stop(self) -> Response:
+        raise NotImplementedError
+
+    def cleanup(self) -> Response:
+        raise NotImplementedError
+
+
 class Status:
     """
     Constantes de estado para la clase Response.

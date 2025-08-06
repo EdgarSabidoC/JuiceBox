@@ -17,8 +17,8 @@ COMMANDS = {
         "__CONFIG__",
         "__STATUS__",
         "__START_CONTAINER__",
-        "__KILL_CONTAINER__",
-        "__KILL_ALL__",
+        "__STOP_CONTAINER__",
+        "__STOP__",
         "__GENERATE_XML__",
     ],
 }
@@ -196,8 +196,8 @@ class JuiceBoxEngineServer:
                 __resp = __manager.run_containers()
             case "__RESTART__":
                 __resp = self.__rtb_restart()
-            case "__KILL__":
-                __resp = __manager.kill_all()
+            case "__STOP__":
+                __resp = __manager.stop()
             case "__STATUS__":
                 __resp = __manager.status()
             case "__CONFIG__":
@@ -224,10 +224,10 @@ class JuiceBoxEngineServer:
                 __resp = __manager.run_container()
             case "__RESTART__":
                 __resp = self.__js_restart()
-            case "__KILL_CONTAINER__":
-                __resp = __manager.kill_container(args["port"])
-            case "__KILL_ALL__":
-                __resp = __manager.kill_all()
+            case "__STOP_CONTAINER__":
+                __resp = __manager.stop_container(args["port"])
+            case "__STOP__":
+                __resp = __manager.stop()
             case "__STATUS__":
                 __resp = __manager.status(args["port"])
             case "__CONFIG__":
