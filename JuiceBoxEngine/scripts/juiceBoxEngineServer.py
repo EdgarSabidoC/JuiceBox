@@ -8,10 +8,12 @@ from scripts.redisManager import RedisManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from scripts.monitor import Monitor
 from JuiceBoxEngine.models.schemas import BaseManager, Response, Status
+from docker import DockerClient
+
 
 # Comandos válidos por programa
 COMMANDS = {
-    "RTB": ["__START__", "__KILL__", "__RESTART__", "__CONFIG__", "__STATUS__"],
+    "RTB": ["__START__", "__STOP__", "__RESTART__", "__CONFIG__", "__STATUS__"],
     "JS": [
         "__RESTART__",
         "__CONFIG__",
@@ -35,6 +37,7 @@ class JuiceBoxEngineServer(BaseManager):
         monitor: Monitor,
         js_manager: JuiceShopManager,
         rtb_manager: RootTheBoxManager,
+        docker_client: DockerClient,
         redis_manager: RedisManager,
         socket_path: str = "/tmp/juiceboxengine.sock",
     ):
@@ -48,6 +51,10 @@ class JuiceBoxEngineServer(BaseManager):
         self.socket_path = socket_path
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)
+
+        # Cliente Docker
+        if docker_client:
+            self.docker_client: DockerClient | None = docker_client
 
         # Monitor
         self.monitor = monitor
@@ -108,15 +115,26 @@ class JuiceBoxEngineServer(BaseManager):
         :param data: Cadena JSON con el comando
         """
         try:
-            # Se parsea para obtener prog y command y loguearlos
+            # Se parsea para obtener prog y command y loggearlos
             payload = json.loads(data)
             prog = payload.get("prog", "UNKNOWN")
             command = payload.get("command", "UNKNOWN")
             self.monitor.command_received(prog, command, conn.getpeername())
 
             response = self.dispatch_command(data)
+            if response.status != Status.OK:
+                self.monitor.error(
+                    f"Error processing command {command} for program {prog}: {response.message}"
+                )
+            else:
+                self.monitor.info(
+                    f"Command {command} for program {prog} processed successfully."
+                )
+            response = response.to_json()
             conn.sendall(response.encode())
-            self.monitor.info(f"Response sent to command: {command}")
+            self.monitor.info(
+                f"Response sent to command: {command}. Response data: {response}"
+            )
         except (BrokenPipeError, ConnectionResetError) as e:
             self.monitor.warning(f"Client disconnected before get answer: {e}")
         except Exception as e:
@@ -252,7 +270,7 @@ class JuiceBoxEngineServer(BaseManager):
         # Retorno
         return __resp
 
-    def dispatch_command(self, raw_data: str) -> str:
+    def dispatch_command(self, raw_data: str) -> Response:
         """
         Parsea el comando recibido y lo redirige al manager correspondiente.
 
@@ -279,29 +297,82 @@ class JuiceBoxEngineServer(BaseManager):
             __resp = Response.error(message="Invalid JSON format")
         except Exception as e:
             __resp = Response.error(message=str(e))
-        return __resp.to_json()
+        return __resp
 
     def cleanup(self) -> Response:
         """
-        Limpieza general del servidor: cierra el socket y elimina los contenedores.
+        Limpieza general del servidor: cierra el socket, detiene contenedores y conexiones.
+        Es idempotente y tolerante a errores.
         """
+        with self.__manager_lock:
+            __rtb_manager = self.rtb_manager
+            __js_manager = self.js_manager
+            __redis_manager = self.redis_manager
+            __monitor = self.monitor
+            __docker_client = self.docker_client
+
+        # Acumulamos mensajes y errores
+        messages = []
+        errors = []
+
+        for name, component, action in [
+            ("JuiceShopManager", __js_manager, lambda: component.cleanup()),
+            ("RootTheBoxManager", __rtb_manager, lambda: component.cleanup()),
+            ("RedisManager", __redis_manager, lambda: component.cleanup()),
+            ("Monitor", __monitor, lambda: component.stop_container_monitoring()),
+            ("DockerClient", __docker_client, lambda: component.close()),
+        ]:
+            if component is not None:
+                _resp: Response
+                try:
+                    _resp = action()
+                    if isinstance(_resp, Response) and _resp.status == Status.OK:
+                        msg: str = f"{name} cleaned up successfully: {_resp.message}\n"
+                        messages.append(
+                            f"{name} cleaned up successfully: {_resp.message}\n"
+                        )
+                        if __monitor:
+                            __monitor.info(msg)
+                    elif component is __docker_client:
+                        msg: str = (
+                            f"{name} cleaned up successfully: Docker connection is closed\n"
+                        )
+                        messages.append(
+                            f"{name} cleaned up successfully: Docker connection is closed\n"
+                        )
+                        if __monitor:
+                            __monitor.info(msg)
+                    else:
+                        error_msg = f"{name} cleanup failed: {_resp.message}\n"
+                        errors.append(error_msg)
+                        if __monitor:
+                            __monitor.error(error_msg)
+                except Exception as e:
+                    error_msg = f"{name} cleanup failed."
+                    errors.append(error_msg)
+                    if __monitor:
+                        __monitor.error(error_msg)
+
+        # Detiene el motor
         try:
-            # Lee el manager dentro del lock para asegurar coherencia.
-            with self.__manager_lock:
-                __rtb_manager = self.rtb_manager
-                __js_manager = self.js_manager
-                __redis_manager = self.redis_manager
-            # Eliminación de los contenedores y las conexiones
-            __js_manager.cleanup()
-            __rtb_manager.cleanup()
-            __redis_manager.cleanup()
-            _resp: Response = self.stop()
+            stop_response: Response = self.stop()
+            if stop_response.status == Status.OK:
+                messages.append(f"Server stopped: {stop_response.message}")
+            else:
+                msg = f"Server stopped, but socket cleanup failed: {stop_response.message}"
+                errors.append(msg)
+                if __monitor:
+                    __monitor.error(msg)
         except Exception as e:
-            self.monitor.error(f"Error during cleanup: {str(e)}")
-            return Response.error(f"Error during cleanup: {str(e)}")
-        if _resp.status == Status.OK:
-            self.monitor.info("Server cleaned up and socket removed!")
-            return Response.ok("Server cleaned up and socket removed!")
+            msg = f"Error stopping server: {e}"
+            errors.append(msg)
+            if __monitor:
+                __monitor.error(msg)
+
+        # Resultado final
+        if errors:
+            return Response.error(f"Cleanup completed with errors: {errors}")
         else:
-            self.monitor.error("Server cleaned up, but socket could not be removed!")
-            return Response.error("Server cleaned up, but socket could not be removed!")
+            if __monitor:
+                __monitor.info("Server cleaned up successfully.")
+            return Response.ok(f"Cleanup successful: {messages}")

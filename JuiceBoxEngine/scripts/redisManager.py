@@ -2,7 +2,7 @@ import redis, subprocess, os, docker, atexit
 from JuiceBoxEngine.models.schemas import Response, BaseManager
 from importlib.resources import path
 from scripts.utils.validator import validate_container
-from JuiceBoxEngine.models.schemas import RedisResponse
+from JuiceBoxEngine.models.schemas import RedisResponse, Response
 from docker.models.containers import Container
 from docker.client import DockerClient
 from docker.errors import APIError
@@ -17,12 +17,15 @@ class RedisManager(BaseManager):
 
     def __init__(
         self,
+        # Redis:
         container_name: str = "juicebox-redis",
         redis_host: str = "localhost",
         redis_port: int = 6379,
         redis_db: int = 0,
         redis_password: str = "C5L48",
         compose_file: str | None = None,
+        # Docker:
+        docker_client: DockerClient | None = None,
     ) -> None:
         # Si no se especifica la ruta, se carga desde el paquete configs
         if compose_file:
@@ -33,7 +36,8 @@ class RedisManager(BaseManager):
         self.container_name = container_name
 
         # Cliente Docker
-        self.__docker_client: DockerClient = docker.from_env()
+        if docker_client:
+            self.__docker_client: DockerClient = docker_client
 
         # Cliente Redis
         self.__redis = redis.Redis(
@@ -138,14 +142,23 @@ class RedisManager(BaseManager):
         payload: RedisResponse = RedisResponse.from_container(container)
         return self.__publish(JuiceBoxChannels.CLIENT, payload)
 
-    def cleanup(self) -> Response:
+    def close(self) -> bool:
         """
-        Destruye el contenedor y cierra la conexión al __docker_client para liberar sockets/tokens.
+        Cierra la conexión al cliente Redis.
         """
         try:
-            self.__redis.close()  # Cierra la conexión al cliente Redis
+            self.__redis.close()
+        except Exception:
+            return False
+        return True
+
+    def cleanup(self) -> Response:
+        """
+        Destruye el contenedor y libera los recursos.
+        """
+        try:
+            self.close()
             self.stop()
-            self.__docker_client.close()  # Cierra el cliente Docker
             return Response.ok(message="Redis cleanup successful!")
         except Exception as e:
             return Response.error(message=f"Redis could not be cleaned up: {str(e)}")

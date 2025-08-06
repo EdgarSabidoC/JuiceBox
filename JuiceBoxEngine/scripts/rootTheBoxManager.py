@@ -44,12 +44,15 @@ GITHUB_USER = "EdgarSabidoC"
 class RootTheBoxManager(BaseManager):
     __rtb_yaml = "rtb-docker-compose.yml"
 
-    def __init__(self, config: RTBConfig) -> None:
+    def __init__(
+        self, config: RTBConfig, docker_client: DockerClient | None = None
+    ) -> None:
         if not isinstance(config, RTBConfig):
             raise TypeError("Required: RTBConfig instance.")
 
         # Cliente Docker
-        self.__docker_client: DockerClient = docker.from_env()
+        if docker_client:
+            self.__docker_client: DockerClient = docker_client
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -105,14 +108,6 @@ class RootTheBoxManager(BaseManager):
                 capture_output=True,
                 text=True,
             )
-            if validate_container(self.__docker_client, self.webapp_container_name):
-                self.webapp_container: Container = self.__docker_client.containers.get(
-                    self.webapp_container_name
-                )
-            if validate_container(self.__docker_client, self.cache_container_name):
-                self.cache_container: Container = self.__docker_client.containers.get(
-                    self.cache_container_name
-                )
             return Response.ok(message="Docker compose subprocess successful")
         except subprocess.CalledProcessError as e:
             return Response.error(message=str(e.stdout) + ". " + str(e.stderr))
@@ -221,9 +216,13 @@ class RootTheBoxManager(BaseManager):
                 _data: dict[str, str | bool] = {"container": name, "running": __running}
                 if not __running:
                     overall_ok = False
-                    results.append(Response.error(data=_data))
+                    results.append(
+                        Response.error(f"Container {name} is not running", data=_data)
+                    )
                 else:
-                    results.append(Response.ok(data=_data))
+                    results.append(
+                        Response.ok(f"Container {name} is running", data=_data)
+                    )
             except Exception as e:
                 overall_ok = False
                 results.append(
@@ -232,7 +231,7 @@ class RootTheBoxManager(BaseManager):
                     )
                 )
         __response: Response
-        __data: dict[str, list[Response]] = {"containers": results}
+        __data: dict[str, list[dict]] = {"containers": [r.to_dict() for r in results]}
         if overall_ok:
             __response = Response.ok(data=__data)
         else:
@@ -241,11 +240,10 @@ class RootTheBoxManager(BaseManager):
 
     def cleanup(self) -> Response:
         """
-        Cierra la conexión al Docker __docker_client para liberar sockets/tokens y elimina todos los contenedores.
+        Detiene y elimina todos los contenedores Root The Box y libera los recursos.
         """
         try:
             self.stop()
-            self.__docker_client.close()
             return Response.ok()
         except Exception:
             return Response.error()

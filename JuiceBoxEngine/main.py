@@ -9,26 +9,41 @@ from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.redisManager import RedisManager
 from scripts.utils.config import JuiceShopConfig, RTBConfig
 from scripts.monitor import Monitor
+from docker import DockerClient
 from types import FrameType
-import sys, signal, atexit
+import sys, signal, atexit, docker
 
 
 if __name__ == "__main__":
+    # Cliente de Docker:
+    docker_client: DockerClient = docker.from_env()
     # Se instancian los managers
-    rtb = RootTheBoxManager(RTBConfig())  # Root the Box
-    js = JuiceShopManager(JuiceShopConfig())  # Juice Shop
-    redis = RedisManager()  # Redis
+    rtb = RootTheBoxManager(RTBConfig(), docker_client=docker_client)  # Root the Box
+    js = JuiceShopManager(JuiceShopConfig(), docker_client=docker_client)  # Juice Shop
+    redis = RedisManager(docker_client=docker_client)  # Redis
 
     # Se instancia el monitor
-    monitor = Monitor(name="JuiceBoxEngine", use_journal=True, redis=redis)
+    monitor = Monitor(
+        name="JuiceBoxEngine",
+        use_journal=True,
+        docker_client=docker_client,
+        redis=redis,
+    )
 
     # Se instancia el motor
-    jb_server = JuiceBoxEngineServer(monitor, js, rtb, redis)  # Juice Box Engine
+    jb_server = JuiceBoxEngineServer(
+        monitor=monitor,
+        js_manager=js,
+        rtb_manager=rtb,
+        docker_client=docker_client,
+        redis_manager=redis,
+    )  # Juice Box Engine
 
     # Función para manejar el cierre del programa
     def handle_exit(signum: int, frame: FrameType | None):
         print(f"\n📶 Received signal: {signum}. Closing socket...")
-        jb_server.cleanup()  # Se limpia el socket
+        jb_server.cleanup()  # Se para el motor y se limpian los recursos
+        print("✅ Socket closed. Exiting JuiceBoxEngine.")
         sys.exit(0)
 
     # Se capturan las señales de interrupción

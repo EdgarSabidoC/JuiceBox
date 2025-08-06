@@ -23,8 +23,9 @@ class Monitor:
         name: str = "JuiceBoxEngine",
         use_journal: bool = True,
         level: int = logging.DEBUG,
+        # Docker:
+        docker_client: DockerClient | None = None,
         # Monitor:
-        monitor_containers: bool = True,
         container_poll_interval: float = 5.0,
         # Lista de contenedores de RootTheBox y JuiceShop:
         rtb_containers: list[str] | None = None,
@@ -39,7 +40,6 @@ class Monitor:
             name (str): Nombre del logger.
             use_journal (bool): Si usar journald para logging.
             level (int): Nivel de logging.
-            monitor_containers (bool): Si inicia la vigilancia de contenedores.
             container_poll_interval (float): Intervalo entre chequeos de contenedores.
             redis_host (str): Dirección de Redis.
             redis_port (int): Puerto de Redis.
@@ -58,8 +58,9 @@ class Monitor:
             level=level,
         ).get()
 
-        # Cliente Docker para vigilancia
-        self.__docker_client: DockerClient = docker.from_env()
+        # Cliente Docker
+        if docker_client:
+            self.__docker_client: DockerClient = docker_client
 
         # Control del hilo de monitorización Docker
         self._monitoring = False
@@ -71,9 +72,6 @@ class Monitor:
 
         # Contenedores
         self.__set_containers(rtb_containers, js_containers)
-
-        if monitor_containers:
-            self.start_container_monitoring()
 
         # Cliente Redis
         if redis:
@@ -182,13 +180,15 @@ class Monitor:
         if last_status == current_status:
             return
 
+        # Se actualiza el último estado registrado
+        self.__last_statuses[container_name] = current_status
+
         # Publicación en Redis
+        if not redis:
+            return
         self.__redis.publish_to_admin(container)  # Canal administrativo
         if container_name in self.js_containers:
             self.__redis.publish_to_client(container)  # Canal de clientes
-
-        # Se actualiza el último estado registrado
-        self.__last_statuses[container_name] = current_status
 
     def start_container_monitoring(self):
         """
@@ -203,13 +203,14 @@ class Monitor:
         self._monitor_thread.start()
         self.info("Docker container monitoring started...")
 
-    def stop_container_monitoring(self):
+    def stop_container_monitoring(self) -> Response:
         """
         Detiene el monitoreo de contenedores Docker.
         """
         if not self._monitoring:
-            return
+            return Response.ok("Monitor is not running.")
         self._monitoring = False
         if self._monitor_thread:
             self._monitor_thread.join(timeout=self._interval + 1)
         self.info("Docker container monitoring stopped.")
+        return Response.ok("Docker container monitoring stopped.")

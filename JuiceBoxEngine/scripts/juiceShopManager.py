@@ -38,7 +38,9 @@ GITHUB_USER = "EdgarSabidoC"
 
 
 class JuiceShopManager(BaseManager):
-    def __init__(self, config: JuiceShopConfig) -> None:
+    def __init__(
+        self, config: JuiceShopConfig, docker_client: DockerClient | None = None
+    ) -> None:
         if not isinstance(config, JuiceShopConfig):
             raise TypeError("Required: JuiceShopConfig instance.")
 
@@ -46,7 +48,8 @@ class JuiceShopManager(BaseManager):
         self.config = config
 
         # Cliente Docker
-        self.__docker_client: DockerClient = docker.from_env()
+        if docker_client:
+            self.__docker_client: DockerClient = docker_client
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -283,11 +286,10 @@ class JuiceShopManager(BaseManager):
 
     def cleanup(self) -> Response:
         """
-        Cierra la conexión al Docker __docker_client para liberar sockets/tokens.
+        Detiene y elimina todos los contenedores Juice Shop y libera los recursos.
         """
         try:
             self.stop()
-            self.__docker_client.close()
             return Response.ok()
         except Exception:
             return Response.error()
