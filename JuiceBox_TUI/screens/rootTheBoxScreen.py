@@ -113,8 +113,8 @@ class RootTheBoxScreen(Screen):
                     self.info.update("Se mandó __START__")
                     self.SERVER_INFO.update("[red]✘[red]")
             else:
-                __resp = await self.send_command("RTB", "__KILL__")
-                self.info.update("Se mandó __KILL__")
+                __resp = await self.send_command("RTB", "__STOP__")
+                self.info.update("Se mandó __STOP__")
                 self.SERVER_INFO.update("[red]✘[/red]")
         except Exception as e:
             # Si falla, revertimos el valor y mostramos error
