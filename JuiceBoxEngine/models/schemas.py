@@ -1,5 +1,8 @@
-from typing import Optional, Literal, Union, List, Dict, Any
-import json
+from __future__ import annotations
+from typing import Dict, Any
+import json, time
+from dataclasses import dataclass, asdict
+from docker.models.containers import Container
 
 """
 Módulo de utilidades para generar respuestas estándar en JSON o diccionario
@@ -69,7 +72,7 @@ class Response:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def ok(cls, message: str = "Success", data: Dict[str, Any] = {}) -> "Response":
+    def ok(cls, message: str = "Success", data: Dict[str, Any] = {}) -> Response:
         """
         Crea una respuesta con estado OK.
 
@@ -85,7 +88,7 @@ class Response:
     @classmethod
     def error(
         cls, message: str = "Something went wrong", data: Dict[str, Any] = {}
-    ) -> "Response":
+    ) -> Response:
         """
         Crea una respuesta con estado ERROR.
 
@@ -101,7 +104,7 @@ class Response:
     @classmethod
     def not_found(
         cls, message: str = "Not found", data: Dict[str, Any] = {}
-    ) -> "Response":
+    ) -> Response:
         """
         Crea una respuesta con estado NOT_FOUND.
 
@@ -115,52 +118,42 @@ class Response:
         return cls(Status.NOT_FOUND, message, data)
 
 
-class ContainerData:
-    id: str | None
-    name: str | None
-    status: str | None
-
-
+@dataclass
 class RedisResponse:
     """
-    Representa una respuesta estándar para Redis con un código de estado, un mensaje
-    descriptivo y datos adicionales.
-
-    Atributos:
-        status (str): Código de estado (Status.OK, Status.ERROR, etc.).
-        message (str): Mensaje legible para el usuario.
-        data (dict): Carga útil con información adicional.
+    Modelo para serializar respuestas de estado de contenedores
+    que se publicarán en Redis.
     """
 
-    def __init__(self, status: str, message: str, data: dict = {}):
-        """
-        Inicializa una instancia de Response.
+    id: str | None
+    container: str | None
+    status: str
+    timestamp: str
 
-        Args:
-            status (str): Código de estado (p.ej., Status.OK).
-            message (str): Mensaje descriptivo.
-            data (dict, opcional): Datos extra. Por defecto {}.
-
-        Nota:
-            Se usa `data or {}` para evitar que self.data quede como None
-            o que varios objetos compartan la misma referencia a un dict.
+    @classmethod
+    def from_container(cls, container: Container) -> RedisResponse:
         """
-        self.status = status
-        self.message = message
-        self.data = data or {}
+        Construye un RedisResponse a partir de Container.
+        """
+        return cls(
+            id=container.id,
+            container=container.name,
+            status=container.status,
+            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        Convierte la respuesta a un diccionario.
+        Convierte la RedisResponse a un diccionario.
 
         Returns:
             Dict[str, Any]: Estructura con las claves "status", "message" y "data".
         """
-        return {"status": self.status, "message": self.message, "data": self.data}
+        return asdict(self)
 
     def to_json(self) -> str:
         """
-        Serializa la respuesta a JSON.
+        Serializa la RedisResponse a JSON.
 
         Returns:
             str: Cadena JSON con la estructura de to_dict().

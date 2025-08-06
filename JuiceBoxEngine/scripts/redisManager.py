@@ -1,8 +1,11 @@
-import redis, subprocess, os, docker
-from scripts.utils.schemas import Response
+import redis, subprocess, os, docker, atexit
+from JuiceBoxEngine.models.schemas import Response
 from importlib.resources import path
 from scripts.utils.validator import validate_container
-from scripts.utils.schemas import RedisResponse
+from JuiceBoxEngine.models.schemas import RedisResponse
+from docker.models.containers import Container
+from docker.client import DockerClient
+from docker.errors import APIError
 
 
 class JuiceBoxChannels:
@@ -29,7 +32,8 @@ class RedisManager:
                 self.__compose_file = str(p)
         self.container_name = container_name
         # Arranca el servicio:
-        self.__run()
+        self.__docker_client: DockerClient = docker.from_env()
+        self.__start()
 
         # Cliente Redis
         self._redis = redis.Redis(
@@ -40,18 +44,11 @@ class RedisManager:
             decode_responses=True,
         )
 
-    def __run(self) -> Response:
+        atexit.register(self.cleanup)
+
+    def __create(self) -> Response:
         try:
-            docker_client = docker.from_env()
-            if validate_container(docker_client, self.container_name):
-                if (
-                    docker_client.containers.get(self.container_name).status
-                    == "running"
-                ):
-                    return Response.ok(message="Redis container is already running!")
-                else:
-                    docker_client.containers.get(self.container_name).start()
-                    return Response.ok(message="Redis container is running!")
+            # Si no existe el contenedor, se crea:
             base_dir = os.path.dirname(self.__compose_file)
             cmd = ["docker", "compose", "-f", self.__compose_file, "up", "-d"]
             subprocess.run(
@@ -61,38 +58,95 @@ class RedisManager:
                 capture_output=True,
                 text=True,
             )
+            if validate_container(self.__docker_client, self.container_name):
+                # Se obtiene el contenedor
+                self.__container: Container = self.__docker_client.containers.get(
+                    self.container_name
+                )
             return Response.ok(message="Redis container created and now is running!")
         except subprocess.CalledProcessError as e:
             return Response.error(message=str(e.stdout) + ". " + str(e.stderr))
 
-    def __publish(self, channel: str, payload: str) -> Response:
+    def __start(self) -> Response:
+        try:
+            # Se valida si existe el contenedor
+            if validate_container(self.__docker_client, self.container_name):
+                # Se obtiene el contenedor
+                container: Container = self.__docker_client.containers.get(
+                    self.container_name
+                )
+                self.__container: Container = container
+                if container.status == "running":
+                    return Response.ok(message="Redis container is already running!")
+                container.start()
+                if container.status == "running":
+                    return Response.ok(message="Redis container is running!")
+                return Response.error(message="Redis container could not run")
+            # Si el contenedor no existe, se crea:
+            return self.__create()
+        except APIError as e:
+            return Response.error(str(e))
+
+    def __kill_all(self) -> Response:
+        try:
+            # Mata o destruye el contenedor de Redis
+            self.__container.stop()
+            self.__container.remove()
+            return Response.ok(
+                "Redis container has been stopped and removed from system!",
+                data={"container": self.container_name, "status": "removed"},
+            )
+        except Exception as e:
+            return Response.error(
+                f"Redis container couldn't be stopped or removed: {str(e)}",
+                data={
+                    "container": self.container_name,
+                    "status": self.__container.status,
+                },
+            )
+
+    def __publish(self, channel: str, payload: RedisResponse) -> Response:
         """
         Publica un mensaje en un canal Redis.
 
         Args:
             channel (str): Nombre del canal.
-            payload (dict[str, Any]): Mensaje a publicar.
+            payload (RedisResponse): Mensaje a publicar.
         """
         try:
-            self._redis.publish(channel, payload)
+            message: str = payload.to_json()
+            self._redis.publish(channel, message)
             return Response.ok(data={"channel": channel})
         except Exception as e:
             return Response.error(message=f"Redis publish failed: {e}")
 
-    def publish_to_admin(self, response: str) -> Response:
+    def publish_to_admin(self, container: Container) -> Response:
         """
-        Publica un mensaje en el canal ADMIN de Redis.
+        Publica el estatus de un contenedor en el canal ADMIN de Redis.
 
         Args:
             response (Response): Mensaje a publicar.
         """
-        return self.__publish(JuiceBoxChannels.ADMIN, response)
+        payload: RedisResponse = RedisResponse.from_container(container)
+        return self.__publish(JuiceBoxChannels.ADMIN, payload)
 
-    def publish_to_client(self, response: str) -> Response:
+    def publish_to_client(self, container: Container) -> Response:
         """
-        Publica un mensaje en el canal CLIENT de Redis.
+        Publica el estatus de un contenedor en el canal CLIENT de Redis.
 
         Args:
             response (Response): Mensaje a publicar.
         """
-        return self.__publish(JuiceBoxChannels.CLIENT, response)
+        payload: RedisResponse = RedisResponse.from_container(container)
+        return self.__publish(JuiceBoxChannels.CLIENT, payload)
+
+    def cleanup(self) -> Response:
+        """
+        Destruye el contenedor y cierra la conexión al __docker_client para liberar sockets/tokens.
+        """
+        try:
+            self.__kill_all()
+            self.__docker_client.close()
+            return Response.ok()
+        except Exception:
+            return Response.error()

@@ -1,7 +1,10 @@
 import logging, time, threading, docker, docker.errors, redis, json
 from scripts.utils.logger import Logger
 from scripts.redisManager import RedisManager
-from scripts.utils.schemas import Response, Status
+from JuiceBoxEngine.models.schemas import Response, Status, RedisResponse
+from docker.models.containers import Container
+from scripts.utils.validator import validate_container
+from docker import DockerClient
 
 
 class Monitor:
@@ -54,7 +57,7 @@ class Monitor:
         ).get()
 
         # Cliente Docker para vigilancia
-        self._docker = docker.from_env()
+        self.__docker_client: DockerClient = docker.from_env()
 
         # Redis:
         if redis:
@@ -121,34 +124,33 @@ class Monitor:
         Bucle de vigilancia de contenedores. Ejecutado en segundo plano.
         """
         while self._monitoring:
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
             containers = self.rtb_containers + self.js_containers
 
             if not containers:
                 return  # No hay contenedores a monitorear
 
             try:
-                self.__process_all_containers(timestamp)
+                self.__process_all_containers()
             except Exception as e:
                 self.error(f"Monitor containers error: {e}")
 
             time.sleep(self._interval)
 
-    def __process_all_containers(self, timestamp: str):
+    def __process_all_containers(self):
         """
         Procesa el estado de todos los contenedores conocidos.
-
-        Args:
-            timestamp (str): Marca de tiempo del chequeo.
         """
         containers = self.rtb_containers + self.js_containers
         for container_name in containers:
-            container = self.__get_container(container_name)
+            if not validate_container(self.__docker_client, container_name):
+                # Si no existe el contenedor, continúa
+                continue
+            container = self.__get_container(container_name)  # Se obtiene el contenedor
             if not container:
                 continue
-            self.__process_single_container(container, timestamp)
+            self.__process_single_container(container)
 
-    def __get_container(self, container_name: str):
+    def __get_container(self, container_name: str) -> Container | None:
         """
         Obtiene un objeto `Container` de Docker por nombre.
 
@@ -159,40 +161,29 @@ class Monitor:
             docker.models.containers.Container | None
         """
         try:
-            return self._docker.containers.get(container_name)
+            return self.__docker_client.containers.get(container_name)
         except docker.errors.NotFound:
             return None
 
-    def __process_single_container(self, container, timestamp: str):
+    def __process_single_container(self, container: Container):
         """
         Procesa un único contenedor: detecta cambios de estado y publica eventos.
 
         Args:
             container: Objeto del contenedor Docker.
-            timestamp (str): Marca de tiempo actual.
         """
         current_status = container.status
-        container_name = container.name
+        container_name = container.name or ""
         last_status = self.__last_statuses.get(container_name)
 
         # Si el estado no ha cambiado, no se hace nada
         if last_status == current_status:
             return
 
-        # Construcción del mensaje
-        payload: str = json.dumps(
-            {
-                "id": container.id,
-                "container": container_name,
-                "status": current_status,
-                "timestamp": timestamp,
-            },
-        )
-
         # Publicación en Redis
-        self._redis.publish_to_admin(payload)  # Canal administrativo
+        self._redis.publish_to_admin(container)  # Canal administrativo
         if container_name in self.js_containers:
-            self._redis.publish_to_client(payload)  # Canal de clientes
+            self._redis.publish_to_client(container)  # Canal de clientes
 
         # Se actualiza el último estado registrado
         self.__last_statuses[container_name] = current_status
@@ -219,4 +210,4 @@ class Monitor:
         self._monitoring = False
         if self._monitor_thread:
             self._monitor_thread.join(timeout=self._interval + 1)
-        self.info("Docker container monitoring stopped")
+        self.info("Docker container monitoring stopped.")

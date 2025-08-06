@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-import os, socket, threading, json, redis, time
+import os, socket, threading, json, atexit
 from queue import Queue
 from threading import Thread
 from scripts.juiceShopManager import JuiceShopManager
 from scripts.rootTheBoxManager import RootTheBoxManager
+from scripts.redisManager import RedisManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from scripts.monitor import Monitor
-from scripts.utils.schemas import Response
+from JuiceBoxEngine.models.schemas import Response
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -33,6 +34,7 @@ class JuiceBoxEngineServer:
         self,
         js_manager: JuiceShopManager,
         rtb_manager: RootTheBoxManager,
+        redis_manager: RedisManager,
         socket_path: str = "/tmp/juiceboxengine.sock",
     ):
         """
@@ -59,11 +61,14 @@ class JuiceBoxEngineServer:
         # Managers
         self.rtb_manager = rtb_manager
         self.js_manager = js_manager
+        self.redis_manager = redis_manager
         self.__manager_lock = threading.Lock()
 
         # Cola para recibir y procesar comandos de los clientes
         self.command_queue = Queue()
         Thread(target=self.__worker, daemon=True).start()
+
+        atexit.register(self.cleanup)
 
     def __worker(self):
         """
@@ -271,8 +276,10 @@ class JuiceBoxEngineServer:
         with self.__manager_lock:
             __rtb_manager = self.rtb_manager
             __js_manager = self.js_manager
+            __redis_manager = self.redis_manager
         self.server_socket.close()
         __js_manager.cleanup()
         __rtb_manager.cleanup()
+        __redis_manager.cleanup()
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)

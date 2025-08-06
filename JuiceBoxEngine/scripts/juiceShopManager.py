@@ -6,15 +6,15 @@ Clase JuiceBoxManager que carga configuración desde JuiceShopConfig
 y gestiona los contenedores via Docker SDK.
 """
 
-import os, sys, json
+import os, atexit
 from typing import Union
-import docker, argparse
-from typing import overload
+import docker
 from docker import errors
 from scripts.utils.config import JuiceShopConfig
 from scripts.utils.validator import validate_container
-from importlib.resources import files
-from scripts.utils.schemas import Response, Status
+from JuiceBoxEngine.models.schemas import Response, Status
+from docker import DockerClient
+
 
 LOGO = """
 \t\t  ▄▄▄▄▄   ▄   ▄   ▄▄▄▄▄    ▄▄▄▄   ▄▄▄▄▄
@@ -46,7 +46,7 @@ class JuiceShopManager:
         self.config = config
 
         # Cliente Docker
-        self.client = docker.from_env()
+        self.__docker_client: DockerClient = docker.from_env()
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -56,6 +56,8 @@ class JuiceShopManager:
         self.configs_dir = os.path.join(self.project_root, "configs")
 
         self.image = "bkimminich/juice-shop:latest"
+
+        atexit.register(self.cleanup)
 
     @property
     def container_prefix(self) -> str:
@@ -89,7 +91,7 @@ class JuiceShopManager:
         for port in self.ports_range:
             __container: str = self.container_prefix + str(port)
             # Se verifica que no exista el contenedor
-            if not validate_container(self.client, __container):
+            if not validate_container(self.__docker_client, __container):
                 return (port, "available")
         return (1, "not available")
 
@@ -104,7 +106,7 @@ class JuiceShopManager:
             if __port_status != "available":
                 return Response.error(message="No available ports")
             __container = self.container_prefix + str(__port)
-            self.client.containers.run(
+            self.__docker_client.containers.run(
                 image=self.image,
                 name=__container,
                 detach=self.detach_mode,
@@ -130,8 +132,8 @@ class JuiceShopManager:
             elif isinstance(container, str):
                 __container = container
             # Se verifica que exista el contenedor
-            if validate_container(self.client, __container):
-                containers = self.client.containers
+            if validate_container(self.__docker_client, __container):
+                containers = self.__docker_client.containers
                 _container = containers.get(__container)
                 _container.stop()
                 _container.remove()
@@ -206,7 +208,7 @@ class JuiceShopManager:
 
     def __is_running(self, container_name: str) -> bool:
         try:
-            container = self.client.containers.get(container_name)
+            container = self.__docker_client.containers.get(container_name)
             return container.status == "running"
         except errors.NotFound:
             return False
@@ -259,7 +261,7 @@ class JuiceShopManager:
                 return Response.error(f"YAML file not found: {full_config_path}")
 
             # Monta configs/ en /data, usa /data como working_dir
-            self.client.containers.run(
+            self.__docker_client.containers.run(
                 image="bkimminich/juice-shop-ctf",
                 command=[
                     "--config",
@@ -281,11 +283,11 @@ class JuiceShopManager:
 
     def cleanup(self) -> Response:
         """
-        Cierra la conexión al Docker client para liberar sockets/tokens.
+        Cierra la conexión al Docker __docker_client para liberar sockets/tokens.
         """
         try:
             self.kill_all()
-            self.client.close()
+            self.__docker_client.close()
             return Response.ok()
         except Exception:
             return Response.error()

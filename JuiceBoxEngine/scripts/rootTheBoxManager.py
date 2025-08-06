@@ -6,14 +6,13 @@ Clase RootTheBoxManager que carga configuración desde rootTheBox.json
 y gestiona los contenedores via Docker Compose y Docker SDK.
 """
 
-import os, sys, subprocess, json
-import docker, argparse, yaml
-from typing import Union
+import os, subprocess, atexit
+import docker, yaml
 from docker import errors
 from scripts.utils.config import RTBConfig
 from scripts.utils.validator import validate_container
-from importlib.resources import files
-from scripts.utils.schemas import Response, Status
+from JuiceBoxEngine.models.schemas import Response, Status
+from docker import DockerClient
 
 LOGO = """
 \t\t        ▄▄▄▄   ▄▄▄▄▄  ▄▄▄▄▄  ▄▄▄▄▄
@@ -49,7 +48,7 @@ class RootTheBoxManager:
             raise TypeError("Required: RTBConfig instance.")
 
         # Cliente Docker
-        self.client = docker.from_env()
+        self.__docker_client: DockerClient = docker.from_env()
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -65,6 +64,8 @@ class RootTheBoxManager:
         self.rtb_dir: str = config.rtb_dir
         self.webapp_container_name: str = config.webapp_container_name
         self.cache_container_name: str = config.cache_container_name
+
+        atexit.register(self.cleanup)
 
     def __generate_docker_compose(self, output_path: str) -> Response:
         if not output_path:
@@ -155,8 +156,8 @@ class RootTheBoxManager:
         # Lista los dos contenedores a procesar
         for name in (self.webapp_container_name, self.cache_container_name):
             try:
-                if validate_container(self.client, name):
-                    containers = self.client.containers
+                if validate_container(self.__docker_client, name):
+                    containers = self.__docker_client.containers
                     __response: Response = self.__kill_container(name, containers)
                     containers_results.append(__response)
                     if __response.status == Status.ERROR:
@@ -196,7 +197,7 @@ class RootTheBoxManager:
 
     def __is_running(self, name: str) -> bool:
         try:
-            container = self.client.containers.get(name)
+            container = self.__docker_client.containers.get(name)
             return container.status == "running"
         except errors.NotFound:
             return False
@@ -231,11 +232,11 @@ class RootTheBoxManager:
 
     def cleanup(self) -> Response:
         """
-        Cierra la conexión al Docker client para liberar sockets/tokens y elimina todos los contenedores.
+        Cierra la conexión al Docker __docker_client para liberar sockets/tokens y elimina todos los contenedores.
         """
         try:
             self.kill_all()
-            self.client.close()
+            self.__docker_client.close()
             return Response.ok()
         except Exception:
             return Response.error()
