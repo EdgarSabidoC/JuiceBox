@@ -5,11 +5,16 @@ from widgets.header import get_header
 from textual.screen import Screen
 from textual.events import ScreenResume
 from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Label, Static, Switch, Button
+from textual.widgets import Label, Static, Switch, Button, RichLog
 from textual.binding import Binding
 from typing import Union
 import json, asyncio
 from widgets.customSwitch import CustomSwitch
+from textual.reactive import Reactive, reactive
+from widgets.reactiveMarkdown import ReactiveMarkdown
+from rich.text import Text
+from models.schemas import Response, Status
+import redis, threading
 
 SOCKET_PATH = "/tmp/juiceboxengine.sock"
 
@@ -27,16 +32,13 @@ class RootTheBoxScreen(Screen):
     _power_busy: bool = False
     _ignore_switch_event: bool = True
 
-    SERVER_INFO = Label(classes="server-info-data")
-
     def compose(self) -> ComposeResult:
         # Header
         yield get_header()
 
-        # Contenedor horizontal 1
         with Horizontal(classes="hcontainer") as hcontainer:
             hcontainer.can_focus = False
-            # Contenedor vertical 1
+
             with Vertical(classes="vcontainer1") as vcontainer1:
                 vcontainer1.can_focus = False
                 # Logo de RTB
@@ -48,7 +50,7 @@ class RootTheBoxScreen(Screen):
                 with self.controllers_container:
                     with Horizontal(classes="controllers"):
                         yield Label("Power:", classes="controller-label")
-                        self.power = CustomSwitch(value=True, name="power")
+                        self.power = Switch(value=True, name="power")
                         yield self.power
                     with Horizontal(classes="controllers"):
                         self.reset = Button(
@@ -64,41 +66,72 @@ class RootTheBoxScreen(Screen):
                 self.info.border_title = "Output"
                 yield self.info
 
-            # Contenedor vertical 2
             with Vertical(classes="vcontainer2") as vcontainer2:
                 vcontainer2.can_focus = False
-                self.config_container = ScrollableContainer()
-                self.config_static = Static()
+                self.config_container = ScrollableContainer(classes="config-container")
+                self.config_container.border_title = "Configuration"
+                self.config_data = ReactiveMarkdown(data="Loading configuration…")
+                self.config_data.can_focus = False
+                self.config_data.styles.color = "white"
                 self.config_container.can_focus = False
-                self.config_static.can_focus = False
                 with self.config_container:
-                    yield self.config_static
+                    yield self.config_data
 
-                # Server info
-                with Horizontal():
-                    self.SERVER_INFO_KEYS = Label(classes="server-info-keys")
-                    self.SERVER_INFO_KEYS.update("Webapp: ")
-                    yield self.SERVER_INFO_KEYS
-                    self.SERVER_INFO.can_focus = False
-                    self.SERVER_INFO.border_title = " Services Status"
-                    yield self.SERVER_INFO
+                # Services status
+                with Horizontal() as server_status:
+                    server_status.can_focus = False
+                    server_status.styles.content_align = ("center", "middle")
+                    server_status.styles.align = ("center", "middle")
+                    server_status.styles.border
+                    with Vertical(classes="services-status-keys") as server_info_keys:
+                        server_info_keys.can_focus = False
+                        self.SERVICES_STATUS_KEYS_WEBAPP = Label(
+                            classes="services-status-key"
+                        )
+                        self.SERVICES_STATUS_KEYS_WEBAPP.update("Webapp: ")
+                        yield self.SERVICES_STATUS_KEYS_WEBAPP
+                        self.SERVICES_STATUS_KEYS_CACHE = Label(
+                            classes="services-status-key"
+                        )
+                        self.SERVICES_STATUS_KEYS_CACHE.update("Caché: ")
+                        yield self.SERVICES_STATUS_KEYS_CACHE
+                    with Vertical(
+                        classes="services-status-data"
+                    ) as services_status_values:
+                        services_status_values.can_focus = False
+                        services_status_values.border_title = " Services Status"
+                        self.SERVICES_STATUS_DATA_WEBAPP = Label(
+                            classes="services-status-datum"
+                        )
+                        self.SERVICES_STATUS_DATA_WEBAPP.can_focus = False
+                        yield self.SERVICES_STATUS_DATA_WEBAPP
+                        self.SERVICES_STATUS_DATA_CACHE = Label(
+                            classes="services-status-datum"
+                        )
+                        self.SERVICES_STATUS_DATA_CACHE.can_focus = False
+                        yield self.SERVICES_STATUS_DATA_CACHE
 
         # Footer
         yield get_footer()
 
     async def on_mount(self) -> None:
+        self._start_redis_listener()  # Se conecta al socket de Redis
         await self.init()
 
     async def on_switch_changed(self, event: Switch.Changed) -> None:
-        # 1) Solo nos interesan eventos del switch "power"
+        # 1) Solo interesan eventos del switch "power"
         if event.switch.name != "power" or self._ignore_switch_event:
+            self.info.update("No entró")
+            self._ignore_switch_event = (
+                False  # Se reactivan los eventos del switch después del init().
+            )
             return
 
-        # 2) Si ya estamos procesando, ignoramos nuevas pulsaciones
+        # 2) Si ya se está procesando, se ignoran nuevas pulsaciones
         if self._power_busy:
             return
 
-        # 3) Bloqueamos internamente y en la UI
+        # 3) Se bloquea internamente y en la UI
         self._power_busy = True
         event.switch.disabled = True
 
@@ -106,20 +139,13 @@ class RootTheBoxScreen(Screen):
             if event.value:
                 __resp = await self.send_command("RTB", "__START__")
                 __resp = json.loads(__resp)
-                if __resp["status"] == "ok":
-                    self.info.update("Se mandó __START__")
-                    self.SERVER_INFO.update("[green]✔[/green]")
-                else:
-                    self.info.update("Se mandó __START__")
-                    self.SERVER_INFO.update("[red]✘[red]")
+                self.info.update("Se mandó __START__")
             else:
                 __resp = await self.send_command("RTB", "__STOP__")
                 self.info.update("Se mandó __STOP__")
-                self.SERVER_INFO.update("[red]✘[/red]")
-        except Exception as e:
+        except Exception:
             # Si falla, revertimos el valor y mostramos error
             event.switch.value = not event.value
-            self.SERVER_INFO.update(f"Error en comando: {e}")
         finally:
             # 4) Siempre reactivamos el switch y el lock
             event.switch.disabled = False
@@ -223,25 +249,84 @@ class RootTheBoxScreen(Screen):
             return '"status": "error"'
 
     async def init(self) -> None:
+        self._ignore_switch_event = True
         try:
             __resp = await self.send_command("RTB", "__STATUS__")
             __resp = json.loads(__resp)
-            if __resp["status"] == "ok":
-                self._ignore_switch_event = True
+            if __resp["status"] == Status.OK:
                 self.power.value = True
-                self.SERVER_INFO.update("[green]✔[/green]")
+                # self.info.update("Power value True")
             else:
-                self._ignore_switch_event = True
                 self.power.value = False
-                self.SERVER_INFO.update("[red]✘[/red]")
+                # self.info.update("Power value False")
 
             __resp = await self.send_command("RTB", "__CONFIG__")
             __resp = json.loads(__resp)
-            if __resp["status"] == "ok":
-                self.config_static.update(f"{__resp}")
+            if __resp["status"] == Status.OK:
+                config_data = __resp["data"]["config"]
+                pretty_json = json.dumps(config_data, indent=4)
+                md_content = f"```json\n{pretty_json}\n```"
+                self.config_data.update_content(md_content)
             else:
-                self.config_static.update(f"{__resp}")
+                self.config_data.update_content("Nothing to show")
+
         except Exception:
             pass
         finally:
-            self._ignore_switch_event = False
+            await asyncio.sleep(0.1)  # Espera para evitar problemas de UI
+
+    def _start_redis_listener(self) -> None:
+        """Crea y arranca el hilo que escucha Redis."""
+        # guardamos la referencia para que no se recoja
+        self._redis_thread = threading.Thread(
+            target=self._listen_to_redis_sync, daemon=True
+        )
+        self._redis_thread.start()
+
+    def _listen_to_redis_sync(self) -> None:
+        """Hilo de escucha que nunca debe tocar la UI directamente."""
+        client = redis.Redis(
+            host="localhost", port=6379, db=0, password="C5L48", decode_responses=True
+        )
+        pubsub = client.pubsub()
+        pubsub.subscribe("admin_channel", "client_channel")
+
+        # mensaje de arranque
+        self.app.call_from_thread(
+            lambda: self.SERVICES_STATUS_DATA_WEBAPP.update("Listener started")
+        )
+
+        for message in pubsub.listen():
+            # mensaje de confirmación de subscribe, unsubscribe, etc
+            mtype = message.get("type")
+            # actualiza tipo (ejemplo)
+            self.app.call_from_thread(
+                lambda m=mtype: self.SERVICES_STATUS_DATA_WEBAPP.update(
+                    f"Message type: {m}"
+                )
+            )
+
+            if mtype != "message":
+                continue
+
+            try:
+                data = json.loads(message["data"])
+            except Exception:
+                continue
+
+            def _update():
+                status = (
+                    "[green]✔[/green]"
+                    if data["status"] == "running"
+                    else "[red]✘[/red]"
+                )
+                self.SERVICES_STATUS_DATA_WEBAPP.update(status)
+
+                status = (
+                    "[green]✔[/green]"
+                    if data["status"] == "running"
+                    else "[red]✘[/red]"
+                )
+                self.SERVICES_STATUS_DATA_CACHE.update(status)
+
+            self.app.call_from_thread(_update)

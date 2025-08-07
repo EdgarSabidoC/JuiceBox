@@ -137,20 +137,20 @@ class RootTheBoxManager(BaseManager):
         except Exception as e:
             return Response.error(message=str(e))
 
-    def __stop_container(self, container, containers) -> Response:
+    def __stop_container(self, container_name: str, containers) -> Response:
         try:
             # Mata o destruye un contenedor
-            _container = containers.get(container)
+            _container = containers.get(container_name)
             _container.stop()
             _container.remove()
             return Response.ok(
-                f"{container} has been stopped and removed from system!",
-                data={"container": container},
+                f"{container_name} has been stopped and removed from system!",
+                data={"container": container_name},
             )
         except Exception as e:
             return Response.error(
-                f"{container} couldn't be stopped or removed: {str(e)}",
-                data={"container": container},
+                f"{container_name} couldn't be stopped or removed: {str(e)}",
+                data={"container": container_name},
             )
 
     def stop(self) -> Response:
@@ -211,12 +211,14 @@ class RootTheBoxManager(BaseManager):
             }
         )
 
-    def __is_running(self, name: str) -> bool:
+    def __is_running(self, name: str) -> str:
         try:
+            if not validate_container(self.__docker_client, name):
+                return "not_found"
             container = self.__docker_client.containers.get(name)
-            return container.status == "running"
-        except errors.NotFound:
-            return False
+            return container.status
+        except errors.NotFound as e:
+            return str(e)
 
     def status(self) -> Response:
         results: list[Response] = []
@@ -224,9 +226,9 @@ class RootTheBoxManager(BaseManager):
 
         for name in (self.webapp_container_name, self.cache_container_name):
             try:
-                __running = self.__is_running(name)
-                _data: dict[str, str | bool] = {"container": name, "running": __running}
-                if not __running:
+                __running: str = self.__is_running(name)
+                _data: dict[str, str | bool] = {"container": name, "status": __running}
+                if __running != "running":
                     overall_ok = False
                     results.append(
                         Response.error(f"Container {name} is not running", data=_data)
@@ -239,7 +241,7 @@ class RootTheBoxManager(BaseManager):
                 overall_ok = False
                 results.append(
                     Response.error(
-                        message=str(e), data={"container": name, "running": False}
+                        message=str(e), data={"container": name, "status": "stopped"}
                     )
                 )
         __response: Response

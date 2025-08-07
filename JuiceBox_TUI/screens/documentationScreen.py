@@ -2,9 +2,7 @@ from textual.app import ComposeResult
 from textual.screen import Screen
 from widgets.footer import get_footer
 from widgets.header import get_header
-from textual.widgets import Markdown, MarkdownViewer, TabbedContent, Tree, TabPane
-from textual.widgets.markdown import MarkdownTableOfContents
-from textual.widgets.tree import TreeNode
+from textual.widgets import MarkdownViewer, TabbedContent
 from textual.binding import Binding
 
 
@@ -50,19 +48,6 @@ class DocumentationScreen(Screen):
             yield self.rtb
         # Footer
         yield get_footer()
-
-    # async def on_mount(self) -> None:
-    #     # Se accede a la TOC de cada viewer tras el compose/mount
-    #     for name, viewer in (
-    #         ("JuiceBox", self.jb_engine),
-    #         ("JuiceShop", self.js),
-    #         ("RootTheBox", self.rtb),
-    #     ):
-    #         toc: MarkdownTableOfContents = viewer.query(MarkdownTableOfContents).first()
-    #         toc.border_title = "Index"
-    #         tr: Tree = toc.query_one(Tree)
-    #         tr.ICON_NODE_EXPANDED = "▽ "  # type: ignore[assignment]
-    #         tr.show_guides = True
 
     async def return_to_main(self) -> None:
         """Regresa a la pantalla del menú principal."""

@@ -136,6 +136,7 @@ class RedisResponse:
     que se publicarán en Redis.
     """
 
+    id: str | None
     container: str | None
     status: str
     timestamp: str
@@ -146,19 +147,9 @@ class RedisResponse:
         Construye un RedisResponse a partir de Container.
         """
         return cls(
+            id=container.id,
             container=container.name,
             status=container.status,
-            timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
-        )
-
-    @classmethod
-    def from_dict(cls, container: dict) -> RedisResponse:
-        """
-        Construye un RedisResponse a partir de un dict.
-        """
-        return cls(
-            container=container["container"],
-            status=container["status"],
             timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
         )
 

@@ -26,8 +26,8 @@ if __name__ == "__main__":
     monitor = Monitor(
         name="JuiceBoxEngine",
         use_journal=True,
-        docker_client=docker_client,
-        redis=redis,
+        rtb_containers=["rootthebox-webapp-1", "rootthebox-memcached-1"],
+        redis_manager=redis,
     )
 
     # Se instancia el motor

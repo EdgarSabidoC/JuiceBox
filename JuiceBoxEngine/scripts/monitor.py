@@ -31,7 +31,7 @@ class Monitor:
         rtb_containers: list[str] | None = None,
         js_containers: list[str] | None = None,
         # Redis:
-        redis: RedisManager | None = None,
+        redis_manager: RedisManager | None = None,
     ):
         """
         Inicializa el monitor del sistema.
@@ -61,6 +61,8 @@ class Monitor:
         # Cliente Docker
         if docker_client:
             self.__docker_client: DockerClient = docker_client
+        else:
+            self.__docker_client: DockerClient = docker.from_env()
 
         # Control del hilo de monitorización Docker
         self._monitoring = False
@@ -71,11 +73,13 @@ class Monitor:
         self.__last_statuses: dict[str, str] = {}
 
         # Contenedores
-        self.__set_containers(rtb_containers, js_containers)
+        self.set_containers(rtb_containers, js_containers)
 
         # Cliente Redis
-        if redis:
-            self.__redis: RedisManager = redis
+        if redis_manager:
+            self.__redis: RedisManager = redis_manager
+        else:
+            self.__redis: RedisManager = RedisManager()
 
     # ─── Métodos de Logging ─────────────────────────────────────────────────────
 
@@ -108,7 +112,7 @@ class Monitor:
 
     # ─── Métodos de monitorización de Docker ───────────────────────────────────
 
-    def __set_containers(self, rtb: list[str] | None, js: list[str] | None):
+    def set_containers(self, rtb: list[str] | None, js: list[str] | None):
         """
         Inicializa las listas de contenedores a monitorear.
 
@@ -143,7 +147,11 @@ class Monitor:
         containers = self.rtb_containers + self.js_containers
         for container_name in containers:
             if not validate_container(self.__docker_client, container_name):
-                # Si no existe el contenedor, continúa
+                if self.__last_statuses.get(container_name) != "not_found":
+                    self.change_status(
+                        container_name=container_name, current_status="not_found"
+                    )
+                    self.warning(f"Container '{container_name}' does not exist.")
                 continue
             container = self.__get_container(container_name)  # Se obtiene el contenedor
             if not container:
@@ -174,8 +182,10 @@ class Monitor:
         """
         current_status = container.status
         container_name = container.name or ""
-        last_status = self.__last_statuses.get(container_name)
+        self.change_status(container_name, current_status)
 
+    def change_status(self, container_name: str, current_status: str) -> None:
+        last_status = self.__last_statuses.get(container_name)
         # Si el estado no ha cambiado, no se hace nada
         if last_status == current_status:
             return
@@ -183,12 +193,23 @@ class Monitor:
         # Se actualiza el último estado registrado
         self.__last_statuses[container_name] = current_status
 
+        self.info(
+            f"--> Container '{container_name}' status changed: {current_status} <--"
+        )
+
+        container: dict[str, str] = {
+            "container": container_name,
+            "status": current_status,
+        }
+
         # Publicación en Redis
-        if not redis:
-            return
-        self.__redis.publish_to_admin(container)  # Canal administrativo
+        self.__redis.publish_to_admin(
+            RedisResponse.from_dict(container)
+        )  # Canal administrativo
         if container_name in self.js_containers:
-            self.__redis.publish_to_client(container)  # Canal de clientes
+            self.__redis.publish_to_client(
+                RedisResponse.from_dict(container)
+            )  # Canal de clientes
 
     def start_container_monitoring(self):
         """

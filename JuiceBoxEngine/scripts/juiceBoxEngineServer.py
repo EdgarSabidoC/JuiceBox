@@ -7,9 +7,8 @@ from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.redisManager import RedisManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from scripts.monitor import Monitor
-from JuiceBoxEngine.models.schemas import BaseManager, Response, Status
+from JuiceBoxEngine.models.schemas import BaseManager, Response, Status, RedisResponse
 from docker import DockerClient
-
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -231,6 +230,12 @@ class JuiceBoxEngineServer(BaseManager):
                 __resp = __manager.stop()
             case "__STATUS__":
                 __resp = __manager.status()
+                self.redis_manager.publish_to_admin(
+                    RedisResponse.from_dict(__resp.data["containers"][0]["data"]),
+                )
+                self.redis_manager.publish_to_admin(
+                    RedisResponse.from_dict(__resp.data["containers"][1]["data"]),
+                )
             case "__CONFIG__":
                 __resp = __manager.show_config()
             case _:

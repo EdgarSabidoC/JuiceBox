@@ -107,7 +107,7 @@ class RedisManager(BaseManager):
                 },
             )
 
-    def __publish(self, channel: str, payload: RedisResponse) -> Response:
+    def publish(self, channel: str, payload: RedisResponse) -> Response:
         """
         Publica un mensaje en un canal Redis.
 
@@ -122,25 +122,23 @@ class RedisManager(BaseManager):
         except Exception as e:
             return Response.error(message=f"Redis publish failed: {e}")
 
-    def publish_to_admin(self, container: Container) -> Response:
+    def publish_to_admin(self, payload: RedisResponse) -> Response:
         """
         Publica el estatus de un contenedor en el canal ADMIN de Redis.
 
         Args:
             response (Response): Mensaje a publicar.
         """
-        payload: RedisResponse = RedisResponse.from_container(container)
-        return self.__publish(JuiceBoxChannels.ADMIN, payload)
+        return self.publish(JuiceBoxChannels.ADMIN, payload)
 
-    def publish_to_client(self, container: Container) -> Response:
+    def publish_to_client(self, payload: RedisResponse) -> Response:
         """
         Publica el estatus de un contenedor en el canal CLIENT de Redis.
 
         Args:
-            response (Response): Mensaje a publicar.
+            container (Container): Mensaje a publicar.
         """
-        payload: RedisResponse = RedisResponse.from_container(container)
-        return self.__publish(JuiceBoxChannels.CLIENT, payload)
+        return self.publish(JuiceBoxChannels.CLIENT, payload)
 
     def close(self) -> bool:
         """

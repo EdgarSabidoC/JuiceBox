@@ -1,15 +1,16 @@
-import docker
-import time
+import redis
 
-client = docker.from_env()
+client = redis.Redis(
+    host="localhost",
+    port=6379,
+    db=0,
+    password="C5L48",
+    decode_responses=True,
+)
 
-while True:
-    containers = client.containers.list()
-    if len(containers) > 0:
-        for container in containers:
-            stats = container.stats(stream=False)
-            name = container.name
-            cpu = stats["cpu_stats"]["cpu_usage"]["total_usage"]
-            mem = stats["memory_stats"]["usage"]
-            print(f"{name} | CPU: {cpu} | MEM: {mem}")
-            time.sleep(2)
+pubsub = client.pubsub()
+pubsub.subscribe("admin_channel")
+print("Subscribed to admin_channel")
+
+for message in pubsub.listen():
+    print("Message received:", message)
