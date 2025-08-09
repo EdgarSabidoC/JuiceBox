@@ -6,3 +6,4 @@ JuiceBoxEngine/configs/*
 JuiceBox_TUI/*.txt
 *.txt
 .env
+**/__pycache__/
