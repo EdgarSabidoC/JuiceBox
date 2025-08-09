@@ -11,7 +11,7 @@ import docker, yaml
 from docker import errors
 from scripts.utils.config import RTBConfig
 from scripts.utils.validator import validate_container
-from JuiceBoxEngine.models.schemas import ManagerResult, BaseManager
+from Models.schemas import ManagerResult, BaseManager
 from docker import DockerClient
 from docker.models.containers import ContainerCollection
 

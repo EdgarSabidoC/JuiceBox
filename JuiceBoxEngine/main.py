@@ -12,15 +12,24 @@ from scripts.monitor import Monitor
 from docker import DockerClient
 from types import FrameType
 import sys, signal, atexit, docker
-
+from dotenv import dotenv_values
 
 if __name__ == "__main__":
     # Cliente de Docker:
     docker_client: DockerClient = docker.from_env()
+    # Carga las variables de entorno:
+    env_vars = dotenv_values(".env")
+    redis_password: str = ""
+    if env_vars["REDIS_PASSWORD"]:
+        redis_password = env_vars["REDIS_PASSWORD"]
+    else:
+        redis_password = "7357"
     # Se instancian los managers
     rtb = RootTheBoxManager(RTBConfig(), docker_client=docker_client)  # Root the Box
     js = JuiceShopManager(JuiceShopConfig(), docker_client=docker_client)  # Juice Shop
-    redis = RedisManager(docker_client=docker_client)  # Redis
+    redis = RedisManager(
+        redis_password=redis_password, docker_client=docker_client
+    )  # Redis
 
     # Se instancia el monitor
     monitor = Monitor(

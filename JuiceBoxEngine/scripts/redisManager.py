@@ -1,8 +1,7 @@
 import redis, subprocess, os
-from JuiceBoxEngine.models.schemas import BaseManager
 from importlib.resources import path
 from scripts.utils.validator import validate_container
-from JuiceBoxEngine.models.schemas import RedisPayload, ManagerResult
+from Models.schemas import BaseManager, RedisPayload, ManagerResult
 from docker.models.containers import Container
 from docker.client import DockerClient
 from docker.errors import APIError
@@ -41,7 +40,7 @@ class RedisManager(BaseManager):
         redis_host: str = "localhost",
         redis_port: int = 6379,
         redis_db: int = 0,
-        redis_password: str = "C5L48",
+        redis_password: str = "",
         compose_file: str | None = None,
         # Docker:
         docker_client: DockerClient | None = None,
@@ -169,7 +168,7 @@ class RedisManager(BaseManager):
         except Exception as e:
             return ManagerResult(
                 success=False,
-                message=f"Redis container couldn't be stopped or removed!",
+                message="Redis container couldn't be stopped or removed!",
                 error=str(e),
                 data={
                     "container": self.container_name,
@@ -263,5 +262,5 @@ class RedisManager(BaseManager):
             return ManagerResult.ok(message="Redis cleanup successful!")
         except Exception as e:
             return ManagerResult.failure(
-                message=f"Redis could not be cleaned up", error=str(e)
+                message="Redis could not be cleaned up", error=str(e)
             )

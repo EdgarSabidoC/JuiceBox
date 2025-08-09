@@ -7,7 +7,7 @@ from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.redisManager import RedisManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from scripts.monitor import Monitor
-from JuiceBoxEngine.models.schemas import (
+from Models.schemas import (
     BaseManager,
     Response,
     Status,

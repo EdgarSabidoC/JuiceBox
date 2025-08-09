@@ -5,3 +5,4 @@ JuiceBoxEngine/configs/*
 !JuiceBoxEngine/configs/.gitkeep
 JuiceBox_TUI/*.txt
 *.txt
+.env

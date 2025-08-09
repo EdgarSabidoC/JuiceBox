@@ -1,7 +1,7 @@
 import logging, time, threading, docker, docker.errors
 from scripts.utils.logger import Logger
 from scripts.redisManager import RedisManager
-from JuiceBoxEngine.models.schemas import ManagerResult, ManagerResult, RedisPayload
+from Models.schemas import ManagerResult, ManagerResult, RedisPayload
 from docker.models.containers import Container
 from scripts.utils.validator import validate_container
 from docker import DockerClient

@@ -10,10 +10,10 @@ from textual.binding import Binding
 from typing import Union
 import json, asyncio
 from widgets.customSwitch import CustomSwitch
-from textual.reactive import Reactive, reactive
+from textual.reactive import reactive
 from widgets.reactiveMarkdown import ReactiveMarkdown
 from rich.text import Text
-from models.schemas import Response, Status
+from Models.schemas import Status
 import redis, threading
 
 SOCKET_PATH = "/tmp/juiceboxengine.sock"

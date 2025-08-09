@@ -10,7 +10,7 @@ import os, atexit
 from docker import errors
 from scripts.utils.config import JuiceShopConfig
 from scripts.utils.validator import validate_container
-from JuiceBoxEngine.models.schemas import ManagerResult, Status, BaseManager
+from Models.schemas import ManagerResult, Status, BaseManager
 from docker import DockerClient
 from docker.models.containers import Container
 
