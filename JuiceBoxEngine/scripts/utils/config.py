@@ -116,7 +116,7 @@ class JuiceShopConfig:
 
         # Modo detach
         self.detach_mode: bool = validate_bool(
-            config_data.get("DETACH_MODE", False), "DETACH_MODE"
+            config_data.get("DETACH_MODE", True), "DETACH_MODE"
         )
 
         # Se genera el archivo YAML:

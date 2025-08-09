@@ -209,7 +209,7 @@ class RootTheBoxManager(BaseManager):
         if overall_ok:
             __result = ManagerResult(
                 success=True,
-                message="All containers stopped successfully",
+                message="All Root The Box containers stopped successfully",
                 data={
                     "containers": [
                         container.to_dict() for container in containers_results
@@ -219,7 +219,7 @@ class RootTheBoxManager(BaseManager):
         else:
             __result = ManagerResult(
                 success=False,
-                message="Error at stopping containers",
+                message="Error at stopping Root The Box containers",
                 error="Some containers could not be stopped",
                 data={
                     "containers": [
@@ -232,7 +232,7 @@ class RootTheBoxManager(BaseManager):
     def show_config(self) -> ManagerResult:
         return ManagerResult(
             success=True,
-            message="Root The Box configuration",
+            message="Root The Box configuration retrieved",
             data={
                 "config": {
                     "webapp_container_name": self.webapp_container_name,
@@ -245,11 +245,11 @@ class RootTheBoxManager(BaseManager):
             },
         )
 
-    def __get_status(self, name: str) -> str:
+    def __get_status(self, container_name: str) -> str:
         try:
-            if not validate_container(self.__docker_client, name):
+            if not validate_container(self.__docker_client, container_name):
                 return "not_found"
-            container = self.__docker_client.containers.get(name)
+            container = self.__docker_client.containers.get(container_name)
             return container.status
         except errors.NotFound as e:
             return str(e)
@@ -258,36 +258,28 @@ class RootTheBoxManager(BaseManager):
         containers_results: list[ManagerResult] = []
         overall_ok = True
 
-        for name in (self.webapp_container_name, self.cache_container_name):
+        for container_name in (self.webapp_container_name, self.cache_container_name):
             try:
-                __running: str = self.__get_status(name)
-                _data: dict[str, str | bool] = {"container": name, "status": __running}
-                if __running != "running":
-                    overall_ok = False
-                    containers_results.append(
-                        ManagerResult(
-                            success=False,
-                            message="Container not running",
-                            error=f"Container {name} is not running",
-                            data=_data,
-                        )
+                __status: str = self.__get_status(container_name)
+                _data: dict[str, str | bool] = {
+                    "container": container_name,
+                    "status": __status,
+                }
+                containers_results.append(
+                    ManagerResult(
+                        success=True,
+                        message="Container status retrieved",
+                        data=_data,
                     )
-                else:
-                    containers_results.append(
-                        ManagerResult(
-                            success=True,
-                            message=f"Container {name} is running",
-                            data=_data,
-                        )
-                    )
+                )
             except Exception as e:
                 overall_ok = False
                 containers_results.append(
                     ManagerResult(
                         success=False,
-                        message="Error found when checking container status",
+                        message="Error getting container status",
                         error=str(e),
-                        data={"container": name, "status": "error"},
+                        data={"container": container_name, "status": "error"},
                     )
                 )
         __response: ManagerResult
