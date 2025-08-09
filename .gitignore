@@ -1,9 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+
+# Entornos virtuales
+venv/
+.env
+
+# Logs y config temporales
 Monitor/Logs/*
 !Monitor/Logs/.gitkeep
-RootTheBox/
 JuiceBoxEngine/configs/*
 !JuiceBoxEngine/configs/.gitkeep
+
+# Textos sueltos
 JuiceBox_TUI/*.txt
 *.txt
-.env
-**/__pycache__/
+
+# Root the box
+RootTheBox/
