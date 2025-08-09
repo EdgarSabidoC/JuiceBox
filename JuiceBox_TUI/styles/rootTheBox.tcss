@@ -54,8 +54,8 @@ CustomSwitch {
   align: center middle;
 }
 
-CustomSwitch:focus {
-  border: hkey $accent;
+Switch:focus {
+  border: hkey $secondary;
 }
 
 /* Cambiar el color del slider cuando está apagado */

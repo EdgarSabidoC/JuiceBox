@@ -11,7 +11,7 @@ import docker, yaml
 from docker import errors
 from scripts.utils.config import RTBConfig
 from scripts.utils.validator import validate_container
-from JuiceBoxEngine.models.schemas import Response, Status, BaseManager
+from JuiceBoxEngine.models.schemas import ManagerResult, BaseManager
 from docker import DockerClient
 from docker.models.containers import Container
 
@@ -71,7 +71,7 @@ class RootTheBoxManager(BaseManager):
 
         atexit.register(self.cleanup)
 
-    def __generate_docker_compose(self, output_path: str) -> Response:
+    def __generate_docker_compose(self, output_path: str) -> ManagerResult:
         if not output_path:
             output_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
 
@@ -92,14 +92,19 @@ class RootTheBoxManager(BaseManager):
         try:
             with open(output_path, "w") as f:
                 yaml.dump(compose_dict, f, sort_keys=False)
-            return Response.ok(message="docker-compose file created", data=compose_dict)
-        except (yaml.YAMLError, OSError) as e:
-            return Response.error(
-                message=f"docker-compose file could not be created: {str(e)}",
+            return ManagerResult(
+                success=True,
+                message="RTB docker-compose file created",
                 data=compose_dict,
             )
+        except (yaml.YAMLError, OSError) as e:
+            return ManagerResult(
+                success=False,
+                message="The RTB docker-compose file could not be created",
+                error=str(e),
+            )
 
-    def __create(self) -> Response:
+    def __create(self) -> ManagerResult:
         try:
             subprocess.run(
                 ["docker", "compose", "-f", self.__rtb_yaml, "up", "-d"],
@@ -108,53 +113,68 @@ class RootTheBoxManager(BaseManager):
                 capture_output=True,
                 text=True,
             )
-            return Response.ok(message="Docker compose subprocess successful")
+            return ManagerResult(
+                success=True, message="Docker compose subprocess successful"
+            )
         except subprocess.CalledProcessError as e:
-            return Response.error(message=str(e.stdout) + ". " + str(e.stderr))
+            return ManagerResult(
+                success=False,
+                message="Error found during subprocess execution",
+                error=str(e.stdout) + ". " + str(e.stderr),
+            )
 
-    def start(self) -> Response:
+    def start(self) -> ManagerResult:
         try:
-            __response: Response
+            __response: ManagerResult
             # Se eliminan los contenedores en caso de existir:
             self.stop()
             compose_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
             __response = self.__generate_docker_compose(compose_path)
-            if __response.status == Status.ERROR:
+            if not __response.success:
                 return __response
             if not os.path.isfile(compose_path):
-                return Response.not_found(message="Docker Compose file not found!")
+                return ManagerResult(
+                    success=False,
+                    message="Docker Compose file not found!",
+                    error="The manager could not find the docker-compose file.",
+                )
 
-            __response: Response = self.__create()
-            if __response.status == Status.OK:
-                return Response.ok(
+            __response: ManagerResult = self.__create()
+            if __response.success:
+                return ManagerResult(
+                    success=True,
                     message="Containers started and now are running",
-                    data=__response.data,
                 )
             else:
-                return Response.error(
-                    message="Failed to start containers", data=__response.data
+                return ManagerResult(
+                    success=False,
+                    message="Failed to start containers",
+                    error=__response.error,
                 )
         except Exception as e:
-            return Response.error(message=str(e))
+            return ManagerResult(success=False, message="Error found!", error=str(e))
 
-    def __stop_container(self, container_name: str, containers) -> Response:
+    def __stop_container(self, container_name: str, containers) -> ManagerResult:
         try:
             # Mata o destruye un contenedor
             _container = containers.get(container_name)
             _container.stop()
             _container.remove()
-            return Response.ok(
-                f"{container_name} has been stopped and removed from system!",
+            return ManagerResult(
+                success=True,
+                message="Container has been stopped and removed from system!",
                 data={"container": container_name},
             )
         except Exception as e:
-            return Response.error(
-                f"{container_name} couldn't be stopped or removed: {str(e)}",
+            return ManagerResult(
+                success=False,
+                message=f"Container couldn't be stopped or removed!",
+                error=str(e),
                 data={"container": container_name},
             )
 
-    def stop(self) -> Response:
-        containers_results: list[Response] = []
+    def stop(self) -> ManagerResult:
+        containers_results: list[ManagerResult] = []
         overall_ok = True
 
         # Lista los dos contenedores a procesar
@@ -162,43 +182,57 @@ class RootTheBoxManager(BaseManager):
             try:
                 if validate_container(self.__docker_client, name):
                     containers = self.__docker_client.containers
-                    __response: Response = self.__stop_container(name, containers)
-                    containers_results.append(__response)
-                    if __response.status == Status.ERROR:
+                    __result: ManagerResult = self.__stop_container(name, containers)
+                    containers_results.append(__result)
+                    if not __result.success:
                         overall_ok = False
                 else:
                     # No existe el contenedor
                     containers_results.append(
-                        Response.not_found(
-                            "Container not found!", data={"container": name}
+                        ManagerResult(
+                            success=True,
+                            message="Container not found!",
+                            data={"container": name},
                         )
                     )
             except Exception as e:
                 overall_ok = False
                 containers_results.append(
-                    Response.error(message=str(e), data={"container": name})
+                    ManagerResult(
+                        success=False,
+                        message="Failed to stop container",
+                        error=str(e),
+                        data={"container": name},
+                    )
                 )
-        __resp: Response
+        __result: ManagerResult
         if overall_ok:
-            __resp = Response.ok(
+            __result = ManagerResult(
+                success=True,
+                message="All containers stopped successfully",
                 data={
                     "containers": [
                         container.to_dict() for container in containers_results
                     ]
-                }
+                },
             )
         else:
-            __resp = Response.error(
+            __result = ManagerResult(
+                success=False,
+                message="Error at stopping containers",
+                error="Some containers could not be stopped",
                 data={
                     "containers": [
                         container.to_dict() for container in containers_results
                     ]
-                }
+                },
             )
-        return __resp
+        return __result
 
-    def show_config(self) -> Response:
-        return Response.ok(
+    def show_config(self) -> ManagerResult:
+        return ManagerResult(
+            success=True,
+            message="Root The Box configuration",
             data={
                 "config": {
                     "webapp_container_name": self.webapp_container_name,
@@ -208,10 +242,10 @@ class RootTheBoxManager(BaseManager):
                     "rtb_dir": self.rtb_dir,
                     "network_name": self.network_name,
                 },
-            }
+            },
         )
 
-    def __is_running(self, name: str) -> str:
+    def __get_status(self, name: str) -> str:
         try:
             if not validate_container(self.__docker_client, name):
                 return "not_found"
@@ -220,44 +254,69 @@ class RootTheBoxManager(BaseManager):
         except errors.NotFound as e:
             return str(e)
 
-    def status(self) -> Response:
-        results: list[Response] = []
+    def status(self) -> ManagerResult:
+        containers_results: list[ManagerResult] = []
         overall_ok = True
 
         for name in (self.webapp_container_name, self.cache_container_name):
             try:
-                __running: str = self.__is_running(name)
+                __running: str = self.__get_status(name)
                 _data: dict[str, str | bool] = {"container": name, "status": __running}
                 if __running != "running":
                     overall_ok = False
-                    results.append(
-                        Response.error(f"Container {name} is not running", data=_data)
+                    containers_results.append(
+                        ManagerResult(
+                            success=False,
+                            message="Container not running",
+                            error=f"Container {name} is not running",
+                            data=_data,
+                        )
                     )
                 else:
-                    results.append(
-                        Response.ok(f"Container {name} is running", data=_data)
+                    containers_results.append(
+                        ManagerResult(
+                            success=True,
+                            message=f"Container {name} is running",
+                            data=_data,
+                        )
                     )
             except Exception as e:
                 overall_ok = False
-                results.append(
-                    Response.error(
-                        message=str(e), data={"container": name, "status": "stopped"}
+                containers_results.append(
+                    ManagerResult(
+                        success=False,
+                        message="Error found when checking container status",
+                        error=str(e),
+                        data={"container": name, "status": "error"},
                     )
                 )
-        __response: Response
-        __data: dict[str, list[dict]] = {"containers": [r.to_dict() for r in results]}
+        __response: ManagerResult
+        __data: dict[str, list[dict]] = {
+            "containers": [r.to_dict() for r in containers_results]
+        }
         if overall_ok:
-            __response = Response.ok(data=__data)
+            __response = ManagerResult(
+                success=True,
+                message="Success at retrieving containers' statuses",
+                data=__data,
+            )
         else:
-            __response = Response.error(data=__data)
+            __response = ManagerResult(
+                success=False,
+                message="Failure at retrieving containers' statuses",
+                error="Some containers statuses could not be retrieved",
+                data=__data,
+            )
         return __response
 
-    def cleanup(self) -> Response:
+    def cleanup(self) -> ManagerResult:
         """
         Detiene y elimina todos los contenedores Root The Box y libera los recursos.
         """
         try:
             self.stop()
-            return Response.ok()
-        except Exception:
-            return Response.error()
+            return ManagerResult(success=True, message="RTB cleanup successful!")
+        except Exception as e:
+            return ManagerResult(
+                success=False, message="RTB could not be cleaned up", error=str(e)
+            )

@@ -11,14 +11,32 @@ con un formato consistente: status, message y datos opcionales.
 
 
 class BaseManager:
-    def start(self) -> Response:
+
+    def start(self) -> ManagerResult:
         raise NotImplementedError
 
-    def stop(self) -> Response:
+    def stop(self) -> ManagerResult:
         raise NotImplementedError
 
-    def cleanup(self) -> Response:
+    def cleanup(self) -> ManagerResult:
         raise NotImplementedError
+
+
+@dataclass
+class ManagerResult:
+    success: bool
+    message: str
+    data: dict | None = None
+    error: str | None = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convierte la ManagerResult a un diccionario.
+
+        Returns:
+            Dict[str, Any]: Estructura con las claves "success", "message", "data" y "error".
+        """
+        return asdict(self)
 
 
 class Status:

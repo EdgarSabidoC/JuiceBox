@@ -1,8 +1,8 @@
-import redis, subprocess, os, docker, atexit
-from JuiceBoxEngine.models.schemas import Response, BaseManager
+import redis, subprocess, os
+from JuiceBoxEngine.models.schemas import BaseManager
 from importlib.resources import path
 from scripts.utils.validator import validate_container
-from JuiceBoxEngine.models.schemas import RedisResponse, Response
+from JuiceBoxEngine.models.schemas import RedisResponse, ManagerResult
 from docker.models.containers import Container
 from docker.client import DockerClient
 from docker.errors import APIError
@@ -48,7 +48,7 @@ class RedisManager(BaseManager):
             decode_responses=True,
         )
 
-    def __create(self) -> Response:
+    def __create(self) -> ManagerResult:
         try:
             # Si no existe el contenedor, se crea:
             base_dir = os.path.dirname(self.__compose_file)
@@ -65,49 +65,68 @@ class RedisManager(BaseManager):
                 self.__container: Container = self.__docker_client.containers.get(
                     self.container_name
                 )
-            return Response.ok(message="Redis container created and now is running!")
+            return ManagerResult(
+                success=True, message="Redis container created and now is running!"
+            )
         except subprocess.CalledProcessError as e:
-            return Response.error(message=str(e.stdout) + ". " + str(e.stderr))
+            return ManagerResult(
+                success=False,
+                message="Error creating Redis container",
+                error=str(e.stdout) + ". " + str(e.stderr),
+            )
 
-    def start(self) -> Response:
+    def start(self) -> ManagerResult:
         try:
             # Se valida si existe el contenedor
             if validate_container(self.__docker_client, self.container_name):
-                # Se obtiene el contenedor
+                # Se obtiene el contenedor si existe
                 container: Container = self.__docker_client.containers.get(
                     self.container_name
                 )
                 self.__container: Container = container
                 if container.status == "running":
-                    return Response.ok(message="Redis container is already running!")
+                    return ManagerResult(
+                        success=True, message="Redis container is already running!"
+                    )
                 container.start()
                 if container.status == "running":
-                    return Response.ok(message="Redis container is running!")
-                return Response.error(message="Redis container could not run")
+                    return ManagerResult(
+                        success=True, message="Redis container is running!"
+                    )
+                return ManagerResult(
+                    success=False,
+                    message="Redis container could not run",
+                    error=f"Container status is {container.status}",
+                )
             # Si el contenedor no existe, se crea:
             return self.__create()
         except APIError as e:
-            return Response.error(str(e))
+            return ManagerResult(
+                success=False, message="Redis container could not run", error=str(e)
+            )
 
-    def stop(self) -> Response:
+    def stop(self) -> ManagerResult:
         try:
             # Mata o destruye el contenedor de Redis
             self.__container.stop()
             self.__container.remove()
-            return Response.ok(
-                "Redis container has been stopped and removed from system!",
+            return ManagerResult(
+                success=True,
+                message="Redis container has been stopped and removed from system!",
                 data={"container": self.container_name, "status": "removed"},
             )
         except Exception as e:
-            return Response.error(
-                f"Redis container couldn't be stopped or removed: {str(e)}",
+            return ManagerResult(
+                success=False,
+                message=f"Redis container couldn't be stopped or removed!",
+                error=str(e),
                 data={
                     "container": self.container_name,
                     "status": self.__container.status,
                 },
             )
 
-    def publish(self, channel: str, payload: RedisResponse) -> Response:
+    def publish(self, channel: str, payload: RedisResponse) -> ManagerResult:
         """
         Publica un mensaje en un canal Redis.
 
@@ -118,11 +137,20 @@ class RedisManager(BaseManager):
         try:
             message: str = payload.to_json()
             self.__redis.publish(channel, message)
-            return Response.ok(data={"channel": channel})
+            return ManagerResult(
+                success=True,
+                message="Message published successfully!",
+                data={"channel": channel},
+            )
         except Exception as e:
-            return Response.error(message=f"Redis publish failed: {e}")
+            return ManagerResult(
+                success=True,
+                message="Message could not be published!",
+                error=str(e),
+                data={"channel": channel},
+            )
 
-    def publish_to_admin(self, payload: RedisResponse) -> Response:
+    def publish_to_admin(self, payload: RedisResponse) -> ManagerResult:
         """
         Publica el estatus de un contenedor en el canal ADMIN de Redis.
 
@@ -131,7 +159,7 @@ class RedisManager(BaseManager):
         """
         return self.publish(JuiceBoxChannels.ADMIN, payload)
 
-    def publish_to_client(self, payload: RedisResponse) -> Response:
+    def publish_to_client(self, payload: RedisResponse) -> ManagerResult:
         """
         Publica el estatus de un contenedor en el canal CLIENT de Redis.
 
@@ -140,23 +168,31 @@ class RedisManager(BaseManager):
         """
         return self.publish(JuiceBoxChannels.CLIENT, payload)
 
-    def close(self) -> bool:
+    def close(self) -> ManagerResult:
         """
         Cierra la conexión al cliente Redis.
         """
         try:
             self.__redis.close()
         except Exception:
-            return False
-        return True
+            return ManagerResult(
+                success=False, message="Redis client could not be closed!"
+            )
+        return ManagerResult(success=True, message="Redis client closed successfully!")
 
-    def cleanup(self) -> Response:
+    def cleanup(self) -> ManagerResult:
         """
         Destruye el contenedor y libera los recursos.
         """
         try:
-            self.close()
-            self.stop()
-            return Response.ok(message="Redis cleanup successful!")
+            __res: ManagerResult = self.close()
+            if not __res.success:
+                return __res
+            __res = self.stop()
+            if not __res.success:
+                return __res
+            return ManagerResult(success=True, message="Redis cleanup successful!")
         except Exception as e:
-            return Response.error(message=f"Redis could not be cleaned up: {str(e)}")
+            return ManagerResult(
+                success=False, message=f"Redis could not be cleaned up", error=str(e)
+            )
