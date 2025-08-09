@@ -1,7 +1,7 @@
-import logging, time, threading, docker, docker.errors, redis, json
+import logging, time, threading, docker, docker.errors
 from scripts.utils.logger import Logger
 from scripts.redisManager import RedisManager
-from JuiceBoxEngine.models.schemas import Response, Status, RedisResponse
+from JuiceBoxEngine.models.schemas import ManagerResult, ManagerResult, RedisPayload
 from docker.models.containers import Container
 from scripts.utils.validator import validate_container
 from docker import DockerClient
@@ -9,12 +9,18 @@ from docker import DockerClient
 
 class Monitor:
     """
-    Clase para monitorear eventos en JuiceBoxEngine, incluyendo:
+    Clase para monitorear eventos en JuiceBoxEngine.
 
+    ## Características
     - Gestión de logs mediante un logger personalizado.
     - Monitorización de contenedores Docker en segundo plano.
     - Publicación de eventos a través de Redis en dos canales:
       uno para administradores y otro para clientes.
+
+    ## Operaciones
+    - Iniciar y detener la monitorización de contenedores Docker.
+    - Registrar eventos de conexión y comandos de clientes.
+    - Detectar y notificar cambios en el estado de contenedores Docker.
     """
 
     def __init__(
@@ -49,6 +55,10 @@ class Monitor:
             client_channel (str): Canal Redis para mensajes de clientes.
             rtb_containers (list[str]): Nombres de contenedores de RootTheBox.
             js_containers (list[str]): Nombres de contenedores de JuiceShop.
+            docker_client (DockerClient | None): Cliente Docker opcional.
+            redis_manager (RedisManager | None): Gestor Redis opcional.
+        Raises:
+            TypeError: Si redis_manager no es una instancia de RedisManager.
         """
         # Logger base
         self.logger = Logger(
@@ -83,36 +93,69 @@ class Monitor:
 
     # ─── Métodos de Logging ─────────────────────────────────────────────────────
 
-    def info(self, message: str):
-        """Registra un mensaje de tipo INFO."""
+    def info(self, message: str) -> None:
+        """
+        Registra un mensaje de tipo INFO.
+
+        Args:
+            message (str): Mensaje a registrar.
+        """
         self.logger.info(message)
 
-    def warning(self, message: str):
-        """Registra un mensaje de tipo WARNING."""
+    def warning(self, message: str) -> None:
+        """
+        Registra un mensaje de tipo WARNING.
+
+        Args:
+            message (str): Mensaje a registrar.
+        """
         self.logger.warning(message)
 
-    def error(self, message: str):
-        """Registra un mensaje de tipo ERROR."""
+    def error(self, message: str) -> None:
+        """
+        Registra un mensaje de tipo ERROR.
+
+        Args:
+            message (str): Mensaje a registrar.
+        """
         self.logger.error(message)
 
-    def command_received(self, prog: str, command: str, address: str):
-        """Registra un comando recibido desde una dirección."""
+    def command_received(self, prog: str, command: str, address: str) -> None:
+        """
+        Registra un comando recibido desde una dirección.
+
+        Args:
+            prog (str): Programa que envió el comando.
+            command (str): Comando recibido.
+            address (str): Dirección del cliente que envió el comando.
+        """
         self.logger.info(f"[{address}] {prog} -> {command}")
 
-    def client_connected(self, address=None):
-        """Registra una nueva conexión de cliente."""
+    def client_connected(self, address: str | None = None) -> None:
+        """
+        Registra una nueva conexión de cliente.
+
+        Args:
+            address (str | None): Dirección del cliente que se conectó.
+        """
         suffix = f"from [{address}]" if address else "[]"
         text = f"New client connected {suffix}"
         self.logger.info(text)
 
-    def client_error(self, err: Exception):
-        """Registra un error ocurrido con un cliente."""
+    def client_error(self, err: Exception) -> None:
+        """
+        Registra un error ocurrido con un cliente.
+
+        Args:
+            err (Exception): Error del cliente.
+
+        """
         text = f"Client error: {err}"
         self.logger.warning(text)
 
     # ─── Métodos de monitorización de Docker ───────────────────────────────────
 
-    def set_containers(self, rtb: list[str] | None, js: list[str] | None):
+    def set_containers(self, rtb: list[str] | None, js: list[str] | None) -> None:
         """
         Inicializa las listas de contenedores a monitorear.
 
@@ -123,7 +166,7 @@ class Monitor:
         self.rtb_containers = rtb if rtb else []
         self.js_containers = js if js else []
 
-    def __container_monitor_loop(self):
+    def __container_monitor_loop(self) -> None:
         """
         Bucle de vigilancia de contenedores. Ejecutado en segundo plano.
         """
@@ -140,7 +183,7 @@ class Monitor:
 
             time.sleep(self._interval)
 
-    def __process_all_containers(self):
+    def __process_all_containers(self) -> None:
         """
         Procesa el estado de todos los contenedores conocidos.
         """
@@ -173,7 +216,7 @@ class Monitor:
         except docker.errors.NotFound:
             return None
 
-    def __process_single_container(self, container: Container):
+    def __process_single_container(self, container: Container) -> None:
         """
         Procesa un único contenedor: detecta cambios de estado y publica eventos.
 
@@ -185,6 +228,13 @@ class Monitor:
         self.change_status(container_name, current_status)
 
     def change_status(self, container_name: str, current_status: str) -> None:
+        """
+        Cambia el estado/status de un único contenedor.
+
+        Args:
+            container_name: Nombre del contenedor Docker.
+            current_status: Nuevo estado del contenedor.
+        """
         last_status = self.__last_statuses.get(container_name)
         # Si el estado no ha cambiado, no se hace nada
         if last_status == current_status:
@@ -204,14 +254,14 @@ class Monitor:
 
         # Publicación en Redis
         self.__redis.publish_to_admin(
-            RedisResponse.from_dict(container)
+            RedisPayload.from_dict(container)
         )  # Canal administrativo
         if container_name in self.js_containers:
             self.__redis.publish_to_client(
-                RedisResponse.from_dict(container)
+                RedisPayload.from_dict(container)
             )  # Canal de clientes
 
-    def start_container_monitoring(self):
+    def start_container_monitoring(self) -> None:
         """
         Inicia el hilo de monitoreo de contenedores Docker.
         """
@@ -224,14 +274,23 @@ class Monitor:
         self._monitor_thread.start()
         self.info("Docker container monitoring started...")
 
-    def stop_container_monitoring(self) -> Response:
+    def stop_container_monitoring(self) -> ManagerResult:
         """
         Detiene el monitoreo de contenedores Docker.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
         """
-        if not self._monitoring:
-            return Response.ok("Monitor is not running.")
-        self._monitoring = False
-        if self._monitor_thread:
-            self._monitor_thread.join(timeout=self._interval + 1)
-        self.info("Docker container monitoring stopped.")
-        return Response.ok("Docker container monitoring stopped.")
+        try:
+            if not self._monitoring:
+                return ManagerResult.ok(message="Monitor is not running")
+            self._monitoring = False
+            if self._monitor_thread:
+                self._monitor_thread.join(timeout=self._interval + 1)
+            self.info("Docker container monitoring stopped.")
+            return ManagerResult.ok(message="Docker container monitoring stopped")
+        except Exception as e:
+            return ManagerResult.failure(
+                message="Error stopping Docker container monitoring",
+                error=str(e),
+            )

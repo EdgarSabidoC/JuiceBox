@@ -13,7 +13,7 @@ from scripts.utils.config import RTBConfig
 from scripts.utils.validator import validate_container
 from JuiceBoxEngine.models.schemas import ManagerResult, BaseManager
 from docker import DockerClient
-from docker.models.containers import Container
+from docker.models.containers import ContainerCollection
 
 LOGO = """
 \t\t        ▄▄▄▄   ▄▄▄▄▄  ▄▄▄▄▄  ▄▄▄▄▄
@@ -42,11 +42,30 @@ GITHUB_USER = "EdgarSabidoC"
 
 
 class RootTheBoxManager(BaseManager):
+    """
+    Clase módulo para administrar los contenedores de Root The Box.
+
+    ## Operaciones
+    - **start:** Inicia los contenedores de Root The Box.
+    - **stop:** Detiene y elimina los contenedores de Root The Box.
+    - **status:** Obtiene el estado de los contenedores.
+    - **show_config:** Muestra la configuración actual.
+    - **cleanup:** Detiene y elimina los contenedores y libera recursos.
+    """
+
     __rtb_yaml = "rtb-docker-compose.yml"
 
     def __init__(
         self, config: RTBConfig, docker_client: DockerClient | None = None
     ) -> None:
+        """
+        Inicializa el gestor de Root The Box con la configuración dada.
+        Args:
+            config (RTBConfig): Configuración para Root The Box.
+            docker_client (DockerClient | None): Cliente Docker opcional.
+        Raises:
+            TypeError: Si config no es una instancia de RTBConfig.
+        """
         if not isinstance(config, RTBConfig):
             raise TypeError("Required: RTBConfig instance.")
 
@@ -72,6 +91,18 @@ class RootTheBoxManager(BaseManager):
         atexit.register(self.cleanup)
 
     def __generate_docker_compose(self, output_path: str) -> ManagerResult:
+        """
+        Genera el archivo docker-compose.yml para Root The Box.
+
+        Args:
+            output_path (str): Ruta donde guardar el archivo docker-compose.yml.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+
+        Raises:
+            Exception: Si ocurre un error al crear el archivo.
+        """
         if not output_path:
             output_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
 
@@ -92,19 +123,26 @@ class RootTheBoxManager(BaseManager):
         try:
             with open(output_path, "w") as f:
                 yaml.dump(compose_dict, f, sort_keys=False)
-            return ManagerResult(
-                success=True,
+            return ManagerResult.ok(
                 message="RTB docker-compose file created",
                 data=compose_dict,
             )
         except (yaml.YAMLError, OSError) as e:
-            return ManagerResult(
-                success=False,
+            return ManagerResult.failure(
                 message="The RTB docker-compose file could not be created",
                 error=str(e),
             )
 
     def __create(self) -> ManagerResult:
+        """
+        Crea e inicia los contenedores de Root The Box usando Docker Compose.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+
+        Raises:
+            Exception: Si ocurre un error al crear los contenedores.
+        """
         try:
             subprocess.run(
                 ["docker", "compose", "-f", self.__rtb_yaml, "up", "-d"],
@@ -113,25 +151,38 @@ class RootTheBoxManager(BaseManager):
                 capture_output=True,
                 text=True,
             )
-            return ManagerResult(
-                success=True, message="Docker compose subprocess successful"
-            )
+            return ManagerResult.ok(message="Docker compose subprocess successful")
         except subprocess.CalledProcessError as e:
-            return ManagerResult(
-                success=False,
+            err: str = ""
+            if e.stdout:
+                err += str(e.stdout)
+            if e.stderr:
+                err += ". " + str(e.stderr)
+            if not err and e:
+                err = str(e)
+            return ManagerResult.failure(
                 message="Error found during subprocess execution",
-                error=str(e.stdout) + ". " + str(e.stderr),
+                error=err,
             )
 
     def start(self) -> ManagerResult:
+        """
+        Inicia los contenedores de Root The Box.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+
+        Raises:
+            Exception: Si ocurre un error al iniciar los contenedores.
+        """
         try:
-            __response: ManagerResult
+            __result: ManagerResult
             # Se eliminan los contenedores en caso de existir:
             self.stop()
             compose_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
-            __response = self.__generate_docker_compose(compose_path)
-            if not __response.success:
-                return __response
+            __result = self.__generate_docker_compose(compose_path)
+            if not __result.success:
+                return __result
             if not os.path.isfile(compose_path):
                 return ManagerResult(
                     success=False,
@@ -139,22 +190,35 @@ class RootTheBoxManager(BaseManager):
                     error="The manager could not find the docker-compose file.",
                 )
 
-            __response: ManagerResult = self.__create()
-            if __response.success:
-                return ManagerResult(
-                    success=True,
+            __result: ManagerResult = self.__create()
+            if __result.success:
+                return ManagerResult.ok(
                     message="Containers started and now are running",
                 )
             else:
-                return ManagerResult(
-                    success=False,
+                return ManagerResult.failure(
                     message="Failed to start containers",
-                    error=__response.error,
+                    error=__result.error,
                 )
         except Exception as e:
             return ManagerResult(success=False, message="Error found!", error=str(e))
 
-    def __stop_container(self, container_name: str, containers) -> ManagerResult:
+    def __stop_container(
+        self, container_name: str, containers: ContainerCollection
+    ) -> ManagerResult:
+        """
+        Detiene y elimina un contenedor dado su nombre.
+
+        Args:
+            container_name (str): Nombre del contenedor a detener y eliminar.
+            containers: Colección de contenedores del cliente Docker.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+
+        Raises:
+            Exception: Si ocurre un error al detener o eliminar el contenedor.
+        """
         try:
             # Mata o destruye un contenedor
             _container = containers.get(container_name)
@@ -174,6 +238,15 @@ class RootTheBoxManager(BaseManager):
             )
 
     def stop(self) -> ManagerResult:
+        """
+        Detiene y elimina los contenedores de Root The Box.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+
+        Raises:
+            Exception: Si ocurre un error al detener los contenedores.
+        """
         containers_results: list[ManagerResult] = []
         overall_ok = True
 
@@ -189,8 +262,7 @@ class RootTheBoxManager(BaseManager):
                 else:
                     # No existe el contenedor
                     containers_results.append(
-                        ManagerResult(
-                            success=True,
+                        ManagerResult.ok(
                             message="Container not found!",
                             data={"container": name},
                         )
@@ -198,8 +270,7 @@ class RootTheBoxManager(BaseManager):
             except Exception as e:
                 overall_ok = False
                 containers_results.append(
-                    ManagerResult(
-                        success=False,
+                    ManagerResult.failure(
                         message="Failed to stop container",
                         error=str(e),
                         data={"container": name},
@@ -207,8 +278,7 @@ class RootTheBoxManager(BaseManager):
                 )
         __result: ManagerResult
         if overall_ok:
-            __result = ManagerResult(
-                success=True,
+            __result = ManagerResult.ok(
                 message="All Root The Box containers stopped successfully",
                 data={
                     "containers": [
@@ -217,8 +287,7 @@ class RootTheBoxManager(BaseManager):
                 },
             )
         else:
-            __result = ManagerResult(
-                success=False,
+            __result = ManagerResult.failure(
                 message="Error at stopping Root The Box containers",
                 error="Some containers could not be stopped",
                 data={
@@ -230,8 +299,16 @@ class RootTheBoxManager(BaseManager):
         return __result
 
     def show_config(self) -> ManagerResult:
-        return ManagerResult(
-            success=True,
+        """
+        Muestra la configuración actual del manager de Root The Box.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+
+        Raises:
+            Exception: Si ocurre un error al obtener la configuración.
+        """
+        return ManagerResult.ok(
             message="Root The Box configuration retrieved",
             data={
                 "config": {
@@ -246,6 +323,18 @@ class RootTheBoxManager(BaseManager):
         )
 
     def __get_status(self, container_name: str) -> str:
+        """
+        Obtiene el estado de un contenedor dado su nombre.
+
+        Args:
+            container_name (str): Nombre del contenedor.
+
+        Returns:
+            str: Estado del contenedor ('running', 'exited', 'not_found', etc.).
+
+        Raises:
+            errors.NotFound: Si el contenedor no existe.
+        """
         try:
             if not validate_container(self.__docker_client, container_name):
                 return "not_found"
@@ -255,6 +344,15 @@ class RootTheBoxManager(BaseManager):
             return str(e)
 
     def status(self) -> ManagerResult:
+        """
+        Obtiene el estado actual de los contenedores de Root The Box.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+
+        Raises:
+            Exception: Si ocurre un error al obtener el estado de los contenedores.
+        """
         containers_results: list[ManagerResult] = []
         overall_ok = True
 
@@ -266,8 +364,7 @@ class RootTheBoxManager(BaseManager):
                     "status": __status,
                 }
                 containers_results.append(
-                    ManagerResult(
-                        success=True,
+                    ManagerResult.ok(
                         message="Container status retrieved",
                         data=_data,
                     )
@@ -275,40 +372,43 @@ class RootTheBoxManager(BaseManager):
             except Exception as e:
                 overall_ok = False
                 containers_results.append(
-                    ManagerResult(
-                        success=False,
+                    ManagerResult.failure(
                         message="Error getting container status",
                         error=str(e),
                         data={"container": container_name, "status": "error"},
                     )
                 )
-        __response: ManagerResult
+        __result: ManagerResult
         __data: dict[str, list[dict]] = {
             "containers": [r.to_dict() for r in containers_results]
         }
         if overall_ok:
-            __response = ManagerResult(
-                success=True,
+            __result = ManagerResult.ok(
                 message="Success at retrieving containers' statuses",
                 data=__data,
             )
         else:
-            __response = ManagerResult(
-                success=False,
+            __result = ManagerResult.failure(
                 message="Failure at retrieving containers' statuses",
                 error="Some containers statuses could not be retrieved",
                 data=__data,
             )
-        return __response
+        return __result
 
     def cleanup(self) -> ManagerResult:
         """
         Detiene y elimina todos los contenedores Root The Box y libera los recursos.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+
+        Raises:
+            Exception: Si ocurre un error al limpiar los recursos.
         """
         try:
             self.stop()
-            return ManagerResult(success=True, message="RTB cleanup successful!")
+            return ManagerResult.ok(message="RTB cleanup successful!")
         except Exception as e:
-            return ManagerResult(
-                success=False, message="RTB could not be cleaned up", error=str(e)
+            return ManagerResult.failure(
+                message="RTB could not be cleaned up", error=str(e)
             )

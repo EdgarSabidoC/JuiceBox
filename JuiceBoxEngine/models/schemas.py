@@ -5,9 +5,28 @@ from dataclasses import dataclass, asdict
 from docker.models.containers import Container
 
 """
-Módulo de utilidades para generar respuestas estándar en JSON o diccionario
-con un formato consistente: status, message y datos opcionales.
+Módulo de utilidades con modelos para generar respuestas estándar en JSON o diccionarios
+con un formato consistente.
 """
+
+
+class Status:
+    """
+    Constantes de estado para la clase Response.
+
+    Atributos:
+        OK (str): Operación exitosa.
+        ERROR (str): Error genérico.
+        NOT_FOUND (str): Recurso no encontrado.
+        SUCCESS (bool): Indicador booleano de éxito.
+        FAILURE (bool): Indicador booleano de fallo.
+    """
+
+    OK = "ok"
+    ERROR = "error"
+    NOT_FOUND = "not_found"
+    SUCCESS = True
+    FAILURE = False
 
 
 class BaseManager:
@@ -26,8 +45,45 @@ class BaseManager:
 class ManagerResult:
     success: bool
     message: str
-    data: dict | None = None
     error: str | None = None
+    data: dict[str, Any] | None = None
+    timestamp: str = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    @classmethod
+    def ok(
+        cls, message: str = "Success", data: Dict[str, Any] | None = {}
+    ) -> ManagerResult:
+        """
+        Crea una respuesta con estado SUCCESS (True).
+
+        Args:
+            message (str, None): Mensaje descriptivo. Por defecto "Success".
+            data (Dict[str, Any], None): Datos extra. Por defecto {}.
+
+        Returns:
+            ManagerResult: Instancia con status Status.SUCCESS.
+        """
+        return cls(success=Status.SUCCESS, message=message, data=data)
+
+    @classmethod
+    def failure(
+        cls,
+        message: str = "Failure",
+        error: str | None = "Error",
+        data: Dict[str, Any] | None = None,
+    ) -> ManagerResult:
+        """
+        Crea una respuesta con estado FAILURE (False).
+
+        Args:
+            message (str): Mensaje descriptivo. Por defecto "Failure".
+            error (str, None): Descripción del error. Por defecto "Error".
+            data (Dict[str, Any], None): Datos extra. Por defecto None.
+
+        Returns:
+            ManagerResult: Instancia con status Status.SUCCESS.
+        """
+        return cls(success=Status.FAILURE, message=message, error=error, data=data)
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -37,21 +93,6 @@ class ManagerResult:
             Dict[str, Any]: Estructura con las claves "success", "message", "data" y "error".
         """
         return asdict(self)
-
-
-class Status:
-    """
-    Constantes de estado para la clase Response.
-
-    Atributos:
-        OK (str): Operación exitosa.
-        ERROR (str): Error genérico.
-        NOT_FOUND (str): Recurso no encontrado.
-    """
-
-    OK = "ok"
-    ERROR = "error"
-    NOT_FOUND = "not_found"
 
 
 class Response:
@@ -72,7 +113,7 @@ class Response:
         Args:
             status (str): Código de estado (p.ej., Status.OK).
             message (str): Mensaje descriptivo.
-            data (dict, opcional): Datos extra. Por defecto {}.
+            data (dict, None): Datos extra. Por defecto {}.
 
         Nota:
             Se usa `data or {}` para evitar que self.data quede como None
@@ -106,8 +147,8 @@ class Response:
         Crea una respuesta con estado OK.
 
         Args:
-            message (str, opcional): Mensaje descriptivo. Por defecto "Success".
-            data (Dict[str, Any], opcional): Datos extra. Por defecto {}.
+            message (str, None): Mensaje descriptivo. Por defecto "Success".
+            data (Dict[str, Any], None): Datos extra. Por defecto {}.
 
         Returns:
             Response: Instancia con status Status.OK.
@@ -122,8 +163,8 @@ class Response:
         Crea una respuesta con estado ERROR.
 
         Args:
-            message (str, opcional): Mensaje descriptivo. Por defecto "Something went wrong".
-            data (Dict[str, Any], opcional): Datos extra. Por defecto {}.
+            message (str, None): Mensaje descriptivo. Por defecto "Something went wrong".
+            data (Dict[str, Any], None): Datos extra. Por defecto {}.
 
         Returns:
             Response: Instancia con status Status.ERROR.
@@ -138,8 +179,8 @@ class Response:
         Crea una respuesta con estado NOT_FOUND.
 
         Args:
-            message (str, opcional): Mensaje descriptivo. Por defecto "Not found".
-            data (Dict[str, Any], opcional): Datos extra. Por defecto {}.
+            message (str, None): Mensaje descriptivo. Por defecto "Not found".
+            data (Dict[str, Any], None): Datos extra. Por defecto {}.
 
         Returns:
             Response: Instancia con status Status.NOT_FOUND.
@@ -148,7 +189,7 @@ class Response:
 
 
 @dataclass
-class RedisResponse:
+class RedisPayload:
     """
     Modelo para serializar respuestas de estado de contenedores
     que se publicarán en Redis.
@@ -159,9 +200,9 @@ class RedisResponse:
     timestamp: str
 
     @classmethod
-    def from_container(cls, container: Container) -> RedisResponse:
+    def from_container(cls, container: Container) -> RedisPayload:
         """
-        Construye un RedisResponse a partir de Container.
+        Construye un RedisPayload a partir de Container.
         """
         return cls(
             container=container.name,
@@ -170,9 +211,9 @@ class RedisResponse:
         )
 
     @classmethod
-    def from_dict(cls, container: dict) -> RedisResponse:
+    def from_dict(cls, container: dict) -> RedisPayload:
         """
-        Construye un RedisResponse a partir de un dict.
+        Construye un RedisPayload a partir de un dict.
         """
         return cls(
             container=container["container"],
@@ -182,7 +223,7 @@ class RedisResponse:
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        Convierte la RedisResponse a un diccionario.
+        Convierte la RedisPayload a un diccionario.
 
         Returns:
             Dict[str, Any]: Estructura con las claves "status", "message" y "data".
@@ -191,7 +232,7 @@ class RedisResponse:
 
     def to_json(self) -> str:
         """
-        Serializa la RedisResponse a JSON.
+        Serializa la RedisPayload a JSON.
 
         Returns:
             str: Cadena JSON con la estructura de to_dict().
