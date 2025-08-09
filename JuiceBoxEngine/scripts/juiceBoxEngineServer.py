@@ -7,7 +7,13 @@ from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.redisManager import RedisManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from scripts.monitor import Monitor
-from JuiceBoxEngine.models.schemas import BaseManager, Response, Status, RedisResponse
+from JuiceBoxEngine.models.schemas import (
+    BaseManager,
+    Response,
+    Status,
+    RedisPayload,
+    ManagerResult,
+)
 from docker import DockerClient
 
 # Comandos válidos por programa
@@ -25,7 +31,7 @@ COMMANDS = {
 }
 
 
-class JuiceBoxEngineServer(BaseManager):
+class JuiceBoxEngineServer:
     """
     Servidor del motor JuiceBox que expone una interfaz mediante sockets de Unix para
     gestionar contenedores Docker de Juice Shop y Root The Box de manera concurrente pero segura.
@@ -92,7 +98,8 @@ class JuiceBoxEngineServer(BaseManager):
         """
         Maneja la conexión de un cliente y pone su mensaje en la cola.
 
-        :param conn: Socket del cliente
+        Args:
+            conn: Socket del cliente
         """
         try:
             data = conn.recv(1024).decode().strip()
@@ -110,8 +117,9 @@ class JuiceBoxEngineServer(BaseManager):
         """
         Procesa un mensaje recibido, lo despacha y envía la respuesta.
 
-        :param conn: Conexión del cliente
-        :param data: Cadena JSON con el comando
+        Args:
+            conn: Conexión del cliente.
+            data: Cadena JSON con el comando.
         """
         try:
             # Se parsea para obtener prog y command y loggearlos
@@ -146,42 +154,53 @@ class JuiceBoxEngineServer(BaseManager):
         finally:
             conn.close()
 
-    def __rtb_restart(self) -> Response:
+    def __rtb_restart(self) -> ManagerResult:
         """
-        Reinicia la instancia del manager de RTB.
+        Reinicia la instancia del manager de Root The Box.
+
+        Returns:
+          ManagerResult: Resultado de la operación.
         """
         try:
             self.rtb_manager.cleanup()
         except AttributeError as e:
-            return Response.error(message=str(e))
+            return ManagerResult.failure(
+                message="Error at restarting Root The Box Manager", error=str(e)
+            )
 
         self.rtb_manager = RootTheBoxManager(RTBConfig())
         return self.rtb_manager.start()
 
-    def __js_restart(self) -> Response:
+    def __js_restart(self) -> ManagerResult:
         """
-        Reinicia la instancia del manager de Juice Shop.
+        Reinicia la instancia del manager de la Juice Shop.
+
+        Returns:
+          ManagerResult: Resultado de la operación.
         """
         try:
             self.js_manager.cleanup()
         except AttributeError as e:
-            return Response.error(message=str(e))
+            return ManagerResult.failure(
+                message="Error at restarting Juice Shop Manager", error=str(e)
+            )
 
         self.js_manager = JuiceShopManager(JuiceShopConfig())
-        return Response.ok("JuiceShop manager reiniciado")
+        return ManagerResult.ok(message="Juice Shop Manager restarted")
 
-    def set_managers(self, rtb, js):
+    def set_managers(self, rtb: RootTheBoxManager, js: JuiceShopManager):
         """
         Reemplaza las instancias actuales de los managers por otras.
 
-        :param rtb: Nueva instancia de RootTheBoxManager
-        :param js: Nueva instancia de JuiceShopManager
+        Args:
+            rtb (RootTheBoxManager): Nueva instancia de RootTheBoxManager.
+            js (JuiceShopManager): Nueva instancia de JuiceShopManager.
         """
         with self.__manager_lock:
             self.rtb_manager = rtb
             self.js_manager = js
 
-    def start(self) -> Response:
+    def start(self) -> None:
         """
         Arranca el motor y acepta conexiones entrantes indefinidamente.
         """
@@ -198,29 +217,35 @@ class JuiceBoxEngineServer(BaseManager):
                 target=self.__handle_client, args=(conn,), daemon=True
             ).start()
 
-    def stop(self) -> Response:
+    def stop(self) -> ManagerResult:
         """
         Detiene el motor y cierra el socket.
+
+        Returns:
+          ManagerResult: Resultado de la operación.
         """
         try:
             self.server_socket.close()
             if os.path.exists(self.socket_path):
                 os.remove(self.socket_path)
-            return Response.ok("Engine stopped and socket removed")
+            return ManagerResult.ok(message="Engine stopped and socket removed")
         except Exception as e:
-            return Response.error(f"Error stopping server: {str(e)}")
+            return ManagerResult.failure(message="Error stopping server", error=str(e))
 
-    def __handle_rtb_command(self, command: str) -> Response:
+    def __handle_rtb_command(self, command: str) -> ManagerResult:
         """
         Ejecuta un comando específico para Root The Box.
 
-        :param command: Comando recibido
-        :return: Respuesta JSON serializada
+        Args:
+        command (str): Comando recibido
+
+        Returns:
+            ManageResult: Resultado de la operación.
         """
         # Lee el manager dentro del lock para asegurar coherencia.
         with self.__manager_lock:
             __manager = self.rtb_manager
-        __resp: Response
+        __resp: ManagerResult
         match command:
             case "__START__":
                 __resp = __manager.start()
@@ -230,31 +255,38 @@ class JuiceBoxEngineServer(BaseManager):
                 __resp = __manager.stop()
             case "__STATUS__":
                 __resp = __manager.status()
-                self.redis_manager.publish_to_admin(
-                    RedisResponse.from_dict(__resp.data["containers"][0]["data"]),
-                )
-                self.redis_manager.publish_to_admin(
-                    RedisResponse.from_dict(__resp.data["containers"][1]["data"]),
-                )
+                # self.redis_manager.publish_to_admin(
+                #     RedisPayload.from_dict(__resp.data["containers"][0]["data"]),
+                # )
+                # self.redis_manager.publish_to_admin(
+                #     RedisPayload.from_dict(__resp.data["containers"][1]["data"]),
+                # )
             case "__CONFIG__":
                 __resp = __manager.show_config()
             case _:
-                __resp = Response.error("Root The Box command not found")
+                __resp = ManagerResult.failure(
+                    message="Root The Box command error", error="Command not found"
+                )
         # Retorno
         return __resp
 
-    def __handle_js_command(self, command: str, args: dict) -> Response:
+    def __handle_js_command(
+        self, command: str, args: dict[str, str | int]
+    ) -> ManagerResult:
         """
         Ejecuta un comando específico para Juice Shop.
 
-        :param command: Comando recibido
-        :param args: Argumentos adicionales como puerto o nombre
-        :return: Respuesta JSON serializada
+        Args:
+          command (str): Comando recibido
+          args (dict[str, str | int]): Argumentos adicionales como puerto o nombre
+
+        Returns:
+            ManageResult: Resultado de la operación.
         """
         # Lee el manager dentro del lock para asegurar coherencia.
         with self.__manager_lock:
             __manager = self.js_manager
-        __resp: Response
+        __resp: ManagerResult
         match command:
             case "__START_CONTAINER__":
                 __resp = __manager.start()
@@ -271,7 +303,9 @@ class JuiceBoxEngineServer(BaseManager):
             case "__GENERATE_XML__":
                 __resp = __manager.generate_rtb_config()
             case _:
-                __resp = Response.error(message="Juice Shop command not found")
+                __resp = ManagerResult.failure(
+                    message="Juice Shop command error", error="Command not found"
+                )
         # Retorno
         return __resp
 
@@ -279,10 +313,14 @@ class JuiceBoxEngineServer(BaseManager):
         """
         Parsea el comando recibido y lo redirige al manager correspondiente.
 
-        :param raw_data: Cadena JSON enviada por el cliente
-        :return: Respuesta serializada en formato JSON
+        Args:
+            raw_data (str): Cadena JSON enviada por el cliente
+
+        Returns:
+            Response: Respuesta serializada en formato JSON
         """
         __resp: Response = Response.error(message="Program not supported by engine")
+        __result: ManagerResult | None = None
         try:
             payload = json.loads(raw_data)
             prog = payload.get("prog")
@@ -294,20 +332,32 @@ class JuiceBoxEngineServer(BaseManager):
             elif command not in COMMANDS[prog]:
                 __resp = Response.error(message="Command not recognized by program")
             elif prog == "RTB":
-                __resp = self.__handle_rtb_command(command)
+                __result = self.__handle_rtb_command(command)
             else:
                 # prog == "JS"
-                __resp = self.__handle_js_command(command, args)
+                __result = self.__handle_js_command(command, args)
+            # Se despachan las respuestas:
+            if __result:
+                if __result.success:
+                    __resp = Response.ok(
+                        message=__result.message,
+                        data=__result.data if __result.data else {},
+                    )
+                else:
+                    __resp = Response.error(message=__result.message)
         except json.JSONDecodeError:
             __resp = Response.error(message="Invalid JSON format")
         except Exception as e:
             __resp = Response.error(message=str(e))
         return __resp
 
-    def cleanup(self) -> Response:
+    def cleanup(self) -> ManagerResult:
         """
         Limpieza general del servidor: cierra el socket, detiene contenedores y conexiones.
         Es idempotente y tolerante a errores.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
         """
         with self.__manager_lock:
             __rtb_manager = self.rtb_manager
@@ -360,8 +410,8 @@ class JuiceBoxEngineServer(BaseManager):
 
         # Detiene el motor
         try:
-            stop_response: Response = self.stop()
-            if stop_response.status == Status.OK:
+            stop_response: ManagerResult = self.stop()
+            if stop_response.success:
                 messages.append(f"Server stopped: {stop_response.message}")
             else:
                 msg = f"Server stopped, but socket cleanup failed: {stop_response.message}"
@@ -376,8 +426,10 @@ class JuiceBoxEngineServer(BaseManager):
 
         # Resultado final
         if errors:
-            return Response.error(f"Cleanup completed with errors: {errors}")
+            return ManagerResult.failure(
+                message="Cleanup completed with errors", error=str(errors)
+            )
         else:
             if __monitor:
                 __monitor.info("Server cleaned up successfully.")
-            return Response.ok(f"Cleanup successful: {messages}")
+            return ManagerResult.ok("Cleanup successful", data={"messages": messages})

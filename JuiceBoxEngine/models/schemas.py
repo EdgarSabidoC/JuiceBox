@@ -14,12 +14,11 @@ class Status:
     """
     Constantes de estado para la clase Response.
 
-    Atributos:
-        OK (str): Operación exitosa.
-        ERROR (str): Error genérico.
-        NOT_FOUND (str): Recurso no encontrado.
-        SUCCESS (bool): Indicador booleano de éxito.
-        FAILURE (bool): Indicador booleano de fallo.
+    - **OK (str):** Operación exitosa.
+    - **ERROR (str):** Error genérico.
+    - **NOT_FOUND (str):** Recurso no encontrado.
+    - **SUCCESS (bool):** Indicador booleano de éxito.
+    - **FAILURE (bool):** Indicador booleano de fallo.
     """
 
     OK = "ok"
@@ -30,6 +29,9 @@ class Status:
 
 
 class BaseManager:
+    """
+    Clase base para los Manager.
+    """
 
     def start(self) -> ManagerResult:
         raise NotImplementedError
@@ -43,6 +45,18 @@ class BaseManager:
 
 @dataclass
 class ManagerResult:
+    """
+    Representa un resultado estándar obtenido de un Manager con un código de éxito, un mensaje
+    descriptivo, error (opcional), datos adicionales (opcional) y un timestamp.
+
+    ## Atributos
+      - **success (bool):** Código de éxito.
+      - **message (str):** Mensaje descriptivo.
+      - **error (str, None):** Descripción del error.
+      - **data (Dict[str, Any], None):** Datos extra.
+      - **timestamp (str):** Timestamp
+    """
+
     success: bool
     message: str
     error: str | None = None
@@ -100,10 +114,10 @@ class Response:
     Representa una respuesta estándar con un código de estado, un mensaje
     descriptivo y datos adicionales.
 
-    Atributos:
-        status (str): Código de estado (Status.OK, Status.ERROR, etc.).
-        message (str): Mensaje legible para el usuario.
-        data (dict): Carga útil con información adicional.
+    ## Atributos
+      - **status (str):** Código de estado (Status.OK, Status.ERROR, etc.).
+      - **message (str):** Mensaje legible para el usuario.
+      - **data (dict):** Carga útil con información adicional.
     """
 
     def __init__(self, status: str, message: str, data: dict = {}):
@@ -193,6 +207,11 @@ class RedisPayload:
     """
     Modelo para serializar respuestas de estado de contenedores
     que se publicarán en Redis.
+
+    ## Atributos
+      - **container (str):** Nombre del contenedor.
+      - **status (str):** Estado/status del contenedor.
+      - **timestamp (str):** Timestamp.
     """
 
     container: str | None
@@ -203,6 +222,12 @@ class RedisPayload:
     def from_container(cls, container: Container) -> RedisPayload:
         """
         Construye un RedisPayload a partir de Container.
+
+        Args:
+          container (Container): Objeto contenedor de Docker.
+
+        Returns:
+          RedisPayload: Payload formateado para Redis.
         """
         return cls(
             container=container.name,
@@ -214,6 +239,12 @@ class RedisPayload:
     def from_dict(cls, container: dict) -> RedisPayload:
         """
         Construye un RedisPayload a partir de un dict.
+
+        Args:
+          container (dict): Diccionario con datos del contenedor de Docker [container, status].
+
+        Returns:
+          RedisPayload: Payload formateado para Redis.
         """
         return cls(
             container=container["container"],
