@@ -11,7 +11,10 @@ venv/
 # Logs y config temporales
 Monitor/Logs/*
 !Monitor/Logs/.gitkeep
-JuiceBoxEngine/configs/*
+JuiceBoxEngine/configs/*.json
+JuiceBoxEngine/configs/*.yml
+JuiceBoxEngine/configs/*.xml
+JuiceBoxEngine/configs/*.conf
 !JuiceBoxEngine/configs/.gitkeep
 
 # Textos sueltos

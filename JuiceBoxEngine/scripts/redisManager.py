@@ -5,6 +5,7 @@ from Models.schemas import BaseManager, RedisPayload, ManagerResult
 from docker.models.containers import Container
 from docker.client import DockerClient
 from docker.errors import APIError
+from importlib.resources import files
 
 
 class JuiceBoxChannels:
@@ -40,7 +41,6 @@ class RedisManager(BaseManager):
         redis_host: str = "localhost",
         redis_port: int = 6379,
         redis_db: int = 0,
-        redis_password: str = "",
         compose_file: str | None = None,
         # Docker:
         docker_client: DockerClient | None = None,
@@ -75,9 +75,22 @@ class RedisManager(BaseManager):
             host=redis_host,
             port=redis_port,
             db=redis_db,
-            password=redis_password,
+            password=self.__get_password("JuiceBoxEngine.configs", "redis.conf"),
             decode_responses=True,
         )
+
+    def __get_password(self, package: str, resource_name: str) -> str | None:
+        """
+        Lee `resource_name` dentro del paquete `package`
+        y extrae el valor de la línea que empieza con `requirepass`.
+        """
+        recurso = files(package).joinpath(resource_name)
+        with recurso.open("r", encoding="utf-8") as f:
+            for linea in f:
+                linea = linea.strip()
+                if linea.startswith("requirepass"):
+                    return linea.split(maxsplit=1)[1]
+        return None
 
     def __create(self) -> ManagerResult:
         """
