@@ -232,7 +232,7 @@ class RootTheBoxManager(BaseManager):
         except Exception as e:
             return ManagerResult(
                 success=False,
-                message=f"Container couldn't be stopped or removed!",
+                message="Container couldn't be stopped or removed!",
                 error=str(e),
                 data={"container": container_name},
             )

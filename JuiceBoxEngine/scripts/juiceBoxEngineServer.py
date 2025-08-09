@@ -25,6 +25,8 @@ COMMANDS = {
         "__STATUS__",
         "__START_CONTAINER__",
         "__STOP_CONTAINER__",
+        "__CONTAINER_STATUS__",
+        "__STATUS__",
         "__STOP__",
         "__GENERATE_XML__",
     ],
@@ -232,7 +234,7 @@ class JuiceBoxEngineServer:
         except Exception as e:
             return ManagerResult.failure(message="Error stopping server", error=str(e))
 
-    def __handle_rtb_command(self, command: str) -> ManagerResult:
+    def __handle_rtb_command(self, command: str) -> Response:
         """
         Ejecuta un comando específico para Root The Box.
 
@@ -240,21 +242,49 @@ class JuiceBoxEngineServer:
         command (str): Comando recibido
 
         Returns:
-            ManageResult: Resultado de la operación.
+            Response: Respuesta serializada en formato JSON
         """
         # Lee el manager dentro del lock para asegurar coherencia.
         with self.__manager_lock:
             __manager = self.rtb_manager
-        __resp: ManagerResult
+        __resp: Response = Response.error(message="Root The Box command error")
+        __res: ManagerResult
         match command:
             case "__START__":
-                __resp = __manager.start()
+                __res = __manager.start()
+                if __res.success:
+                    __resp = Response.ok(message=__res.message)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to start Root The Box containers."
+                    )
             case "__RESTART__":
-                __resp = self.__rtb_restart()
+                __res = self.__rtb_restart()
+                if __res.success:
+                    __resp = Response.ok(message=__res.message)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to restart Root The Box containers."
+                    )
             case "__STOP__":
-                __resp = __manager.stop()
+                __res = __manager.stop()
+                if __res.success:
+                    __resp = Response.ok(message=__res.message)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to stop Root The Box containers."
+                    )
             case "__STATUS__":
-                __resp = __manager.status()
+                __res = __manager.status()
+                if self.rtb_manager and __res.success and __res.data:
+                    __resp = Response.ok(
+                        message="Root The Box Manager is active.", data=__res.data
+                    )
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to retrieve Root The Box Manager Status.",
+                        data={},
+                    )
                 # self.redis_manager.publish_to_admin(
                 #     RedisPayload.from_dict(__resp.data["containers"][0]["data"]),
                 # )
@@ -262,17 +292,17 @@ class JuiceBoxEngineServer:
                 #     RedisPayload.from_dict(__resp.data["containers"][1]["data"]),
                 # )
             case "__CONFIG__":
-                __resp = __manager.show_config()
-            case _:
-                __resp = ManagerResult.failure(
-                    message="Root The Box command error", error="Command not found"
-                )
+                __res = __manager.show_config()
+                if __res.success and __res.data:
+                    __resp = Response.ok(message=__res.message, data=__res.data)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to retrieve Root The Box Manager config."
+                    )
         # Retorno
         return __resp
 
-    def __handle_js_command(
-        self, command: str, args: dict[str, str | int]
-    ) -> ManagerResult:
+    def __handle_js_command(self, command: str, args: dict[str, str | int]) -> Response:
         """
         Ejecuta un comando específico para Juice Shop.
 
@@ -281,31 +311,78 @@ class JuiceBoxEngineServer:
           args (dict[str, str | int]): Argumentos adicionales como puerto o nombre
 
         Returns:
-            ManageResult: Resultado de la operación.
+            Response: Respuesta serializada en formato JSON
         """
         # Lee el manager dentro del lock para asegurar coherencia.
         with self.__manager_lock:
             __manager = self.js_manager
-        __resp: ManagerResult
+        __resp: Response = Response.error(message="Juice Shop command error")
+        __res: ManagerResult
         match command:
             case "__START_CONTAINER__":
-                __resp = __manager.start()
+                __res = __manager.start()
+                if __res.success:
+                    __resp = Response.ok(message=__res.message)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to start Juice Shop container."
+                    )
             case "__RESTART__":
-                __resp = self.__js_restart()
+                __res = self.__js_restart()
+                if __res.success:
+                    __resp = Response.ok(message=__res.message)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to restart Juice Shop containers."
+                    )
             case "__STOP_CONTAINER__":
-                __resp = __manager.stop_container(args["port"])
+                __res = __manager.stop_container(args["port"])
+                if __res.success:
+                    __resp = Response.ok(message=__res.message)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to stop Juice Shop container."
+                    )
             case "__STOP__":
-                __resp = __manager.stop()
-            case "__STATUS__":
-                __resp = __manager.status(args["port"])
+                __res = __manager.stop()
+                if __res.success:
+                    __resp = Response.ok(message=__res.message)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to stop Juice Shop containers."
+                    )
+            case "__CONTAINER_STATUS__":
+                __res = __manager.status(args["port"])
+                if __res.success and __res.data:
+                    __resp = Response.ok(message=__res.message, data=__res.data)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to retrieve Juice Shop container status.",
+                        data={},
+                    )
             case "__CONFIG__":
-                __resp = __manager.show_config()
+                __res = __manager.show_config()
+                if __res.success and __res.data:
+                    __resp = Response.ok(message=__res.message, data=__res.data)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to retrieve Juice Shop Manager config."
+                    )
             case "__GENERATE_XML__":
-                __resp = __manager.generate_rtb_config()
-            case _:
-                __resp = ManagerResult.failure(
-                    message="Juice Shop command error", error="Command not found"
-                )
+                __res = __manager.generate_rtb_config()
+                if __res.success and __res.data:
+                    __resp = Response.ok(message=__res.message, data=__res.data)
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to generate Root The Box XML file."
+                    )
+            case "__STATUS__":
+                if self.js_manager:
+                    __resp = Response.ok(message="Juice Shop Manager is active.")
+                else:
+                    __resp = Response.error(
+                        message="Error when trying to retrieve Juice Shop Manager Status."
+                    )
         # Retorno
         return __resp
 
@@ -320,7 +397,6 @@ class JuiceBoxEngineServer:
             Response: Respuesta serializada en formato JSON
         """
         __resp: Response = Response.error(message="Program not supported by engine")
-        __result: ManagerResult | None = None
         try:
             payload = json.loads(raw_data)
             prog = payload.get("prog")
@@ -332,19 +408,11 @@ class JuiceBoxEngineServer:
             elif command not in COMMANDS[prog]:
                 __resp = Response.error(message="Command not recognized by program")
             elif prog == "RTB":
-                __result = self.__handle_rtb_command(command)
+                __resp = self.__handle_rtb_command(command)
             else:
                 # prog == "JS"
-                __result = self.__handle_js_command(command, args)
+                __resp = self.__handle_js_command(command, args)
             # Se despachan las respuestas:
-            if __result:
-                if __result.success:
-                    __resp = Response.ok(
-                        message=__result.message,
-                        data=__result.data if __result.data else {},
-                    )
-                else:
-                    __resp = Response.error(message=__result.message)
         except json.JSONDecodeError:
             __resp = Response.error(message="Invalid JSON format")
         except Exception as e:

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any
+from typing import Any
 import json, time
 from dataclasses import dataclass, asdict
 from docker.models.containers import Container
@@ -53,7 +53,7 @@ class ManagerResult:
       - **success (bool):** Código de éxito.
       - **message (str):** Mensaje descriptivo.
       - **error (str, None):** Descripción del error.
-      - **data (Dict[str, Any], None):** Datos extra.
+      - **data (dict[str, Any], None):** Datos extra.
       - **timestamp (str):** Timestamp
     """
 
@@ -65,14 +65,14 @@ class ManagerResult:
 
     @classmethod
     def ok(
-        cls, message: str = "Success", data: Dict[str, Any] | None = {}
+        cls, message: str = "Success", data: dict[str, Any] | None = {}
     ) -> ManagerResult:
         """
         Crea una respuesta con estado SUCCESS (True).
 
         Args:
             message (str, None): Mensaje descriptivo. Por defecto "Success".
-            data (Dict[str, Any], None): Datos extra. Por defecto {}.
+            data (dict[str, Any], None): Datos extra. Por defecto {}.
 
         Returns:
             ManagerResult: Instancia con status Status.SUCCESS.
@@ -84,7 +84,7 @@ class ManagerResult:
         cls,
         message: str = "Failure",
         error: str | None = "Error",
-        data: Dict[str, Any] | None = None,
+        data: dict[str, Any] | None = None,
     ) -> ManagerResult:
         """
         Crea una respuesta con estado FAILURE (False).
@@ -92,19 +92,19 @@ class ManagerResult:
         Args:
             message (str): Mensaje descriptivo. Por defecto "Failure".
             error (str, None): Descripción del error. Por defecto "Error".
-            data (Dict[str, Any], None): Datos extra. Por defecto None.
+            data (dict[str, Any], None): Datos extra. Por defecto None.
 
         Returns:
             ManagerResult: Instancia con status Status.SUCCESS.
         """
         return cls(success=Status.FAILURE, message=message, error=error, data=data)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convierte la ManagerResult a un diccionario.
 
         Returns:
-            Dict[str, Any]: Estructura con las claves "success", "message", "data" y "error".
+            dict[str, Any]: Estructura con las claves "success", "message", "data" y "error".
         """
         return asdict(self)
 
@@ -137,12 +137,12 @@ class Response:
         self.message = message
         self.data = data or {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convierte la respuesta a un diccionario.
 
         Returns:
-            Dict[str, Any]: Estructura con las claves "status", "message" y "data".
+            dict[str, Any]: Estructura con las claves "status", "message" y "data".
         """
         return {"status": self.status, "message": self.message, "data": self.data}
 
@@ -156,13 +156,13 @@ class Response:
         return json.dumps(self.to_dict())
 
     @classmethod
-    def ok(cls, message: str = "Success", data: Dict[str, Any] = {}) -> Response:
+    def ok(cls, message: str = "Success", data: dict[str, Any] = {}) -> Response:
         """
         Crea una respuesta con estado OK.
 
         Args:
             message (str, None): Mensaje descriptivo. Por defecto "Success".
-            data (Dict[str, Any], None): Datos extra. Por defecto {}.
+            data (dict[str, Any], None): Datos extra. Por defecto {}.
 
         Returns:
             Response: Instancia con status Status.OK.
@@ -171,14 +171,14 @@ class Response:
 
     @classmethod
     def error(
-        cls, message: str = "Something went wrong", data: Dict[str, Any] = {}
+        cls, message: str = "Something went wrong", data: dict[str, Any] = {}
     ) -> Response:
         """
         Crea una respuesta con estado ERROR.
 
         Args:
             message (str, None): Mensaje descriptivo. Por defecto "Something went wrong".
-            data (Dict[str, Any], None): Datos extra. Por defecto {}.
+            data (dict[str, Any], None): Datos extra. Por defecto {}.
 
         Returns:
             Response: Instancia con status Status.ERROR.
@@ -187,14 +187,14 @@ class Response:
 
     @classmethod
     def not_found(
-        cls, message: str = "Not found", data: Dict[str, Any] = {}
+        cls, message: str = "Not found", data: dict[str, Any] = {}
     ) -> Response:
         """
         Crea una respuesta con estado NOT_FOUND.
 
         Args:
             message (str, None): Mensaje descriptivo. Por defecto "Not found".
-            data (Dict[str, Any], None): Datos extra. Por defecto {}.
+            data (dict[str, Any], None): Datos extra. Por defecto {}.
 
         Returns:
             Response: Instancia con status Status.NOT_FOUND.
@@ -252,12 +252,12 @@ class RedisPayload:
             timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convierte la RedisPayload a un diccionario.
 
         Returns:
-            Dict[str, Any]: Estructura con las claves "status", "message" y "data".
+            dict[str, Any]: Estructura con las claves "status", "message" y "data".
         """
         return asdict(self)
 
