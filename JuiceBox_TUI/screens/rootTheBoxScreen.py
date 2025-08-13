@@ -16,7 +16,7 @@ from rich.text import Text
 from Models.schemas import Status
 import redis, threading
 
-SOCKET_PATH = "/tmp/juiceboxengine.sock"
+SOCKET_PATH = "/run/juicebox/juicebox.sock"
 
 
 class RootTheBoxScreen(Screen):

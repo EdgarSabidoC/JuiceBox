@@ -10,6 +10,8 @@ from textual.widgets import Label, Static, OptionList, Placeholder, Link
 from textual.binding import Binding
 import textual.color as color
 
+SOCKET_PATH = "/run/juicebox/juicebox.sock"
+
 
 class JuiceShopScreen(Screen):
     CSS_PATH = "../styles/main.tcss"
