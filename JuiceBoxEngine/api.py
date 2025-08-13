@@ -14,6 +14,7 @@ class JuiceBoxAPI:
     """
 
     @staticmethod
+    # Envía un comando para un programa al JuiceBoxEngine
     async def __send_command(prog: str, command: str, args: dict = {}) -> Response:
         # 1) DEBUG: indicar que vamos a conectar
         try:
@@ -53,7 +54,8 @@ class JuiceBoxAPI:
         )
         return resp
 
-    # GET
+    # GET --------------------------------------------------------------
+
     @staticmethod
     # Obtener configuración de un manager (RTB o JS)
     async def __get_config(prog: str) -> Response:
@@ -122,37 +124,60 @@ class JuiceBoxAPI:
     async def restart_js_status() -> Response:
         return await JuiceBoxAPI.__restart_manager("JS")
 
-    # SET
-
-    # START
-
-    # STOP
-
-    # Detiene un manager (RTB o JS)
+    # SET --------------------------------------------------------------
     @staticmethod
+    # Modifica la configuración de RTB
+    async def set_rtb_config(config: dict[str, str | int]) -> Response:
+        return await JuiceBoxAPI.__send_command(
+            prog="RTB", command="__SET_CONFIG__", args=config
+        )
+
+    @staticmethod
+    # Modifica la configuración de RTB
+    async def set_js_config(config: dict[str, str | list[int]]) -> Response:
+        return await JuiceBoxAPI.__send_command(
+            prog="JS", command="__SET_CONFIG__", args=config
+        )
+
+    # START ------------------------------------------------------------
+
+    @staticmethod
+    # Inicia los contenedores de RTB
+    async def start_rtb() -> Response:
+        return await JuiceBoxAPI.__send_command(prog="RTB", command="__START__")
+
+    @staticmethod
+    # Inicia los contenedores de JS
+    async def start_js_container() -> Response:
+        return await JuiceBoxAPI.__send_command(prog="JS", command="__START__")
+
+    # STOP --------------------------------------------------------------
+
+    @staticmethod
+    # Detiene un manager (RTB o JS)
     async def __stop_manager(prog: str) -> Response:
         return await JuiceBoxAPI.__send_command(prog, "__STOP__")
 
-    # Detiene el manager de RTB
     @staticmethod
+    # Detiene el manager de RTB
     async def stop_rtb() -> Response:
         return await JuiceBoxAPI.__stop_manager("RTB")
 
-    # Detiene el manager de JS
     @staticmethod
+    # Detiene el manager de JS
     async def stop_js() -> Response:
         return await JuiceBoxAPI.__stop_manager("JS")
 
-    # Detiene un contenedor de JS
     @staticmethod
+    # Detiene un contenedor de JS
     async def stop_js_container(port: int):
         return await JuiceBoxAPI.__send_command(
             "JS", "__STOP__CONTAINER", args={"port": port}
         )
 
-    # MISCELLANEOUS
+    # MISCELLANEOUS ----------------------------------------------------
 
-    # Genera el XML de missions para Root The Box
     @staticmethod
+    # Genera el XML de missions para Root The Box
     async def generate_xml() -> Response:
         return await JuiceBoxAPI.__send_command("JS", "__GENERATE_XML__")

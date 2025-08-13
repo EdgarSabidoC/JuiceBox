@@ -19,7 +19,14 @@ from dotenv import dotenv_values
 
 # Comandos válidos por programa
 COMMANDS = {
-    "RTB": ["__START__", "__STOP__", "__RESTART__", "__CONFIG__", "__STATUS__"],
+    "RTB": [
+        "__START__",
+        "__STOP__",
+        "__RESTART__",
+        "__CONFIG__",
+        "__STATUS__",
+        "__SET_CONFIG__",
+    ],
     "JS": [
         "__RESTART__",
         "__CONFIG__",
@@ -29,6 +36,7 @@ COMMANDS = {
         "__CONTAINER_STATUS__",
         "__STATUS__",
         "__STOP__",
+        "__SET_CONFIG__",
         "__GENERATE_XML__",
     ],
 }
