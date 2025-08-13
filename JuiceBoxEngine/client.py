@@ -1,7 +1,7 @@
 import socket, time, json
 from typing import Optional, Union
 
-SOCKET_PATH = "/tmp/juiceboxengine.sock"
+SOCKET_PATH = "/run/juicebox/juicebox.sock"
 
 
 def send_command(

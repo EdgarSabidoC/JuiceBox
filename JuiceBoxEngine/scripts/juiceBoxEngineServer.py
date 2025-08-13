@@ -7,6 +7,7 @@ from scripts.rootTheBoxManager import RootTheBoxManager
 from scripts.redisManager import RedisManager
 from scripts.utils.config import RTBConfig, JuiceShopConfig
 from scripts.monitor import Monitor
+from typing import Any
 from Models.schemas import (
     BaseManager,
     Response,
@@ -46,7 +47,7 @@ class JuiceBoxEngineServer:
         rtb_manager: RootTheBoxManager,
         docker_client: DockerClient,
         redis_manager: RedisManager,
-        socket_path: str = "/tmp/juiceboxengine.sock",
+        socket_path: str = "/run/juicebox/juicebox.sock",
     ):
         """
         Inicializa el servidor, elimina cualquier socket viejo y comienza el hilo worker.
@@ -247,44 +248,55 @@ class JuiceBoxEngineServer:
         # Lee el manager dentro del lock para asegurar coherencia.
         with self.__manager_lock:
             __manager = self.rtb_manager
-        __resp: Response = Response.error(message="Root The Box command error")
         __res: ManagerResult
+        __message: str
         match command:
             case "__START__":
                 __res = __manager.start()
+                __message = __res.message
                 if __res.success:
-                    __resp = Response.ok(message=__res.message)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to start Root The Box containers."
-                    )
+                    self.monitor.info(__message)
+                    return Response.ok(__message)
+                if __res.error:
+                    __message += f": {__res.error}"
+                self.monitor.error(__message)
+                return Response.error(
+                    message="Error when trying to start Root The Box containers."
+                )
             case "__RESTART__":
                 __res = self.__rtb_restart()
+                __message = __res.message
                 if __res.success:
-                    __resp = Response.ok(message=__res.message)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to restart Root The Box containers."
-                    )
+                    self.monitor.info(__message)
+                    return Response.ok(__message)
+
+                if __res.error:
+                    __message += f": {__res.error}"
+                self.monitor.error(__message)
+                return Response.error(
+                    message="Error when trying to restart Root The Box containers."
+                )
             case "__STOP__":
                 __res = __manager.stop()
+                __message = __res.message
                 if __res.success:
-                    __resp = Response.ok(message=__res.message)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to stop Root The Box containers."
-                    )
+                    return Response.ok(message=__message)
+                if __res.error:
+                    __message += f": {__res.error}"
+                self.monitor.error(message=__message)
+                return Response.error(
+                    message="Error when trying to stop Root The Box containers."
+                )
             case "__STATUS__":
                 __res = __manager.status()
                 if self.rtb_manager and __res.success and __res.data:
-                    __resp = Response.ok(
+                    return Response.ok(
                         message="Root The Box Manager is active.", data=__res.data
                     )
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to retrieve Root The Box Manager Status.",
-                        data={},
-                    )
+                return Response.error(
+                    message="Error when trying to retrieve Root The Box Manager Status.",
+                    data={},
+                )
                 # self.redis_manager.publish_to_admin(
                 #     RedisPayload.from_dict(__resp.data["containers"][0]["data"]),
                 # )
@@ -294,13 +306,14 @@ class JuiceBoxEngineServer:
             case "__CONFIG__":
                 __res = __manager.show_config()
                 if __res.success and __res.data:
-                    __resp = Response.ok(message=__res.message, data=__res.data)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to retrieve Root The Box Manager config."
-                    )
-        # Retorno
-        return __resp
+                    return Response.ok(message=__res.message, data=__res.data)
+                return Response.error(
+                    message="Error when trying to retrieve Root The Box Manager config."
+                )
+            case _:
+                __message = "Root The Box command error"
+                self.monitor.error(message=__message + f": {command}")
+                return Response.error(message=__message)
 
     def __handle_js_command(self, command: str, args: dict[str, str | int]) -> Response:
         """
