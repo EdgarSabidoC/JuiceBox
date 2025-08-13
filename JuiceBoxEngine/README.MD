@@ -36,6 +36,7 @@ systemd-python
 redis
 pydantic
 psutil
+PyYAML
 ```
 
 Activa el entorno virtual con el shell de Bash:

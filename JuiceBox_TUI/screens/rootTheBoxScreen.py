@@ -15,6 +15,7 @@ from widgets.reactiveMarkdown import ReactiveMarkdown
 from rich.text import Text
 from Models.schemas import Status
 import redis, threading
+from JuiceBoxEngine.api import JuiceBoxAPI
 
 SOCKET_PATH = "/run/juicebox/juicebox.sock"
 

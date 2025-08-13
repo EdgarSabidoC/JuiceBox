@@ -16,6 +16,7 @@ from Models.schemas import (
     ManagerResult,
 )
 from docker import DockerClient
+from dotenv import dotenv_values
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -47,16 +48,19 @@ class JuiceBoxEngineServer:
         rtb_manager: RootTheBoxManager,
         docker_client: DockerClient,
         redis_manager: RedisManager,
-        socket_path: str = "/run/juicebox/juicebox.sock",
     ):
         """
         Inicializa el servidor, elimina cualquier socket viejo y comienza el hilo worker.
 
-        :param js_manager: Instancia de JuiceShopManager
-        :param rtb_manager: Instancia de RootTheBoxManager
-        :param socket_path: Ruta del socket UNIX
+        :param: monitor (Monitor): Monitor
+        :param: js_manager (str): Instancia de JuiceShopManager
+        :param: rtb_manager (str): Instancia de RootTheBoxManager
+        :param: docker_client (DockerClient): Cliente de Docker
+        :param: redis_manager (RedisManager): Manager de Redis
         """
-        self.socket_path = socket_path
+        self.socket_path: str = (
+            dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/juicebox.sock"
+        )
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)
 
@@ -365,7 +369,12 @@ class JuiceBoxEngineServer:
                         message="Error when trying to stop Juice Shop containers."
                     )
             case "__CONTAINER_STATUS__":
-                __res = __manager.status(args["port"])
+                argument: str | int = ""
+                if args["port"]:
+                    argument = args["port"]
+                elif args["container"]:
+                    argument = args["container"]
+                __res = __manager.status(argument)
                 if __res.success and __res.data:
                     __resp = Response.ok(message=__res.message, data=__res.data)
                 else:
