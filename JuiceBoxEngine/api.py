@@ -1,7 +1,7 @@
 import asyncio
 import json
 from dotenv import dotenv_values
-from Models.schemas import Response, Status
+from Models import Response, Status
 
 SOCKET_PATH: str | None = dotenv_values().get(
     "JUICEBOX_SOCKET", "/run/juicebox/juicebox.sock"

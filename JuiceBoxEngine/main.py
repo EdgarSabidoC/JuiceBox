@@ -3,17 +3,18 @@ import os, sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))  # …/project_root/JuiceBoxEngine
 sys.path.insert(0, os.path.dirname(ROOT))  # …/project_root
-from scripts.juiceBoxEngineServer import JuiceBoxEngineServer
-from scripts.juiceShopManager import JuiceShopManager
-from scripts.rootTheBoxManager import RootTheBoxManager
-from scripts.redisManager import RedisManager
-from scripts.utils.config import JuiceShopConfig, RTBConfig
-from scripts.monitor import Monitor
+from .components import JuiceBoxEngineServer
+from .components import JuiceShopManager
+from .components import RootTheBoxManager
+from .components import RedisManager
+from .utils import JuiceShopConfig, RTBConfig
+from .components import Monitor
 from docker import DockerClient
 from types import FrameType
 import sys, signal, atexit, docker
 
-if __name__ == "__main__":
+
+def main():
     # Cliente de Docker:
     docker_client: DockerClient = docker.from_env()
 
@@ -64,3 +65,7 @@ if __name__ == "__main__":
 
     # Arranca el motor
     jb_server.start()
+
+
+if __name__ == "__main__":
+    main()

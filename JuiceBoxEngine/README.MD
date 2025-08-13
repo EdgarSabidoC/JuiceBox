@@ -70,11 +70,13 @@ set -euo pipefail
 # 1. Activa el entorno virtual
 source /opt/JuiceBox/venv/bin/activate
 
-# 2. Ajusta PYTHONPATH
+# 2. Ajusta PYTHONPATH y la ruta del socket
 export PYTHONPATH=/opt/JuiceBox
+export JUICEBOX_SOCKET=/run/juicebox/engine.sock
 
 # 3. Ejecuta la aplicación
-exec python /opt/JuiceBox/JuiceBoxEngine/main.py
+#exec python /opt/JuiceBox/JuiceBoxEngine/main.py
+exec python -m JuiceBox
 ```
 
 ### 3.2. Dar permisos de ejecución al archivo
