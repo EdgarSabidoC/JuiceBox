@@ -17,8 +17,9 @@ from ...Models import Status
 import redis, threading
 from ...JuiceBoxEngine.api import JuiceBoxAPI
 import importlib.resources as pkg_resources
+from dotenv import dotenv_values
 
-SOCKET_PATH = "/run/juicebox/juicebox.sock"
+SOCKET_PATH = dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/juicebox.sock"
 
 
 class RootTheBoxScreen(Screen):

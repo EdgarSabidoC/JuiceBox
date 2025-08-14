@@ -8,9 +8,7 @@ from typing import Any, TypeGuard
 
 
 class RTBConfig:
-    CONFIG_PATH = CONFIG_PATH = Path(
-        str(files("JuiceBoxEngine.configs").joinpath("rootTheBox.json"))
-    )
+    CONFIG_PATH = Path(str(files("JuiceBoxEngine.configs").joinpath("rootTheBox.json")))
 
     def __init__(self):
         # Se lee el json

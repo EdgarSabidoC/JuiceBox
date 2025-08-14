@@ -4,15 +4,21 @@ from ..widgets import get_footer
 from ..widgets import get_header
 from textual.widgets import MarkdownViewer, TabbedContent
 from textual.binding import Binding
+from importlib.resources import files
+from pathlib import Path
 
 
 class DocumentationScreen(Screen):
     CSS_PATH = "../styles/documentation.tcss"
 
     MARKDOWNS = {
-        "JuiceBox": "docs/JuiceBox/README.MD",
-        "JuiceShop": "docs/JuiceShop/README.MD",
-        "RootTheBox": "docs/RootTheBox/README.MD",
+        "JuiceBox": Path(str(files("JuiceBox.docs.ES.JuiceBox").joinpath("Engine.MD"))),
+        "JuiceShop": Path(
+            str(files("JuiceBox.docs.ES.JuiceBox").joinpath("JuiceShopManager.MD"))
+        ),
+        "RootTheBox": Path(
+            str(files("JuiceBox.docs.ES.JuiceBox").joinpath("RootTheBoxManager.MD"))
+        ),
     }
     BINDINGS = [
         Binding("ctrl+b", "go_back", "Back", show=True),

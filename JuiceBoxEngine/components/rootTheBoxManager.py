@@ -359,7 +359,7 @@ class RootTheBoxManager(BaseManager):
         for container_name in (self.webapp_container_name, self.cache_container_name):
             try:
                 __status: str = self.__get_status(container_name)
-                _data: dict[str, str | bool] = {
+                _data: dict[str, str] = {
                     "container": container_name,
                     "status": __status,
                 }
