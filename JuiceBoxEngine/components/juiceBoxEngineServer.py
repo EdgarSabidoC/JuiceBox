@@ -16,6 +16,8 @@ from Models import (
 )
 from docker import DockerClient
 from dotenv import dotenv_values
+from collections.abc import Callable
+
 
 # Comandos válidos por programa
 COMMANDS = {
@@ -260,7 +262,15 @@ class JuiceBoxEngineServer:
             message="Error when trying to retrieve Root The Box Manager config."
         )
 
-    def __js_restart(self) -> ManagerResult:
+    def __js_start_container(self, manager: JuiceShopManager) -> Response:
+        __res: ManagerResult = manager.start()
+        if __res.success:
+            return Response.ok(message=__res.message)
+        return Response.error(
+            message="Error when trying to start Juice Shop container."
+        )
+
+    def __js_restart(self) -> Response:
         """
         Reinicia la instancia del manager de la Juice Shop.
 
@@ -270,12 +280,80 @@ class JuiceBoxEngineServer:
         try:
             self.js_manager.cleanup()
         except AttributeError as e:
-            return ManagerResult.failure(
-                message="Error at restarting Juice Shop Manager", error=str(e)
+            return Response.error(
+                message=f"Error at restarting Juice Shop Manager: {e}"
             )
 
         self.js_manager = JuiceShopManager(JuiceShopConfig())
-        return ManagerResult.ok(message="Juice Shop Manager restarted")
+        return Response.ok(message="Juice Shop Manager restarted")
+
+    def __js_stop_container(
+        self, manager: JuiceShopManager, args: dict[str, str | int]
+    ) -> Response:
+        container: str | int = ""
+        if args["port"]:
+            container = args["port"]
+        elif args["container"]:
+            container = args["container"]
+        __res: ManagerResult = manager.stop_container(container)
+        if __res.success:
+            return Response.ok(message=__res.message, data=__res.data or {})
+        else:
+            return Response.error(
+                message="Error when trying to stop Juice Shop container."
+            )
+
+    def __js_stop(self, manager: JuiceShopManager) -> Response:
+        __res = manager.stop()
+        if __res.success:
+            return Response.ok(message=__res.message)
+        else:
+            return Response.error(
+                message="Error when trying to stop Juice Shop containers."
+            )
+
+    def __js_container_status(
+        self, manager: JuiceShopManager, args: dict[str, str | int]
+    ) -> Response:
+        container: str | int = ""
+        if args["port"]:
+            container = args["port"]
+        elif args["container"]:
+            container = args["container"]
+        __res: ManagerResult = manager.status(container)
+        if __res.success and __res.data:
+            return Response.ok(message=__res.message, data=__res.data)
+        else:
+            return Response.error(
+                message="Error when trying to retrieve Juice Shop container status.",
+                data={},
+            )
+
+    def __js_config(self, manager: JuiceShopManager) -> Response:
+        __res: ManagerResult = manager.show_config()
+        if __res.success and __res.data:
+            return Response.ok(message=__res.message, data=__res.data)
+        else:
+            return Response.error(
+                message="Error when trying to retrieve Juice Shop Manager config."
+            )
+
+    def __js_generate_xml(self, manager: JuiceShopManager) -> Response:
+        __res: ManagerResult = manager.generate_rtb_config()
+        if __res.success and __res.data:
+            return Response.ok(message=__res.message, data=__res.data)
+        else:
+            return Response.error(
+                message="Error when trying to generate Root The Box XML file."
+            )
+
+    def __js_status(self) -> Response:
+        if self.js_manager:
+            return Response.ok(message="Juice Shop Manager is active.")
+        else:
+            return Response.error(
+                message="Error when trying to retrieve Juice Shop Manager Status."
+            )
 
     def set_managers(self, rtb: RootTheBoxManager, js: JuiceShopManager):
         """
@@ -368,74 +446,21 @@ class JuiceBoxEngineServer:
         __res: ManagerResult
         match command:
             case "__START_CONTAINER__":
-                __res = __manager.start()
-                if __res.success:
-                    __resp = Response.ok(message=__res.message)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to start Juice Shop container."
-                    )
+                return self.__js_start_container(__manager)
             case "__RESTART__":
-                __res = self.__js_restart()
-                if __res.success:
-                    __resp = Response.ok(message=__res.message)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to restart Juice Shop containers."
-                    )
+                return self.__js_restart()
             case "__STOP_CONTAINER__":
-                __res = __manager.stop_container(args["port"])
-                if __res.success:
-                    __resp = Response.ok(message=__res.message)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to stop Juice Shop container."
-                    )
+                return self.__js_stop_container(__manager, args)
             case "__STOP__":
-                __res = __manager.stop()
-                if __res.success:
-                    __resp = Response.ok(message=__res.message)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to stop Juice Shop containers."
-                    )
+                return self.__js_stop(__manager)
             case "__CONTAINER_STATUS__":
-                argument: str | int = ""
-                if args["port"]:
-                    argument = args["port"]
-                elif args["container"]:
-                    argument = args["container"]
-                __res = __manager.status(argument)
-                if __res.success and __res.data:
-                    __resp = Response.ok(message=__res.message, data=__res.data)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to retrieve Juice Shop container status.",
-                        data={},
-                    )
+                return self.__js_container_status(__manager, args)
             case "__CONFIG__":
-                __res = __manager.show_config()
-                if __res.success and __res.data:
-                    __resp = Response.ok(message=__res.message, data=__res.data)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to retrieve Juice Shop Manager config."
-                    )
+                return self.__js_config(__manager)
             case "__GENERATE_XML__":
-                __res = __manager.generate_rtb_config()
-                if __res.success and __res.data:
-                    __resp = Response.ok(message=__res.message, data=__res.data)
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to generate Root The Box XML file."
-                    )
+                return self.__js_generate_xml(__manager)
             case "__STATUS__":
-                if self.js_manager:
-                    __resp = Response.ok(message="Juice Shop Manager is active.")
-                else:
-                    __resp = Response.error(
-                        message="Error when trying to retrieve Juice Shop Manager Status."
-                    )
+                return self.__js_status()
         # Retorno
         return __resp
 
@@ -472,6 +497,88 @@ class JuiceBoxEngineServer:
             __resp = Response.error(message=str(e))
         return __resp
 
+    def __run_component_action(
+        self,
+        name: str,
+        component: object,
+        method_name: str,
+        monitor: "Monitor | None",
+    ) -> tuple[list[str], list[str]]:
+
+        # Listas de mensajes y errores:
+        messages: list[str] = []
+        errors: list[str] = []
+        __STATIC_OK = {
+            "Monitor": "Docker containers monitorization stopped!",
+            "DockerClient": "Docker connection is closed",
+        }
+
+        try:
+            action: Callable[[], object] = getattr(component, method_name)
+        except Exception as e:
+            err = f"{name} cleanup failed: missing action '{method_name}' ({e})"
+            errors.append(err)
+            if monitor:
+                monitor.error(err)
+            return messages, errors
+
+        try:
+            result = action()
+            # Caso 1: retorna ManagerResult
+            if isinstance(result, ManagerResult):
+                if result.success:
+                    msg = f"{name} cleaned up successfully: {result.message}"
+                    messages.append(msg)
+                    if monitor:
+                        monitor.info(msg)
+                else:
+                    err = f"{name} cleanup failed: {result.message} -> {result.error}"
+                    errors.append(err)
+                    if monitor:
+                        monitor.error(err)
+            # Caso 2: no retorna ManagerResult -> mensaje estático (monitor/docker)
+            else:
+                text = __STATIC_OK.get(name, "Completed")
+                msg = f"{name} cleaned up successfully: {text}"
+                messages.append(msg)
+                if monitor:
+                    monitor.info(msg)
+        except Exception as e:
+            err = f"{name} cleanup failed -> {e}"
+            errors.append(err)
+            if monitor:
+                monitor.error(err)
+
+        return messages, errors
+
+    def __cleanup_components(
+        self,
+        js: JuiceShopManager | None,
+        rtb: RootTheBoxManager | None,
+        redis: RedisManager | None,
+        monitor: Monitor | None,
+        docker_client: DockerClient | None,
+    ) -> tuple[list[str], list[str]]:
+        messages: list[str] = []
+        errors: list[str] = []
+
+        specs: list[tuple[str, object | None, str]] = [
+            ("JuiceShopManager", js, "cleanup"),
+            ("RootTheBoxManager", rtb, "cleanup"),
+            ("RedisManager", redis, "cleanup"),
+            ("Monitor", monitor, "stop_container_monitoring"),
+            ("DockerClient", docker_client, "close"),
+        ]
+
+        for name, component, method in specs:
+            if component is None:
+                continue
+            msg, err = self.__run_component_action(name, component, method, monitor)
+            messages.extend(msg)
+            errors.extend(err)
+
+        return messages, errors
+
     def cleanup(self) -> ManagerResult:
         """
         Limpieza general del servidor: cierra el socket, detiene contenedores y conexiones.
@@ -490,45 +597,9 @@ class JuiceBoxEngineServer:
         # Acumulamos mensajes y errores
         messages = []
         errors = []
-
-        for name, component, action in [
-            ("JuiceShopManager", __js_manager, lambda: component.cleanup()),
-            ("RootTheBoxManager", __rtb_manager, lambda: component.cleanup()),
-            ("RedisManager", __redis_manager, lambda: component.cleanup()),
-            ("Monitor", __monitor, lambda: component.stop_container_monitoring()),
-            ("DockerClient", __docker_client, lambda: component.close()),
-        ]:
-            if component is not None:
-                _resp: Response
-                try:
-                    _resp = action()
-                    if isinstance(_resp, Response) and _resp.status == Status.OK:
-                        msg: str = f"{name} cleaned up successfully: {_resp.message}\n"
-                        messages.append(
-                            f"{name} cleaned up successfully: {_resp.message}\n"
-                        )
-                        if __monitor:
-                            __monitor.info(msg)
-                    elif component is __docker_client:
-                        msg: str = (
-                            f"{name} cleaned up successfully: Docker connection is closed\n"
-                        )
-                        messages.append(
-                            f"{name} cleaned up successfully: Docker connection is closed\n"
-                        )
-                        if __monitor:
-                            __monitor.info(msg)
-                    else:
-                        error_msg = f"{name} cleanup failed: {_resp.message}\n"
-                        errors.append(error_msg)
-                        if __monitor:
-                            __monitor.error(error_msg)
-                except Exception as e:
-                    error_msg = f"{name} cleanup failed."
-                    errors.append(error_msg)
-                    if __monitor:
-                        __monitor.error(error_msg)
-
+        messages, errors = self.__cleanup_components(
+            __js_manager, __rtb_manager, __redis_manager, __monitor, __docker_client
+        )
         # Detiene el motor
         try:
             stop_response: ManagerResult = self.stop()

@@ -13,7 +13,7 @@ from ..widgets import CustomSwitch
 from textual.reactive import reactive
 from ..widgets import ReactiveMarkdown
 from rich.text import Text
-from ...Models import Status
+from ...Models import Status, Response
 import redis, threading
 from ...JuiceBoxEngine.api import JuiceBoxAPI
 import importlib.resources as pkg_resources
@@ -139,11 +139,10 @@ class RootTheBoxScreen(Screen):
 
         try:
             if event.value:
-                __resp = await self.send_command("RTB", "__START__")
-                __resp = json.loads(__resp)
+                __resp = await JuiceBoxAPI.start_rtb()
                 self.info.update("Se mandó __START__")
             else:
-                __resp = await self.send_command("RTB", "__STOP__")
+                __resp = await JuiceBoxAPI.stop_rtb()
                 self.info.update("Se mandó __STOP__")
         except Exception:
             # Si falla, revertimos el valor y mostramos error
@@ -159,9 +158,8 @@ class RootTheBoxScreen(Screen):
         # Se presionó el botón
         try:
             event.button.disabled = True
-            resp = await self.send_command("RTB", "__RESTART__")
-            resp = json.loads(resp)
-            if resp["status"] == "ok":
+            resp = await JuiceBoxAPI.restart_rtb_status()
+            if resp.status == Status.OK:
                 self.notify(
                     title="Successful reset!",
                     message="Root The Box services reseted.",
@@ -172,7 +170,7 @@ class RootTheBoxScreen(Screen):
             else:
                 self.notify(
                     title="Reset ERROR!",
-                    message=f"{resp["status"]}",
+                    message=f"{resp.status}",
                     severity="error",
                     timeout=10,
                     markup=True,
@@ -206,66 +204,27 @@ class RootTheBoxScreen(Screen):
         """Regresa a la pantalla del menú principal."""
         await self.return_to_main()
 
-    async def send_command(
-        self, prog: str, command: str, args: dict | None = None
-    ) -> str:
-        # 1) DEBUG: indicar que vamos a conectar
-        self.log(f"CLIENTE: intentando conectar al socket… {SOCKET_PATH}")
-        try:
-            reader, writer = await asyncio.open_unix_connection(path=SOCKET_PATH)
-        except Exception as e:
-            self.log(f"CLIENTE: error al conectar: {e}")
-            raise
-
-        # 2) Montar payload y añadir '\n'
-        payload: dict[str, Union[str, dict[str, Union[str, int]]]] = {
-            "prog": prog,
-            "command": command,
-        }
-        if args:
-            payload["args"] = args
-        raw = json.dumps(payload)
-        self.log(f"CLIENTE: enviando JSON: {raw}")
-        writer.write(raw.encode("utf-8") + b"\n")
-        await writer.drain()
-
-        # 3) Leer hasta la línea
-        try:
-            line = await reader.readline()
-        except Exception as e:
-            self.log(f"CLIENTE: error al leer respuesta: {e}")
-            raise
-        finally:
-            writer.close()
-            await writer.wait_closed()
-
-        resp = line.decode("utf-8", errors="replace").strip()
-        self.log(f"CLIENTE: respuesta cruda: {repr(resp)}")
-        return resp
-
     async def get_conf(self) -> str:
         try:
-            resp = await self.send_command("RTB", "__CONFIG__")
-            return str(json.loads(resp))
+            resp = await JuiceBoxAPI.get_rtb_config()
+            return str(resp.data["config"])
         except Exception:
             return '"status": "error"'
 
     async def init(self) -> None:
         self._ignore_switch_event = True
         try:
-            __resp = await self.send_command("RTB", "__STATUS__")
-            __resp = json.loads(__resp)
-            if __resp["status"] == Status.OK:
+            __resp = await JuiceBoxAPI.get_rtb_status()
+            if __resp.status == Status.OK:
                 self.power.value = True
                 # self.info.update("Power value True")
             else:
                 self.power.value = False
                 # self.info.update("Power value False")
 
-            __resp = await self.send_command("RTB", "__CONFIG__")
-            __resp = json.loads(__resp)
-            if __resp["status"] == Status.OK:
-                config_data = __resp["data"]["config"]
+            __resp = await JuiceBoxAPI.get_rtb_config()
+            if __resp.status == Status.OK:
+                config_data = __resp.data["config"]
                 pretty_json = json.dumps(config_data, indent=4)
                 md_content = f"```json\n{pretty_json}\n```"
                 self.config_data.update_content(md_content)

@@ -183,16 +183,6 @@ sudo systemctl restart systemd-journald
 
 ```
 
-#### Envolver la app con `systemd-cat` (opcional)
-
-Si no se puede instalar el paquete `python-systemd`, entonces desde la carpeta raiz de JuiceBox ejecuta en la terminal el comando:
-
-```
-systemd-cat -t JuiceBoxEngine python3 JuiceBoxEngine/main.py
-```
-
-Este comando permite redirigir el stdout y stderr al journal bajo la etiqueta `JuiceBoxEngine`.
-
 ### Ver los logs
 Para ver los logs ejecutar desde la terminal:
 

@@ -94,7 +94,7 @@ class JuiceShopManager(BaseManager):
         """
         Rango de puertos disponibles para los contenedores de Juice Shop.
         """
-        return self.config.ports
+        return [self.config.starting_port, self.config.ending_port]
 
     @property
     def starting_port(self) -> int:

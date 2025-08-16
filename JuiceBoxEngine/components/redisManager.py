@@ -6,6 +6,7 @@ from docker.models.containers import Container
 from docker.client import DockerClient
 from docker.errors import APIError
 from importlib.resources import files
+from ..utils import validate_container
 
 
 class JuiceBoxChannels:
@@ -112,13 +113,13 @@ class RedisManager(BaseManager):
                 text=True,
             )
             if validate_container(self.__docker_client, self.container_name):
-                # Se obtiene el contenedor
-                self.__container: Container = self.__docker_client.containers.get(
-                    self.container_name
+                return ManagerResult.ok(
+                    message="Redis container created and now is running!"
                 )
-            return ManagerResult.ok(
-                message="Redis container created and now is running!"
-            )
+            else:
+                return ManagerResult.failure(
+                    message="Redis container couldn't be created."
+                )
         except subprocess.CalledProcessError as e:
             return ManagerResult(
                 success=False,
@@ -141,7 +142,6 @@ class RedisManager(BaseManager):
                 container: Container = self.__docker_client.containers.get(
                     self.container_name
                 )
-                self.__container: Container = container
                 if container.status == "running":
                     return ManagerResult.ok(
                         message="Redis container is already running!"
@@ -170,12 +170,21 @@ class RedisManager(BaseManager):
             Exception: Si ocurre un error al detener o eliminar el contenedor.
         """
         try:
-            # Mata o destruye el contenedor de Redis
-            self.__container.stop()
-            self.__container.remove()
+            if validate_container(self.__docker_client, self.container_name):
+                # Se obtiene el contenedor:
+                container: Container = self.__docker_client.containers.get(
+                    self.container_name
+                )
+                container.stop()
+                container.remove()
+                return ManagerResult(
+                    success=True,
+                    message="Redis container has been stopped and removed from system!",
+                    data={"container": self.container_name, "status": "removed"},
+                )
             return ManagerResult(
                 success=True,
-                message="Redis container has been stopped and removed from system!",
+                message="No Redis container found to be stopped.",
                 data={"container": self.container_name, "status": "removed"},
             )
         except Exception as e:
@@ -185,7 +194,7 @@ class RedisManager(BaseManager):
                 error=str(e),
                 data={
                     "container": self.container_name,
-                    "status": self.__container.status,
+                    "status": "error",
                 },
             )
 

@@ -106,6 +106,8 @@ class JuiceBoxAPI:
             "JS", "__CONTAINER_STATUS__", args={"container": name}
         )
 
+    # RESTART ----------------------------------------------------------
+
     @staticmethod
     # Reiniciar manager
     async def __restart_manager(prog: str) -> Response:
