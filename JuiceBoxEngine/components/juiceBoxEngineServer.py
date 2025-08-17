@@ -8,7 +8,6 @@ from .redisManager import RedisManager
 from ..utils import RTBConfig, JuiceShopConfig
 from .monitor import Monitor
 from Models import (
-    BaseManager,
     Response,
     Status,
     RedisPayload,
@@ -502,7 +501,7 @@ class JuiceBoxEngineServer:
         name: str,
         component: object,
         method_name: str,
-        monitor: "Monitor | None",
+        monitor: Monitor,
     ) -> tuple[list[str], list[str]]:
 
         # Listas de mensajes y errores:
@@ -518,8 +517,7 @@ class JuiceBoxEngineServer:
         except Exception as e:
             err = f"{name} cleanup failed: missing action '{method_name}' ({e})"
             errors.append(err)
-            if monitor:
-                monitor.error(err)
+            monitor.error(err)
             return messages, errors
 
         try:
@@ -529,34 +527,30 @@ class JuiceBoxEngineServer:
                 if result.success:
                     msg = f"{name} cleaned up successfully: {result.message}"
                     messages.append(msg)
-                    if monitor:
-                        monitor.info(msg)
+                    monitor.info(msg)
                 else:
                     err = f"{name} cleanup failed: {result.message} -> {result.error}"
                     errors.append(err)
-                    if monitor:
-                        monitor.error(err)
-            # Caso 2: no retorna ManagerResult -> mensaje estático (monitor/docker)
+                    monitor.error(err)
+            # Caso 2: retorna mensaje estático (monitor/docker)
             else:
                 text = __STATIC_OK.get(name, "Completed")
                 msg = f"{name} cleaned up successfully: {text}"
                 messages.append(msg)
-                if monitor:
-                    monitor.info(msg)
+                monitor.info(msg)
         except Exception as e:
             err = f"{name} cleanup failed -> {e}"
             errors.append(err)
-            if monitor:
-                monitor.error(err)
+            monitor.error(err)
 
         return messages, errors
 
     def __cleanup_components(
         self,
-        js: JuiceShopManager | None,
-        rtb: RootTheBoxManager | None,
-        redis: RedisManager | None,
-        monitor: Monitor | None,
+        js: JuiceShopManager,
+        rtb: RootTheBoxManager,
+        redis: RedisManager,
+        monitor: Monitor,
         docker_client: DockerClient | None,
     ) -> tuple[list[str], list[str]]:
         messages: list[str] = []
