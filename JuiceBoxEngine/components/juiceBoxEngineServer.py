@@ -181,13 +181,17 @@ class JuiceBoxEngineServer:
         __res: ManagerResult = manager.start()
         __message: str = __res.message
         if __res.success:
-            self.monitor.info(__message)
+            self.monitor.info(
+                message=f"Root The Box Manager containers have been started -> {__res.data}"
+            )
             return Response.ok(__message)
         if __res.error:
             __message += f": {__res.error}"
-        self.monitor.error(__message)
+        self.monitor.error(
+            message=f"Root The Box Manager containers couldn't be started -> {__message}"
+        )
         return Response.error(
-            message="Error when trying to start Root The Box containers."
+            message="Error when trying to start Root The Box Manager containers."
         )
 
     def __rtb_restart(self) -> Response:
@@ -201,8 +205,11 @@ class JuiceBoxEngineServer:
         try:
             self.rtb_manager.cleanup()
         except AttributeError as e:
+            self.monitor.error(
+                message=f"Root The Box Manager couldn't be restarted -> {e}"
+            )
             return Response.error(
-                message=f"Error when trying to restart Root The Box containers: {e}"
+                message=f"Error when trying to restart Root The Box Manager containers: {e}"
             )
 
         self.rtb_manager: RootTheBoxManager = RootTheBoxManager(RTBConfig())
@@ -210,24 +217,33 @@ class JuiceBoxEngineServer:
         __res = self.rtb_manager.start()
         __message: str = __res.message
         if __res.success:
-            self.monitor.info(__message)
+            self.monitor.info(
+                message=f"Root The Box Manager has been restarted -> {__res.data}"
+            )
             return Response.ok(__message)
 
         if __res.error:
             __message += f": {__res.error}"
-        self.monitor.error(__message)
+        self.monitor.error(
+            message=f"Root The Box Manager couldn't be restarted -> {__message}"
+        )
         return Response.error(
-            message="Error when trying to restart Root The Box containers."
+            message="Error when trying to restart Root The Box Manager containers."
         )
 
     def __rtb_stop(self, manager: RootTheBoxManager) -> Response:
         __res: ManagerResult = manager.stop()
         __message: str = __res.message
         if __res.success:
+            self.monitor.info(
+                message=f"Root The Box Manager containers have been stopped -> {__res.data}"
+            )
             return Response.ok(message=__message)
         if __res.error:
             __message += f": {__res.error}"
-        self.monitor.error(message=__message)
+        self.monitor.error(
+            message=f"Root The Box Manager containers couldn't be stopped -> {__message}"
+        )
         return Response.error(
             message="Error when trying to stop Root The Box containers."
         )
@@ -251,20 +267,37 @@ class JuiceBoxEngineServer:
                 __response = Response.ok(
                     message="Root The Box Manager is active.", data=__res.data
                 )
+                self.monitor.info(
+                    message=f"Root The Box Manager Status retrieved -> {__res.data}"
+                )
+            else:
+                self.monitor.error(
+                    message=f"Root The Box Manager Status couldn't be retrieved -> {__res.error}"
+                )
         return __response
 
     def __rtb_config(self, manager: RootTheBoxManager) -> Response:
         __res: ManagerResult = manager.show_config()
         if __res.success and __res.data:
+            self.monitor.info(
+                message=f"Root The Box Manager Config retrieved -> {__res.data}"
+            )
             return Response.ok(message=__res.message, data=__res.data)
+        self.monitor.error(
+            message=f"Root The Box Manager Config couldn't be retrieved -> {__res.error}"
+        )
         return Response.error(
-            message="Error when trying to retrieve Root The Box Manager config."
+            message="Error when trying to retrieve Root The Box Manager Config."
         )
 
     def __js_start_container(self, manager: JuiceShopManager) -> Response:
         __res: ManagerResult = manager.start()
         if __res.success:
+            self.monitor.info(message=f"Juice Shop container started -> {__res.data}")
             return Response.ok(message=__res.message)
+        self.monitor.error(
+            message=f"Juice Shop container couldn't be started -> {__res.data}"
+        )
         return Response.error(
             message="Error when trying to start Juice Shop container."
         )
@@ -277,10 +310,17 @@ class JuiceBoxEngineServer:
           ManagerResult: Resultado de la operación.
         """
         try:
-            self.js_manager.cleanup()
+            __resp: ManagerResult = self.js_manager.cleanup()
+            if __resp.success:
+                self.monitor.info(
+                    message=f"Juice Shop Manager have been restarted -> {__resp.data}"
+                )
         except AttributeError as e:
+            self.monitor.error(
+                message=f"Juice Shop Manager couldn't be restarted -> {e}"
+            )
             return Response.error(
-                message=f"Error at restarting Juice Shop Manager: {e}"
+                message=f"Error when restarting Juice Shop Manager: {e}"
             )
 
         self.js_manager = JuiceShopManager(JuiceShopConfig())
@@ -296,17 +336,29 @@ class JuiceBoxEngineServer:
             container = args["container"]
         __res: ManagerResult = manager.stop_container(container)
         if __res.success:
+            self.monitor.info(
+                message=f"Juice Shop container has been stopped -> {__res.data}"
+            )
             return Response.ok(message=__res.message, data=__res.data or {})
         else:
+            self.monitor.error(
+                message=f"Juice Shop container couldn't be stopped -> {__res.error}"
+            )
             return Response.error(
                 message="Error when trying to stop Juice Shop container."
             )
 
     def __js_stop(self, manager: JuiceShopManager) -> Response:
-        __res = manager.stop()
+        __res: ManagerResult = manager.stop()
         if __res.success:
+            self.monitor.info(
+                message=f"Juice Shop Manager has been stopped -> {__res.data}"
+            )
             return Response.ok(message=__res.message)
         else:
+            self.monitor.error(
+                message=f"Juice Shop Manager couldn't be stopped -> {__res.error}"
+            )
             return Response.error(
                 message="Error when trying to stop Juice Shop containers."
             )
@@ -321,8 +373,14 @@ class JuiceBoxEngineServer:
             container = args["container"]
         __res: ManagerResult = manager.status(container)
         if __res.success and __res.data:
+            self.monitor.info(
+                message=f"Juice Shop container status retrieved -> {__res.data}"
+            )
             return Response.ok(message=__res.message, data=__res.data)
         else:
+            self.monitor.error(
+                message=f"Juice Shop container status couldn't be retrieved -> {__res.error}"
+            )
             return Response.error(
                 message="Error when trying to retrieve Juice Shop container status.",
                 data={},
@@ -331,8 +389,14 @@ class JuiceBoxEngineServer:
     def __js_config(self, manager: JuiceShopManager) -> Response:
         __res: ManagerResult = manager.show_config()
         if __res.success and __res.data:
+            self.monitor.info(
+                message=f"Juice Shop Manager config retrieved -> {__res.data}"
+            )
             return Response.ok(message=__res.message, data=__res.data)
         else:
+            self.monitor.error(
+                message=f"Juice Shop Manager config couldn't be retrieved -> {__res.error}"
+            )
             return Response.error(
                 message="Error when trying to retrieve Juice Shop Manager config."
             )
@@ -340,16 +404,28 @@ class JuiceBoxEngineServer:
     def __js_generate_xml(self, manager: JuiceShopManager) -> Response:
         __res: ManagerResult = manager.generate_rtb_config()
         if __res.success and __res.data:
+            self.monitor.info(
+                message=f"Juice Shop Manager generated XML file for RTB -> {__res.data}"
+            )
             return Response.ok(message=__res.message, data=__res.data)
         else:
+            self.monitor.error(
+                message=f"Juice Shop Manager couldn't generate XML file for RTB -> {__res.error}"
+            )
             return Response.error(
                 message="Error when trying to generate Root The Box XML file."
             )
 
     def __js_status(self) -> Response:
         if self.js_manager:
+            self.monitor.info(
+                message="Juice Shop Manager status retrieved -> JS Manager status is: [active]."
+            )
             return Response.ok(message="Juice Shop Manager is active.")
         else:
+            self.monitor.error(
+                message="Juice Shop Manager status couldn't be retrieved -> JS Manager status is: [inactive]."
+            )
             return Response.error(
                 message="Error when trying to retrieve Juice Shop Manager Status."
             )
@@ -423,8 +499,8 @@ class JuiceBoxEngineServer:
             case "__CONFIG__":
                 return self.__rtb_config(__manager)
             case _:
-                __message: str = "Root The Box command error"
-                self.monitor.error(message=__message + f": {command}")
+                __message: str = "Root The Box Manager command error"
+                self.monitor.error(message=__message + f" -> {command}")
                 return Response.error(message=__message)
 
     def __handle_js_command(self, command: str, args: dict[str, str | int]) -> Response:
@@ -460,6 +536,10 @@ class JuiceBoxEngineServer:
                 return self.__js_generate_xml(__manager)
             case "__STATUS__":
                 return self.__js_status()
+            case _:
+                __message: str = "Juice Shop Manager command error"
+                self.monitor.error(message=__message + f" -> {command}")
+                return Response.error(message=__message)
         # Retorno
         return __resp
 
