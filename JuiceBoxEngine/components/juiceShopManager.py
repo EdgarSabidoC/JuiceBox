@@ -65,7 +65,7 @@ class JuiceShopManager(BaseManager):
             raise TypeError("Required: JuiceShopConfig instance.")
 
         # Configuración:
-        self.config = config
+        self.config: JuiceShopConfig = config
 
         # Cliente Docker
         if docker_client:
@@ -325,6 +325,27 @@ class JuiceShopManager(BaseManager):
                 },
             },
         )
+
+    def set_config(self, config: dict) -> ManagerResult:
+        """
+        Cambia la configuración del Juice Shop Manager.
+
+        Args:
+            config (dict): Diccionario con la configuración.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+        """
+        try:
+            config = self.config.set_config(config=config)
+            return ManagerResult.ok(
+                message="Juice Shop Manager config setted successfully!",
+                data=self.show_config().data,
+            )
+        except Exception as e:
+            return ManagerResult.failure(
+                message=f"Error when trying to set config for Juice Shop Manager -> {e}"
+            )
 
     def __get_status(self, container_name: str) -> str:
         """
