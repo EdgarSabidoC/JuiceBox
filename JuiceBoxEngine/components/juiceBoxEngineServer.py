@@ -16,6 +16,7 @@ from Models import (
 from docker import DockerClient
 from dotenv import dotenv_values
 from collections.abc import Callable
+from typing import Any
 
 
 # Comandos válidos por programa
@@ -276,6 +277,27 @@ class JuiceBoxEngineServer:
                 )
         return __response
 
+    def __rtb_set_config(self, manager: RootTheBoxManager, config: Any) -> Response:
+        __resp: ManagerResult = manager.set_config(config)
+        if __resp.success:
+            self.monitor.info(
+                message=f"Root The Box Manager running config has been changed -> {__resp.data}"
+            )
+            __res: Response = self.__js_restart()
+            if __res.status == Status.OK:
+                self.monitor.info(
+                    message=f"Root The Box Manager config has been changed and manager service has been restarted -> {__res.data}"
+                )
+                return Response.ok(message=__res.message, data=__res.data or {})
+            self.monitor.error(
+                message=f"Root The Box Manager config has been changed, but manager service couldn't been restarted -> {__res.error}"
+            )
+            return Response.error(message=__res.message, data={})
+        self.monitor.error(
+            message=f"Root The Box Manager config couldn't be changed -> {__resp.error}"
+        )
+        return Response.error(message=__resp.error or __resp.message, data={})
+
     def __rtb_config(self, manager: RootTheBoxManager) -> Response:
         __res: ManagerResult = manager.show_config()
         if __res.success and __res.data:
@@ -315,6 +337,13 @@ class JuiceBoxEngineServer:
                 self.monitor.info(
                     message=f"Juice Shop Manager have been restarted -> {__resp.data}"
                 )
+            else:
+                self.monitor.error(
+                    message=f"Juice Shop Manager couldn't be restarted -> {__resp.error}"
+                )
+                return Response.error(
+                    message=f"Error when restarting Juice Shop Manager: {__resp.error}"
+                )
         except AttributeError as e:
             self.monitor.error(
                 message=f"Juice Shop Manager couldn't be restarted -> {e}"
@@ -326,9 +355,28 @@ class JuiceBoxEngineServer:
         self.js_manager = JuiceShopManager(JuiceShopConfig())
         return Response.ok(message="Juice Shop Manager restarted")
 
-    def __js_stop_container(
-        self, manager: JuiceShopManager, args: dict[str, str | int]
-    ) -> Response:
+    def __js_set_config(self, manager: JuiceShopManager, config: Any) -> Response:
+        __resp: ManagerResult = manager.set_config(config)
+        if __resp.success:
+            self.monitor.info(
+                message=f"Juice Shop Manager running config has been changed -> {__resp.data}"
+            )
+            __res: Response = self.__js_restart()
+            if __res.status == Status.OK:
+                self.monitor.info(
+                    message=f"Juice Shop Manager config has been changed and manager service has been restarted -> {__res.data}"
+                )
+                return Response.ok(message=__res.message, data=__res.data or {})
+            self.monitor.error(
+                message=f"Juice Shop Manager config has been changed, but manager service couldn't been restarted -> {__res.error}"
+            )
+            return Response.error(message=__res.message, data={})
+        self.monitor.error(
+            message=f"Juice Shop Manager config couldn't be changed -> {__resp.error}"
+        )
+        return Response.error(message=__resp.error or __resp.message, data={})
+
+    def __js_stop_container(self, manager: JuiceShopManager, args: Any) -> Response:
         container: str | int = ""
         if args["port"]:
             container = args["port"]
@@ -363,9 +411,7 @@ class JuiceBoxEngineServer:
                 message="Error when trying to stop Juice Shop containers."
             )
 
-    def __js_container_status(
-        self, manager: JuiceShopManager, args: dict[str, str | int]
-    ) -> Response:
+    def __js_container_status(self, manager: JuiceShopManager, args: Any) -> Response:
         container: str | int = ""
         if args["port"]:
             container = args["port"]
@@ -474,7 +520,9 @@ class JuiceBoxEngineServer:
         except Exception as e:
             return ManagerResult.failure(message="Error stopping server", error=str(e))
 
-    def __handle_rtb_command(self, command: str) -> Response:
+    def __handle_rtb_command(
+        self, command: str, args: dict[str, str | int]
+    ) -> Response:
         """
         Ejecuta un comando específico para Root The Box.
 
@@ -498,18 +546,22 @@ class JuiceBoxEngineServer:
                 return self.__rtb_status(__manager)
             case "__CONFIG__":
                 return self.__rtb_config(__manager)
+            case "__SET_CONFIG__":
+                return self.__rtb_set_config(__manager, args)
             case _:
                 __message: str = "Root The Box Manager command error"
                 self.monitor.error(message=__message + f" -> {command}")
                 return Response.error(message=__message)
 
-    def __handle_js_command(self, command: str, args: dict[str, str | int]) -> Response:
+    def __handle_js_command(
+        self, command: str, args: dict[str, str | int | list[int]]
+    ) -> Response:
         """
         Ejecuta un comando específico para Juice Shop.
 
         Args:
           command (str): Comando recibido
-          args (dict[str, str | int]): Argumentos adicionales como puerto o nombre
+          args (dict[str, str | int | list[int]]): Argumentos adicionales como puerto o nombre
 
         Returns:
             Response: Respuesta serializada en formato JSON
@@ -536,6 +588,8 @@ class JuiceBoxEngineServer:
                 return self.__js_generate_xml(__manager)
             case "__STATUS__":
                 return self.__js_status()
+            case "__SET_CONFIG__":
+                return self.__js_set_config(__manager, args)
             case _:
                 __message: str = "Juice Shop Manager command error"
                 self.monitor.error(message=__message + f" -> {command}")
@@ -565,10 +619,10 @@ class JuiceBoxEngineServer:
             elif command not in COMMANDS[prog]:
                 __resp = Response.error(message="Command not recognized by program")
             elif prog == "RTB":
-                __resp = self.__handle_rtb_command(command)
+                __resp = self.__handle_rtb_command(command=command, args=args)
             else:
                 # prog == "JS"
-                __resp = self.__handle_js_command(command, args)
+                __resp = self.__handle_js_command(command=command, args=args)
             # Se despachan las respuestas:
         except json.JSONDecodeError:
             __resp = Response.error(message="Invalid JSON format")
