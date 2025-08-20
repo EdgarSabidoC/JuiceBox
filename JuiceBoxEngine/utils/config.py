@@ -41,16 +41,13 @@ class RTBConfig:
             "MEMCACHED_CONTAINER_NAME",
         )
 
-    def show_config(self) -> dict:
+    def get_config(self) -> dict[str, str | int]:
         return {
-            "status": Status.OK,
-            "config": {
-                "webapp_container_name": self.webapp_container_name,
-                "cache_container_name": self.cache_container_name,
-                "webapp_port": self.webapp_port,
-                "memcached_port": self.memcached_port,
-                "rtb_dir": self.rtb_dir,
-            },
+            "webapp_container_name": self.webapp_container_name,
+            "cache_container_name": self.cache_container_name,
+            "webapp_port": self.webapp_port,
+            "memcached_port": self.memcached_port,
+            "rtb_dir": self.rtb_dir,
         }
 
     def set_config(self, config: dict[str, str | int]) -> dict:
@@ -104,7 +101,7 @@ class RTBConfig:
         return {
             "status": Status.OK,
             "message": "Config updated successfully",
-            "config": self.show_config()["config"],
+            "config": self.get_config()["config"],
         }
 
 
@@ -188,16 +185,13 @@ class JuiceShopConfig:
 
         return (starting_port, ending_port)
 
-    def show_config(self) -> dict:
+    def get_config(self) -> dict[str, str | list[int] | bool]:
         return {
-            "status": Status.OK,
-            "config": {
-                "containers_name": self.juice_shop_containers_name,
-                "ports_range": [self.starting_port, self.ending_port],
-                "ctf_key": self.ctf_key,
-                "node_env": self.node_env,
-                "detach_mode": self.detach_mode,
-            },
+            "containers_name": self.juice_shop_containers_name,
+            "ports_range": [self.starting_port, self.ending_port],
+            "ctf_key": self.ctf_key,
+            "node_env": self.node_env,
+            "detach_mode": self.detach_mode,
         }
 
     def set_config(self, config: dict[str, str | list[int]]) -> dict:
@@ -240,7 +234,7 @@ class JuiceShopConfig:
         return {
             "status": Status.OK,
             "message": "Config updated successfully",
-            "config": self.show_config()["config"],
+            "config": self.get_config(),
         }
 
     def generate_yaml(self, output_filename: str = "juiceShopRTBConfig.yml") -> dict:

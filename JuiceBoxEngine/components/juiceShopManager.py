@@ -316,8 +316,6 @@ class JuiceShopManager(BaseManager):
                 "config": {
                     "container_prefix": self.container_prefix,
                     "ports_range": self.ports_range,
-                    "starting_port": self.starting_port,
-                    "ending_port": self.ending_port,
                     "ctf_key": self.ctf_key,
                     "node_env": self.node_env,
                     "detach_mode": self.detach_mode,

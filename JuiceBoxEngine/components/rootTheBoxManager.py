@@ -69,6 +69,9 @@ class RootTheBoxManager(BaseManager):
         if not isinstance(config, RTBConfig):
             raise TypeError("Required: RTBConfig instance.")
 
+        # Configuración:
+        self.config: RTBConfig = config
+
         # Cliente Docker
         if docker_client:
             self.__docker_client: DockerClient = docker_client
@@ -80,15 +83,49 @@ class RootTheBoxManager(BaseManager):
         # Ruta absoluta a configs/
         self.configs_dir = os.path.join(self.project_root, "configs")
 
-        # Configuración
-        self.webapp_port: int = config.webapp_port
-        self.memcached_port: int = config.memcached_port
-        self.network_name: str = config.network_name
-        self.rtb_dir: str = config.rtb_dir
-        self.webapp_container_name: str = config.webapp_container_name
-        self.cache_container_name: str = config.cache_container_name
-
         atexit.register(self.cleanup)
+
+    @property
+    def web_app_port(self) -> int:
+        """
+        Puerto para la aplicación web de Root The Box.
+        """
+        return self.config.webapp_port
+
+    @property
+    def memcached_port(self) -> int:
+        """
+        Puerto para la caché de Root The Box.
+        """
+        return self.config.memcached_port
+
+    @property
+    def network_name(self) -> str:
+        """
+        Nombre de la red de contenedores de Root The Box.
+        """
+        return self.config.network_name
+
+    @property
+    def rtb_dir(self) -> str:
+        """
+        Ruta del directorio donde se encuentra la carpeta de RootTheBox.
+        """
+        return self.config.rtb_dir
+
+    @property
+    def webapp_container_name(self) -> str:
+        """
+        Nombre para el contenedor de la aplicación web de Root The Box.
+        """
+        return self.config.webapp_container_name
+
+    @property
+    def cache_container_name(self) -> str:
+        """
+        Nombre para el contenedor de la caché de Root The Box.
+        """
+        return self.config.cache_container_name
 
     def __generate_docker_compose(self, output_path: str) -> ManagerResult:
         """
@@ -104,17 +141,17 @@ class RootTheBoxManager(BaseManager):
             Exception: Si ocurre un error al crear el archivo.
         """
         if not output_path:
-            output_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
+            output_path = os.path.join(self.config.rtb_dir, self.__rtb_yaml)
 
         compose_dict = {
             "services": {
                 "memcached": {
                     "image": "memcached:latest",
-                    "ports": [f"{self.memcached_port}:11211"],
+                    "ports": [f"{self.config.memcached_port}:11211"],
                 },
                 "webapp": {
                     "build": ".",
-                    "ports": [f"{self.webapp_port}:8888"],
+                    "ports": [f"{self.config.webapp_port}:8888"],
                     "volumes": ["./files:/opt/rtb/files:rw"],
                     "environment": ["COMPOSE_CONVERT_WINDOWS_PATHS=1"],
                 },
@@ -146,7 +183,7 @@ class RootTheBoxManager(BaseManager):
         try:
             subprocess.run(
                 ["docker", "compose", "-f", self.__rtb_yaml, "up", "-d"],
-                cwd=self.rtb_dir,
+                cwd=self.config.rtb_dir,
                 check=True,
                 capture_output=True,
                 text=True,
@@ -179,7 +216,7 @@ class RootTheBoxManager(BaseManager):
             __result: ManagerResult
             # Se eliminan los contenedores en caso de existir:
             self.stop()
-            compose_path = os.path.join(self.rtb_dir, self.__rtb_yaml)
+            compose_path = os.path.join(self.config.rtb_dir, self.__rtb_yaml)
             __result = self.__generate_docker_compose(compose_path)
             if not __result.success:
                 return __result
@@ -251,7 +288,10 @@ class RootTheBoxManager(BaseManager):
         overall_ok = True
 
         # Lista los dos contenedores a procesar
-        for name in (self.webapp_container_name, self.cache_container_name):
+        for name in (
+            self.config.webapp_container_name,
+            self.config.cache_container_name,
+        ):
             try:
                 if validate_container(self.__docker_client, name):
                     containers = self.__docker_client.containers
@@ -310,16 +350,7 @@ class RootTheBoxManager(BaseManager):
         """
         return ManagerResult.ok(
             message="Root The Box configuration retrieved",
-            data={
-                "config": {
-                    "webapp_container_name": self.webapp_container_name,
-                    "cache_container_name": self.cache_container_name,
-                    "webapp_port": self.webapp_port,
-                    "memcached_port": self.memcached_port,
-                    "rtb_dir": self.rtb_dir,
-                    "network_name": self.network_name,
-                },
-            },
+            data={"config": self.config.get_config()},
         )
 
     def __get_status(self, container_name: str) -> str:
@@ -356,7 +387,10 @@ class RootTheBoxManager(BaseManager):
         containers_results: list[ManagerResult] = []
         overall_ok = True
 
-        for container_name in (self.webapp_container_name, self.cache_container_name):
+        for container_name in (
+            self.config.webapp_container_name,
+            self.config.cache_container_name,
+        ):
             try:
                 __status: str = self.__get_status(container_name)
                 _data: dict[str, str] = {
