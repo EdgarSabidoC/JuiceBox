@@ -48,12 +48,22 @@ class RootTheBoxScreen(Screen):
                 jb_logo.can_focus = False
                 yield jb_logo
 
+                # Controles
                 self.controllers_container = Vertical(classes="controllers-container")
                 with self.controllers_container:
-                    with Horizontal(classes="controllers"):
-                        yield Label("Power:", classes="controller-label")
-                        self.power = Switch(value=True, name="power")
-                        yield self.power
+                    # with Horizontal(classes="controllers"):
+                    self.turn_on = Button(
+                        label="Turn On",
+                        variant="default",
+                        name="turn_on",
+                    )
+                    yield self.turn_on
+                    self.turn_off = Button(
+                        label="Turn Off",
+                        variant="default",
+                        name="turn_off",
+                    )
+                    yield self.turn_off
                     with Horizontal(classes="controllers"):
                         self.reset = Button(
                             label="Restart",
@@ -118,70 +128,70 @@ class RootTheBoxScreen(Screen):
 
     async def on_mount(self) -> None:
         self._start_redis_listener()  # Se conecta al socket de Redis
-        await self.init()
+        # await self.init()
 
-    async def on_switch_changed(self, event: Switch.Changed) -> None:
-        # 1) Solo interesan eventos del switch "power"
-        if event.switch.name != "power" or self._ignore_switch_event:
-            self.info.update("No entró")
-            self._ignore_switch_event = (
-                False  # Se reactivan los eventos del switch después del init().
-            )
-            return
+    # async def on_switch_changed(self, event: Switch.Changed) -> None:
+    #     # 1) Solo interesan eventos del switch "power"
+    #     if event.switch.name != "power" or self._ignore_switch_event:
+    #         self.info.update("No entró")
+    #         self._ignore_switch_event = (
+    #             False  # Se reactivan los eventos del switch después del init().
+    #         )
+    #         return
 
-        # 2) Si ya se está procesando, se ignoran nuevas pulsaciones
-        if self._power_busy:
-            return
+    #     # 2) Si ya se está procesando, se ignoran nuevas pulsaciones
+    #     if self._power_busy:
+    #         return
 
-        # 3) Se bloquea internamente y en la UI
-        self._power_busy = True
-        event.switch.disabled = True
+    #     # 3) Se bloquea internamente y en la UI
+    #     self._power_busy = True
+    #     event.switch.disabled = True
 
-        try:
-            if event.value:
-                __resp = await JuiceBoxAPI.start_rtb()
-                self.info.update("Se mandó __START__")
-            else:
-                __resp = await JuiceBoxAPI.stop_rtb()
-                self.info.update("Se mandó __STOP__")
-        except Exception:
-            # Si falla, revertimos el valor y mostramos error
-            event.switch.value = not event.value
-        finally:
-            # 4) Siempre reactivamos el switch y el lock
-            event.switch.disabled = False
-            self._power_busy = False
+    #     try:
+    #         if event.value:
+    #             __resp = await JuiceBoxAPI.start_rtb()
+    #             self.info.update("Se mandó __START__")
+    #         else:
+    #             __resp = await JuiceBoxAPI.stop_rtb()
+    #             self.info.update("Se mandó __STOP__")
+    #     except Exception:
+    #         # Si falla, revertimos el valor y mostramos error
+    #         event.switch.value = not event.value
+    #     finally:
+    #         # 4) Siempre reactivamos el switch y el lock
+    #         event.switch.disabled = False
+    #         self._power_busy = False
 
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.name != "reset":
-            return
-        # Se presionó el botón
-        try:
-            event.button.disabled = True
-            resp = await JuiceBoxAPI.restart_rtb_status()
-            if resp.status == Status.OK:
-                self.notify(
-                    title="Successful reset!",
-                    message="Root The Box services reseted.",
-                    severity="information",
-                    timeout=5,
-                    markup=True,
-                )
-            else:
-                self.notify(
-                    title="Reset ERROR!",
-                    message=f"{resp.status}",
-                    severity="error",
-                    timeout=10,
-                    markup=True,
-                )
-        except Exception as e:
-            self.notify(title="Error!", message=str(e), severity="error", timeout=10)
-        finally:
-            await self.init()
-            await self.power.recompose()
-            event.button.disabled = False
-            self.set_focus(self.power)
+    # async def on_button_pressed(self, event: Button.Pressed) -> None:
+    #     if event.button.name != "reset":
+    #         return
+    #     # Se presionó el botón
+    #     try:
+    #         event.button.disabled = True
+    #         resp = await JuiceBoxAPI.restart_rtb_status()
+    #         if resp.status == Status.OK:
+    #             self.notify(
+    #                 title="Successful reset!",
+    #                 message="Root The Box services reseted.",
+    #                 severity="information",
+    #                 timeout=5,
+    #                 markup=True,
+    #             )
+    #         else:
+    #             self.notify(
+    #                 title="Reset ERROR!",
+    #                 message=f"{resp.status}",
+    #                 severity="error",
+    #                 timeout=10,
+    #                 markup=True,
+    #             )
+    #     except Exception as e:
+    #         self.notify(title="Error!", message=str(e), severity="error", timeout=10)
+    #     finally:
+    #         await self.init()
+    #         await self.power.recompose()
+    #         event.button.disabled = False
+    #         self.set_focus(self.power)
 
     async def on_screen_resume(self, event: ScreenResume) -> None:
         """
@@ -189,7 +199,10 @@ class RootTheBoxScreen(Screen):
         Aquí forzamos que la opción 0 quede highlighted y le damos focus.
         """
         # Se asegura de que el widget tenga el foco
-        self.power.focus()
+        if self.turn_on.is_disabled:
+            self.turn_off.focus()
+            return
+        self.turn_on.focus()
 
     async def return_to_main(self) -> None:
         """Regresa a la pantalla del menú principal."""
@@ -211,30 +224,30 @@ class RootTheBoxScreen(Screen):
         except Exception:
             return '"status": "error"'
 
-    async def init(self) -> None:
-        self._ignore_switch_event = True
-        try:
-            __resp = await JuiceBoxAPI.get_rtb_status()
-            if __resp.status == Status.OK:
-                self.power.value = True
-                # self.info.update("Power value True")
-            else:
-                self.power.value = False
-                # self.info.update("Power value False")
+    # async def init(self) -> None:
+    #     self._ignore_switch_event = True
+    #     try:
+    #         __resp = await JuiceBoxAPI.get_rtb_status()
+    #         if __resp.status == Status.OK:
+    #             self.power.value = True
+    #             # self.info.update("Power value True")
+    #         else:
+    #             self.power.value = False
+    #             # self.info.update("Power value False")
 
-            __resp = await JuiceBoxAPI.get_rtb_config()
-            if __resp.status == Status.OK:
-                config_data = __resp.data["config"]
-                pretty_json = json.dumps(config_data, indent=4)
-                md_content = f"```json\n{pretty_json}\n```"
-                self.config_data.update_content(md_content)
-            else:
-                self.config_data.update_content("Nothing to show")
+    #         __resp = await JuiceBoxAPI.get_rtb_config()
+    #         if __resp.status == Status.OK:
+    #             config_data = __resp.data["config"]
+    #             pretty_json = json.dumps(config_data, indent=4)
+    #             md_content = f"```json\n{pretty_json}\n```"
+    #             self.config_data.update_content(md_content)
+    #         else:
+    #             self.config_data.update_content("Nothing to show")
 
-        except Exception:
-            pass
-        finally:
-            await asyncio.sleep(0.1)  # Espera para evitar problemas de UI
+    #     except Exception:
+    #         pass
+    #     finally:
+    #         await asyncio.sleep(0.1)  # Espera para evitar problemas de UI
 
     def _start_redis_listener(self) -> None:
         """Crea y arranca el hilo que escucha Redis."""

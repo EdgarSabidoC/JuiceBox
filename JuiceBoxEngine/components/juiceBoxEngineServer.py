@@ -252,10 +252,10 @@ class JuiceBoxEngineServer:
     def __rtb_status(self, manager: RootTheBoxManager) -> Response:
         __res: ManagerResult = manager.status()
         __response: Response = Response.error(
-            message="Error when trying to retrieve Root The Box Manager Status.",
+            message=f"Error when trying to retrieve Root The Box Manager Status -> {__res.error}",
             data={},
         )
-        if __res.data:
+        if __res.success and __res.data:
             # Se publica en redis
             self.redis_manager.publish_to_admin(
                 RedisPayload.from_dict(__res.data["containers"][0]["data"]),
