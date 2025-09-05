@@ -335,7 +335,7 @@ class JuiceShopManager(BaseManager):
             ManagerResult: Resultado de la operación.
         """
         try:
-            config = self.config.set_config(config=config)
+            self.config.set_config(config=config)
             return ManagerResult.ok(
                 message="Juice Shop Manager config setted successfully!",
                 data=self.show_config().data,
@@ -445,14 +445,15 @@ class JuiceShopManager(BaseManager):
                 stdin_open=True,  # -i
                 remove=True,  # --rm
             )
-
             return ManagerResult.ok(
                 message=f"{output_filename} generated at {self.configs_dir}",
+                data={"path": self.configs_dir},
             )
 
         except Exception as e:
             return ManagerResult.failure(
-                message="XML file could not be generated", error=str(e)
+                message="XML file could not be generated",
+                error=f"{e}",
             )
 
     def cleanup(self) -> ManagerResult:

@@ -106,3 +106,38 @@ def validate_bool(value: bool | str | int, name: str) -> bool:
             return False
 
     raise InvalidConfiguration(f"{name} must be a boolean (true/false, 1/0)")
+
+
+def validate_ports_range(ports_range: list[int], name: str) -> list[int]:
+    """
+    Valida un rango de puertos [start, end] y cada puerto dentro del rango.
+
+    Retorna:
+    - list[int]: Lista con [start, end] validada y ordenada.
+
+    Lanza:
+    - InvalidConfiguration: Si los valores no son enteros o están fuera de rango.
+    """
+    # Valores por defecto
+    start, end = 3000, 3009
+
+    if (
+        isinstance(ports_range, list)
+        and len(ports_range) == 2
+        and all(isinstance(p, int) for p in ports_range)
+    ):
+        start, end = ports_range
+        if start > end:
+            start, end = end, start
+    elif ports_range:
+        raise InvalidConfiguration(
+            f"{name} must be a list with two integers [start, end]"
+        )
+
+    # Valida cada puerto
+    start = validate_port(start, "STARTING_PORT")
+    end = validate_port(end, "ENDING_PORT")
+    for p in range(start, end + 1):
+        validate_port(p, "PORT_IN_RANGE")
+
+    return [start, end]

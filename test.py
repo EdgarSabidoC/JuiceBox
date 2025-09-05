@@ -4,46 +4,64 @@ import argparse
 from JuiceBoxEngine.api import JuiceBoxAPI
 
 
+def print_response(res):
+    """Helper para imprimir un ManagerResult o Response de forma legible."""
+    if res is None:
+        print("Response is None")
+        return
+    # Campos comunes: status, message, error, data
+    success = getattr(res, "status", None)
+    message = getattr(res, "message", None)
+    error = getattr(res, "error", None)
+    data = getattr(res, "data", None)
+
+    print(f"Success: {success}")
+    print(f"Message: {message}")
+    if error:
+        print(f"Error: {error}")
+    if data:
+        print(f"Data: {data}")
+    print("-" * 40)
+
+
 async def run_all_tests():
+    print("\n=== TEST: START ===")
+    print_response(await JuiceBoxAPI.start_rtb())
+    # print_response(await JuiceBoxAPI.start_js_container())
+
     print("\n=== TEST: GET CONFIG ===")
-    print("RTB Config:", await JuiceBoxAPI.get_rtb_config())
-    print("JS Config:", await JuiceBoxAPI.get_js_config())
+    print_response(await JuiceBoxAPI.get_rtb_config())
+    print_response(await JuiceBoxAPI.get_js_config())
 
     print("\n=== TEST: GET STATUS ===")
-    print("RTB Status:", await JuiceBoxAPI.get_rtb_status())
-    print("JS Status:", await JuiceBoxAPI.get_js_status())
-
-    print("\n=== TEST: START ===")
-    print("Start RTB:", await JuiceBoxAPI.start_rtb())
-    print("Start JS:", await JuiceBoxAPI.start_js_container())
+    print_response(await JuiceBoxAPI.get_rtb_status())
+    print_response(await JuiceBoxAPI.get_js_status())
 
     print("\n=== TEST: STOP ===")
-    print("Stop RTB:", await JuiceBoxAPI.stop_rtb())
-    print("Stop JS:", await JuiceBoxAPI.stop_js())
+    print_response(await JuiceBoxAPI.stop_rtb())
 
     print("\n=== TEST: RESTART ===")
-    print("Restart RTB:", await JuiceBoxAPI.restart_rtb_status())
-    print("Restart JS:", await JuiceBoxAPI.restart_js_status())
+    print_response(await JuiceBoxAPI.restart_rtb_status())
+    print_response(await JuiceBoxAPI.restart_js_status())
 
     print("\n=== TEST: CONTAINER STATUS ===")
-    print(
-        "JS Container by port 3000:",
-        await JuiceBoxAPI.get_js_container_status_by_port(3000),
-    )
-    print(
-        "JS Container by name 'juice_container':",
-        await JuiceBoxAPI.get_js_container_status_by_name("juice_container"),
-    )
+    print_response(await JuiceBoxAPI.get_js_container_status_by_port(3000))
 
     print("\n=== TEST: STOP CONTAINER ===")
-    print("Stop JS container (port 3000):", await JuiceBoxAPI.stop_js_container(3000))
+    print_response(await JuiceBoxAPI.stop_js_container(3000))
 
     print("\n=== TEST: SET CONFIG ===")
-    print("Set RTB config:", await JuiceBoxAPI.set_rtb_config({"max_users": 10}))
-    print("Set JS config:", await JuiceBoxAPI.set_js_config({"ports": [3000, 3001]}))
+    print_response(await JuiceBoxAPI.set_rtb_config({"webapp_port": 8889}))
+    print_response(
+        await JuiceBoxAPI.set_js_config({"ctf_key": "test", "ports": [3000, 3001]})
+    )
+
+    print("\n=== TEST: GET CONFIG AFTER SET ===")
+    print_response(await JuiceBoxAPI.get_rtb_config())
+    print_response(await JuiceBoxAPI.get_js_config())
 
     print("\n=== TEST: GENERATE XML ===")
-    print("Generate XML:", await JuiceBoxAPI.generate_xml())
+    print_response(await JuiceBoxAPI.generate_xml())
 
 
 async def run_one_test(test_name: str):
@@ -66,7 +84,7 @@ async def run_one_test(test_name: str):
         return
 
     result = await mapping[test_name]()
-    print(f"{test_name}: {result}")
+    print_response(result)
 
 
 def main():

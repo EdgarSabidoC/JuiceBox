@@ -33,7 +33,7 @@ COMMANDS = {
         "__RESTART__",
         "__CONFIG__",
         "__STATUS__",
-        "__START_CONTAINER__",
+        "__START__",
         "__STOP_CONTAINER__",
         "__CONTAINER_STATUS__",
         "__STATUS__",
@@ -47,7 +47,7 @@ COMMANDS = {
 class JuiceBoxEngineServer:
     """
     Servidor del motor JuiceBox que expone una interfaz mediante sockets de Unix para
-    gestionar contenedores Docker de Juice Shop y Root The Box de manera concurrente pero segura.
+    gestionar contenedores Docker de OWASP Juice Shop y Root The Box de manera concurrente.
     """
 
     def __init__(
@@ -198,39 +198,18 @@ class JuiceBoxEngineServer:
     def __rtb_restart(self) -> Response:
         """
         Reinicia la instancia del manager de Root The Box.
-
-        Returns:
-          ManagerResult: Resultado de la operación.
         """
-        __res: ManagerResult
         try:
             self.rtb_manager.cleanup()
         except AttributeError as e:
-            self.monitor.error(
-                message=f"Root The Box Manager couldn't be restarted -> {e}"
-            )
-            return Response.error(
-                message=f"Error when trying to restart Root The Box Manager containers: {e}"
-            )
+            self.monitor.error(f"Root The Box Manager couldn't be restarted -> {e}")
+            return Response.error(message=f"Error restarting Root The Box Manager: {e}")
 
-        self.rtb_manager: RootTheBoxManager = RootTheBoxManager(RTBConfig())
+        # Crea una nueva instancia y carga la configuración
+        new_manager = RootTheBoxManager(RTBConfig(), docker_client=self.docker_client)
+        self.__init_manager("RTB", new_manager)
 
-        __res = self.rtb_manager.start()
-        __message: str = __res.message
-        if __res.success:
-            self.monitor.info(
-                message=f"Root The Box Manager has been restarted -> {__res.data}"
-            )
-            return Response.ok(__message)
-
-        if __res.error:
-            __message += f": {__res.error}"
-        self.monitor.error(
-            message=f"Root The Box Manager couldn't be restarted -> {__message}"
-        )
-        return Response.error(
-            message="Error when trying to restart Root The Box Manager containers."
-        )
+        return Response.ok("Root The Box Manager restarted")
 
     def __rtb_stop(self, manager: RootTheBoxManager) -> Response:
         __res: ManagerResult = manager.stop()
@@ -327,33 +306,27 @@ class JuiceBoxEngineServer:
     def __js_restart(self) -> Response:
         """
         Reinicia la instancia del manager de la Juice Shop.
-
-        Returns:
-          ManagerResult: Resultado de la operación.
         """
         try:
-            __resp: ManagerResult = self.js_manager.cleanup()
-            if __resp.success:
-                self.monitor.info(
-                    message=f"Juice Shop Manager have been restarted -> {__resp.data}"
-                )
+            result: ManagerResult = self.js_manager.cleanup()
+            if result.success:
+                self.monitor.info(f"Juice Shop Manager cleaned up -> {result.data}")
             else:
                 self.monitor.error(
-                    message=f"Juice Shop Manager couldn't be restarted -> {__resp.error}"
+                    f"Juice Shop Manager cleanup failed -> {result.error}"
                 )
-                return Response.error(
-                    message=f"Error when restarting Juice Shop Manager: {__resp.error}"
-                )
+                return Response.error(message=f"Cleanup failed: {result.error}")
         except AttributeError as e:
-            self.monitor.error(
-                message=f"Juice Shop Manager couldn't be restarted -> {e}"
-            )
-            return Response.error(
-                message=f"Error when restarting Juice Shop Manager: {e}"
-            )
+            self.monitor.error(f"Juice Shop Manager couldn't be restarted -> {e}")
+            return Response.error(message=f"Error restarting Juice Shop Manager: {e}")
 
-        self.js_manager = JuiceShopManager(JuiceShopConfig())
-        return Response.ok(message="Juice Shop Manager restarted")
+        # Crea una nueva instancia y carga la configuración
+        new_manager = JuiceShopManager(
+            JuiceShopConfig(), docker_client=self.docker_client
+        )
+        self.__init_manager("JuiceShop", new_manager)
+
+        return Response.ok("Juice Shop Manager restarted")
 
     def __js_set_config(self, manager: JuiceShopManager, config: Any) -> Response:
         __resp: ManagerResult = manager.set_config(config)
@@ -377,11 +350,10 @@ class JuiceBoxEngineServer:
         return Response.error(message=__resp.error or __resp.message, data={})
 
     def __js_stop_container(self, manager: JuiceShopManager, args: Any) -> Response:
-        container: str | int = ""
-        if args["port"]:
-            container = args["port"]
-        elif args["container"]:
-            container = args["container"]
+        container: str | int = args.get("port") or args.get("container")
+        if not container:
+            return Response.error("Missing 'port' or 'container' in args")
+
         __res: ManagerResult = manager.stop_container(container)
         if __res.success:
             self.monitor.info(
@@ -412,11 +384,10 @@ class JuiceBoxEngineServer:
             )
 
     def __js_container_status(self, manager: JuiceShopManager, args: Any) -> Response:
-        container: str | int = ""
-        if args["port"]:
-            container = args["port"]
-        elif args["container"]:
-            container = args["container"]
+        container: str | int = args.get("port") or args.get("container")
+        if not container:
+            return Response.error("Missing 'port' or 'container' in args")
+
         __res: ManagerResult = manager.status(container)
         if __res.success and __res.data:
             self.monitor.info(
@@ -449,11 +420,11 @@ class JuiceBoxEngineServer:
 
     def __js_generate_xml(self, manager: JuiceShopManager) -> Response:
         __res: ManagerResult = manager.generate_rtb_config()
-        if __res.success and __res.data:
+        if __res.success:
             self.monitor.info(
                 message=f"Juice Shop Manager generated XML file for RTB -> {__res.data}"
             )
-            return Response.ok(message=__res.message, data=__res.data)
+            return Response.ok(message=__res.message)
         else:
             self.monitor.error(
                 message=f"Juice Shop Manager couldn't generate XML file for RTB -> {__res.error}"
@@ -476,17 +447,48 @@ class JuiceBoxEngineServer:
                 message="Error when trying to retrieve Juice Shop Manager Status."
             )
 
-    def set_managers(self, rtb: RootTheBoxManager, js: JuiceShopManager):
+    def __init_manager(self, name: str, manager):
         """
-        Reemplaza las instancias actuales de los managers por otras.
+        Inicializa un manager cargando su configuración y registrando logs.
 
         Args:
-            rtb (RootTheBoxManager): Nueva instancia de RootTheBoxManager.
-            js (JuiceShopManager): Nueva instancia de JuiceShopManager.
+            name (str): "RTB" o "JuiceShop"
+            manager: Instancia del manager correspondiente
         """
         with self.__manager_lock:
-            self.rtb_manager = rtb
-            self.js_manager = js
+            if name == "RTB":
+                self.rtb_manager = manager
+            elif name == "JuiceShop":
+                self.js_manager = manager
+
+            result = manager.config.load_config()
+            if result["status"] != Status.OK:
+                self.monitor.error(f"❌ {name} config error: {result['message']}")
+            else:
+                self.monitor.info(f"✅ {name} config loaded successfully")
+
+    def set_managers(self, rtb: RootTheBoxManager, js: JuiceShopManager):
+        """
+        Reemplaza las instancias actuales de los managers por otras y carga sus configs.
+
+        Args:
+            rtb (RootTheBoxManager): Nueva instancia de RTB
+            js (JuiceShopManager): Nueva instancia de JuiceShop
+        """
+        self.__init_manager("RTB", rtb)
+        self.__init_manager("JuiceShop", js)
+
+    def __initialize_configs(self):
+        with self.__manager_lock:
+            for name, manager in [
+                ("RTB", self.rtb_manager),
+                ("JuiceShop", self.js_manager),
+            ]:
+                result = manager.config.load_config()
+                if not result.success:
+                    self.monitor.error(f"❌ {name} config error: {result['message']}")
+                else:
+                    self.monitor.info(f"✅ {name} config loaded successfully")
 
     def start(self) -> None:
         """
@@ -496,6 +498,8 @@ class JuiceBoxEngineServer:
         self.monitor.info(
             f"JuiceBoxEngine started and listening on port: {self.socket_path}"
         )
+        # Se inicializan las configuraciones de los managers
+        self.__initialize_configs()
         self.redis_manager.start()  # Arranca el servicio de redis
         self.monitor.start_container_monitoring()  # Arranca la monitorización de contenedores
         while True:
@@ -572,7 +576,7 @@ class JuiceBoxEngineServer:
         __resp: Response = Response.error(message="Juice Shop command error")
         __res: ManagerResult
         match command:
-            case "__START_CONTAINER__":
+            case "__START__":
                 return self.__js_start_container(__manager)
             case "__RESTART__":
                 return self.__js_restart()

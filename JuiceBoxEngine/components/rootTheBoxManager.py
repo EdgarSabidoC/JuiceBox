@@ -7,7 +7,7 @@ y gestiona los contenedores via Docker Compose y Docker SDK.
 """
 
 import os, subprocess, atexit
-import docker, yaml
+import yaml
 from docker import errors
 from ..utils import RTBConfig
 from ..utils import validate_container
@@ -78,10 +78,14 @@ class RootTheBoxManager(BaseManager):
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Directorio padre del proyecto (contiene 'scripts/' y 'configs/')
-        self.project_root = os.path.dirname(self.script_dir)
+        # Subo dos niveles: de components/ -> JuiceBoxEngine/ -> JuiceBox/
+        self.project_root = os.path.dirname(os.path.dirname(self.script_dir))
         # Ruta absoluta a configs/
-        self.configs_dir = os.path.join(self.project_root, "configs")
+        self.configs_dir = os.path.join(self.project_root, "JuiceBoxEngine", "configs")
+        # Ruta absoluta al docker-compose.yml (que vive en RootTheBox/)
+        self.compose_file_path = os.path.join(
+            self.project_root, "RootTheBox", self.__rtb_yaml
+        )
 
         atexit.register(self.cleanup)
 
@@ -141,7 +145,7 @@ class RootTheBoxManager(BaseManager):
             Exception: Si ocurre un error al crear el archivo.
         """
         if not output_path:
-            output_path = os.path.join(self.config.rtb_dir, self.__rtb_yaml)
+            output_path = self.compose_file_path
 
         compose_dict = {
             "services": {
@@ -182,8 +186,8 @@ class RootTheBoxManager(BaseManager):
         """
         try:
             subprocess.run(
-                ["docker", "compose", "-f", self.__rtb_yaml, "up", "-d"],
-                cwd=self.config.rtb_dir,
+                ["docker", "compose", "-f", self.compose_file_path, "up", "-d"],
+                cwd=self.project_root,
                 check=True,
                 capture_output=True,
                 text=True,
@@ -216,11 +220,10 @@ class RootTheBoxManager(BaseManager):
             __result: ManagerResult
             # Se eliminan los contenedores en caso de existir:
             self.stop()
-            compose_path = os.path.join(self.config.rtb_dir, self.__rtb_yaml)
-            __result = self.__generate_docker_compose(compose_path)
+            __result = self.__generate_docker_compose(self.compose_file_path)
             if not __result.success:
                 return __result
-            if not os.path.isfile(compose_path):
+            if not os.path.isfile(self.compose_file_path):
                 return ManagerResult(
                     success=False,
                     message="Docker Compose file not found!",
@@ -337,6 +340,27 @@ class RootTheBoxManager(BaseManager):
                 },
             )
         return __result
+
+    def set_config(self, config: dict) -> ManagerResult:
+        """
+        Cambia la configuración del Root The Box Manager.
+
+        Args:
+            config (dict): Diccionario con la configuración.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+        """
+        try:
+            self.config.set_config(config=config)
+            return ManagerResult.ok(
+                message="Root The Box Manager config setted successfully!",
+                data=self.show_config().data,
+            )
+        except Exception as e:
+            return ManagerResult.failure(
+                message=f"Error when trying to set config for Root The Box Manager -> {e}"
+            )
 
     def show_config(self) -> ManagerResult:
         """
