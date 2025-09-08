@@ -57,7 +57,7 @@ class JuiceBoxEngineServer:
         rtb_manager: RootTheBoxManager,
         docker_client: DockerClient,
         redis_manager: RedisManager,
-    ):
+    ) -> None:
         """
         Inicializa el servidor, elimina cualquier socket viejo y comienza el hilo worker.
 
@@ -105,7 +105,7 @@ class JuiceBoxEngineServer:
 
         atexit.register(self.cleanup)
 
-    def __worker(self):
+    def __worker(self) -> None:
         """
         Hilo que atiende solicitudes de la cola una a una.
         """
@@ -137,7 +137,7 @@ class JuiceBoxEngineServer:
             self.monitor.client_error(e)
             conn.close()
 
-    def __process_request(self, conn, data):
+    def __process_request(self, conn, data) -> None:
         """
         Procesa un mensaje recibido, lo despacha y envía la respuesta.
 
