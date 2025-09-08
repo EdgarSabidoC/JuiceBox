@@ -1,7 +1,13 @@
-# juiceShop.json
-Contiene las variables para la configuración y creación de los contenedores de la Juice Shop.
+# Archivos de configuración (Config files)
 
-## Ejemplo
+Los archivos de configuración de `Juice Box Engine` se encuentran en la ruta: `JuiceBox/JuiceBoxEngine/configs`.
+
+**NOTA:** NO se recomienda modificar los archivos de configuración directamente, lo recomendable es utilizar la interfaz basada en texto (TUI). La leyenda `[NO MODIFICAR]` aparecerá junto a los nombres de los archivos que bajo ninguna circunstancia deben ser modificados, ya que estos son generados de manera automática por el motor o son utilizados por partes críticas del motor.
+
+## juiceShop.json
+Contiene las variables para la configuración y creación de los contenedores de la OWASP Juice Shop.
+
+### Ejemplo
 
 ```
 {
@@ -16,10 +22,10 @@ Contiene las variables para la configuración y creación de los contenedores de
 }
 ```
 
-# juiceShopRTBConfig.yml
+## juiceShopRTBConfig.yml
 Contiene la configuración para el contenedor de Docker que genera el archivo XML con los desafíos/misiones y las banderas de la JuiceShop para Root The Box.
 
-## Ejemplo
+### Ejemplo
 
 ```
 ctfFramework: RootTheBox
@@ -31,13 +37,13 @@ insertHintUrls: free
 insertHintSnippets: free
 ```
 
-# missions.xml [NO MODIFICAR]
+## missions.xml [NO MODIFICAR]
 Archivo de configuración para importar las misiones/desafíos y banderas de la JuiceShop en el motor CTF de Root The Box.
 
-# rootTheBox.json
+## rootTheBox.json
 Contiene las variables para la configuración y creación de los contenedores de Root The Box.
 
-## Ejemplo
+### Ejemplo
 
 ```
 {
@@ -50,10 +56,10 @@ Contiene las variables para la configuración y creación de los contenedores de
 }
 ```
 
-# redis-docker-compose.yml
+## redis-docker-compose.yml [NO MODIFICAR]
 Instrucciones para que Docker Compose cree el contenedor de Redis.
 
-## Ejemplo
+### Ejemplo
 
 ```
 services:
@@ -92,10 +98,10 @@ volumes:
       # /var/lib/docker/volumes/redis-data/_data (o ruta configurada en el Docker daemon).
 ```
 
-# redis.conf
+## redis.conf [NO MODIFICAR]
 Archivo de configuración para redis
 
-## Ejemplo
+### Ejemplo
 
 ```
 # Solo escucha en localhost

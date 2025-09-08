@@ -1,6 +1,6 @@
-# JuiceBox Engine: Despliegue con systemd y Socket Activation
+# Juice Box Engine: Despliegue con systemd y Socket Activation
 
-Este documento detalla todos los pasos necesarios para copiar el proyecto JuiceBox, preparar el entorno de Python, crear los scripts de arranque, definir las unidades systemd (socket y servicio) y verificar que todo funcione correctamente.
+Este documento detalla todos los pasos necesarios para copiar el proyecto `JuiceBox`, preparar el entorno de Python, crear los scripts de arranque, definir las unidades systemd (socket y servicio) y verificar que todo funcione correctamente.
 
 ---
 
