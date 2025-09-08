@@ -27,18 +27,19 @@ def print_response(res):
 async def run_all_tests():
     print("\n=== TEST: START ===")
     print_response(await JuiceBoxAPI.start_rtb())
-    # print_response(await JuiceBoxAPI.start_js_container())
-
-    print("\n=== TEST: GET CONFIG ===")
-    print_response(await JuiceBoxAPI.get_rtb_config())
-    print_response(await JuiceBoxAPI.get_js_config())
+    print_response(await JuiceBoxAPI.start_js_container())
 
     print("\n=== TEST: GET STATUS ===")
     print_response(await JuiceBoxAPI.get_rtb_status())
     print_response(await JuiceBoxAPI.get_js_status())
 
+    print("\n=== TEST: GET CONFIG ===")
+    print_response(await JuiceBoxAPI.get_rtb_config())
+    print_response(await JuiceBoxAPI.get_js_config())
+
     print("\n=== TEST: STOP ===")
     print_response(await JuiceBoxAPI.stop_rtb())
+    print_response(await JuiceBoxAPI.stop_js())
 
     print("\n=== TEST: RESTART ===")
     print_response(await JuiceBoxAPI.restart_rtb_status())
@@ -53,7 +54,9 @@ async def run_all_tests():
     print("\n=== TEST: SET CONFIG ===")
     print_response(await JuiceBoxAPI.set_rtb_config({"webapp_port": 8889}))
     print_response(
-        await JuiceBoxAPI.set_js_config({"ctf_key": "test", "ports": [3000, 3001]})
+        await JuiceBoxAPI.set_js_config(
+            {"ctf_key": "test1", "ports_range": [3000, 3001]}
+        )
     )
 
     print("\n=== TEST: GET CONFIG AFTER SET ===")

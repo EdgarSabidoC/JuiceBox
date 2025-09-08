@@ -87,7 +87,7 @@ class JuiceShopManager(BaseManager):
         """
         Prefijo para los nombres de los contenedores de Juice Shop.
         """
-        return self.config.juice_shop_containers_name
+        return self.config.containers_name
 
     @property
     def ports_range(self) -> list[int]:
