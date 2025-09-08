@@ -6,13 +6,13 @@ Motor y orquestador para crear competencias CTF basado en Root The Box y OWASP J
 
 ## COMPONENTES DE JUICE BOX
 
-|       Componente        | Descripcion                                                                                   |
-| :---------------------: | :-------------------------------------------------------------------------------------------- |
-|   `Juice Box Engine`    | **Motor** o programa principal que corre en el **servidor/anfitrion**.                        |
-|     `Juice Box TUI`     | Interfaz basada en texto para las herramientas administrativas (Python+Textual).              |
-|   `Juice Shop Client`   | Interfaz grafica basada en una aplicacion web para los usuarios (HTML+CSS+JS).                |
-| `Juice Shop Client API` | API REST que conecta la interfaz grafica del JuiceShop_Client con el motor de Juice Box (Go). |
-|        `Monitor`        | Monitor y logger del sistema.                                                                 |
+|       Componente        | Descripcion                                                                              |
+| :---------------------: | :--------------------------------------------------------------------------------------- |
+|   `Juice Box Engine`    | **Motor** o programa principal que corre en el **servidor/anfitrion**.                   |
+|     `Juice Box TUI`     | Interfaz basada en texto para las herramientas administrativas.                          |
+|   `Juice Shop Client`   | Interfaz grafica basada en una aplicacion web para los usuarios.                         |
+| `Juice Shop Client API` | API REST que conecta la interfaz grafica del JuiceShop_Client con el motor de Juice Box. |
+|        `Monitor`        | Monitor y logger del sistema.                                                            |
 
 ---
 
@@ -20,10 +20,11 @@ Motor y orquestador para crear competencias CTF basado en Root The Box y OWASP J
 
 ```bash
 Servidor
-├── Interfaz de usuario basada en texto (TUI)
 ├── Juice Box Engine
-│   └── (UNIX socket) ─> Juice Box Engine API
+│   ├── API
+│   └── Socket de UNIX
 ├── Monitor
+├── TUI
 └── Docker
     ├── Redis
     ├── Cliente Juice Box
