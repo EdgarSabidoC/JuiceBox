@@ -5,20 +5,17 @@ from ..widgets import get_header
 from textual.widgets import MarkdownViewer, TabbedContent
 from textual.binding import Binding
 from importlib.resources import files
+from importlib.abc import Traversable
 from pathlib import Path
 
 
 class DocumentationScreen(Screen):
     CSS_PATH = "../styles/documentation.tcss"
-
+    DOCS: Traversable = files("JuiceBox.docs.ES.JuiceBox")
     MARKDOWNS = {
-        "JuiceBox": Path(str(files("JuiceBox.docs.ES.JuiceBox").joinpath("Engine.MD"))),
-        "JuiceShop": Path(
-            str(files("JuiceBox.docs.ES.JuiceBox").joinpath("JuiceShopManager.MD"))
-        ),
-        "RootTheBox": Path(
-            str(files("JuiceBox.docs.ES.JuiceBox").joinpath("RootTheBoxManager.MD"))
-        ),
+        "Motor": Path(str(DOCS.joinpath("Engine.MD"))),
+        "API": Path(str(DOCS.joinpath("API.MD"))),
+        "Configs": Path(str(DOCS.joinpath("ConfigFiles.MD"))),
     }
     BINDINGS = [
         Binding("ctrl+b", "go_back", "Back", show=True),
@@ -33,25 +30,25 @@ class DocumentationScreen(Screen):
 
         # Markdowns:
         self.jb_engine = MarkdownViewer(
-            self.get_markdown("JuiceBox"),
+            self.get_markdown("Motor"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
-        self.rtb = MarkdownViewer(
-            self.get_markdown("RootTheBox"),
+        self.api = MarkdownViewer(
+            self.get_markdown("API"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
-        self.js = MarkdownViewer(
-            self.get_markdown("JuiceShop"),
+        self.configs = MarkdownViewer(
+            self.get_markdown("Configs"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
 
-        with TabbedContent("JuiceBox", "JuiceShop", "RootTheBox"):
+        with TabbedContent("Motor", "API", "Configs"):
             yield self.jb_engine
-            yield self.js
-            yield self.rtb
+            yield self.api
+            yield self.configs
         # Footer
         yield get_footer()
 
@@ -74,13 +71,13 @@ class DocumentationScreen(Screen):
 
         # Actualiza el estado en cada visor para mostrar u ocultar la tabla de contenido:
         self.jb_engine.show_table_of_contents = self.show_toc
-        self.rtb.show_table_of_contents = self.show_toc
-        self.js.show_table_of_contents = self.show_toc
+        self.api.show_table_of_contents = self.show_toc
+        self.configs.show_table_of_contents = self.show_toc
 
         # Redibuja (opcional, dependiendo del comportamiento)
         self.jb_engine.refresh()
-        self.rtb.refresh()
-        self.js.refresh()
+        self.api.refresh()
+        self.configs.refresh()
 
     def get_markdown(self, markdown: str) -> str:
         self.content = ""

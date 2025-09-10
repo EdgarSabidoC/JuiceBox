@@ -22,9 +22,9 @@ Motor y orquestador para crear competencias CTF basado en Root The Box y OWASP J
 Servidor
 ├── Juice Box Engine
 │   ├── API
+│   ├── TUI
 │   └── Socket de UNIX
 ├── Monitor
-├── TUI
 └── Docker
     ├── Redis
     ├── Cliente Juice Box
@@ -34,7 +34,7 @@ Servidor
 
 ---
 
-## COMUNICACIÓN POR SOCKET
+## COMUNICACION POR SOCKET
 
 La comunicacion esta basada **comandos**, **señales** o **eventos** por medio de un Unix Domain Socket personalizado.
 
@@ -42,7 +42,7 @@ La comunicacion esta basada **comandos**, **señales** o **eventos** por medio d
 
 ## MONITOR
 
-El monitor se encarga de observar e informar cuando sucede algo con los contenedores o algún componente interno del motor de Juice Box.
+El monitor se encarga de observar e informar cuando sucede algo con los contenedores o algun componente interno del motor de Juice Box.
 
 ## TUI
 
@@ -54,17 +54,17 @@ Las herramientas administrativas cuentan con una interfaz de usuario basado en t
 
 Juice Box Engine corre su propio contenedor de redis.
 
-La comunicación del estado de los contenedores de Root The Box y OWASP Juice Shop se publica en dos canales: `admin_channel` y `client_channel`.
+La comunicacion del estado de los contenedores de Root The Box y OWASP Juice Shop se publica en dos canales: `admin_channel` y `client_channel`.
 
 ### admin_channel
 
-Este canal es exclusivo para los usuarios administrativos, ya que contiene información de los puertos y el estado de los contenedores de Docker para Root The Box y OWASP Juice Shop.
+Este canal es exclusivo para los usuarios administrativos, ya que contiene informacion de los puertos y el estado de los contenedores de Docker para Root The Box y OWASP Juice Shop.
 
-**NOTA:** Este canal es utilizado para la comunicación interna entre componentes. No se recomienda utilizar para clientes.
+**NOTA:** Este canal es utilizado para la comunicacion interna entre componentes. No se recomienda utilizar para clientes.
 
 ### client_channel
 
-Este canal ofrece información parcial sobre los contenedores de OWASP Juice Shop, ya que el estado de estos contenedores son los únicos que deben reflejarse en los clientes con usuarios sin permisos administrativos.
+Este canal ofrece informacion parcial sobre los contenedores de OWASP Juice Shop, ya que el estado de estos contenedores son los unicos que deben reflejarse en los clientes con usuarios sin permisos administrativos.
 
 **NOTA:** Es recomendado utilizar este canal para comunicar el estado en tiempo real con los clientes.
 
@@ -73,7 +73,7 @@ Este canal ofrece información parcial sobre los contenedores de OWASP Juice Sho
 ## LOGS
 Los logs de `JuiceBoxEngine` se centralizan en `journald`, el gestor de logs de `systemd`.
 
-### Configuración
+### Configuracion
 
 #### Activar persistencia
 Por defecto, journald guarda los registros en memoria y no sobreviven a reinicios. Para habilitar almacenamiento persistente:

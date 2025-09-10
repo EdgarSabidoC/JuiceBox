@@ -5,7 +5,7 @@ from ..widgets import get_header
 from textual.screen import Screen
 from textual.events import ScreenResume
 from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Label, Static, Switch, Button, RichLog
+from textual.widgets import Label, Static, OptionList, Button, RichLog
 from textual.binding import Binding
 from typing import Union
 import json, asyncio
@@ -16,6 +16,7 @@ from rich.text import Text
 from ...Models import Status, Response
 import redis, threading
 from ...JuiceBoxEngine.api import JuiceBoxAPI
+from ..widgets.confirmModal import ConfirmModal
 import importlib.resources as pkg_resources
 from dotenv import dotenv_values
 
@@ -26,13 +27,25 @@ class RootTheBoxScreen(Screen):
     CSS_PATH = "../styles/rootTheBox.tcss"
     JB_LOGO = pkg_resources.read_text("JuiceBox.TUI.media", "RootTheBoxLogo.txt")
 
+    MENU_OPTIONS = {
+        "Start": ("Start Root The Box services", JuiceBoxAPI.start_rtb),
+        "Stop": ("Stop Root The Box services", JuiceBoxAPI.stop_rtb),
+        "Restart": ("Restart Root The Box services", JuiceBoxAPI.restart_rtb_status),
+        "Configuration": (
+            "Configuration file for Root The Box services",
+            JuiceBoxAPI.set_rtb_config,
+        ),
+        "Return": ("Return to main menu", None),
+    }
+
     BINDINGS = [
         Binding("ctrl+b", "go_back", "Back", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
     ]
 
-    _power_busy: bool = False
-    _ignore_switch_event: bool = True
+    __skip_resume: bool = (
+        False  # Variable para evitar que on_screen_resume se dispare con los modal screens
+    )
 
     def compose(self) -> ComposeResult:
         # Header
@@ -48,35 +61,16 @@ class RootTheBoxScreen(Screen):
                 jb_logo.can_focus = False
                 yield jb_logo
 
-                # Controles
-                self.controllers_container = Vertical(classes="controllers-container")
-                with self.controllers_container:
-                    # with Horizontal(classes="controllers"):
-                    self.turn_on = Button(
-                        label="Turn On",
-                        variant="default",
-                        name="turn_on",
-                    )
-                    yield self.turn_on
-                    self.turn_off = Button(
-                        label="Turn Off",
-                        variant="default",
-                        name="turn_off",
-                    )
-                    yield self.turn_off
-                    with Horizontal(classes="controllers"):
-                        self.reset = Button(
-                            label="Restart",
-                            variant="default",
-                            name="reset",
-                        )
-                        yield self.reset
+                # Menú
+                self.menu = OptionList(classes="menu")
+                self.menu.add_options(self.MENU_OPTIONS.keys())
+                yield self.menu
 
                 # Información sobre las opciones
-                self.info = Static(classes="info-box")
-                self.info.can_focus = False
-                self.info.border_title = "Output"
-                yield self.info
+                self.menu_info = Static(classes="info-box")
+                self.menu_info.can_focus = False
+                self.menu_info.border_title = "Output"
+                yield self.menu_info
 
             with Vertical(classes="vcontainer2") as vcontainer2:
                 vcontainer2.can_focus = False
@@ -130,79 +124,56 @@ class RootTheBoxScreen(Screen):
         self._start_redis_listener()  # Se conecta al socket de Redis
         # await self.init()
 
-    # async def on_switch_changed(self, event: Switch.Changed) -> None:
-    #     # 1) Solo interesan eventos del switch "power"
-    #     if event.switch.name != "power" or self._ignore_switch_event:
-    #         self.info.update("No entró")
-    #         self._ignore_switch_event = (
-    #             False  # Se reactivan los eventos del switch después del init().
-    #         )
-    #         return
+    # Permite realizar una acción al presionar una opción del menú
+    async def on_option_list_option_selected(
+        self, event: OptionList.OptionSelected
+    ) -> None:
+        option: str = str(event.option.prompt).strip()
+        description, action = self.MENU_OPTIONS.get(option, (None, None))
 
-    #     # 2) Si ya se está procesando, se ignoran nuevas pulsaciones
-    #     if self._power_busy:
-    #         return
+        if action is None:
+            await self.return_to_main()
+            return
 
-    #     # 3) Se bloquea internamente y en la UI
-    #     self._power_busy = True
-    #     event.switch.disabled = True
+        async def handle_confirm():
+            self.__skip_resume = True
+            result = await self.app.push_screen_wait(
+                ConfirmModal(f"¿Seguro que deseas ejecutar: {option}?")
+            )
+            if result == "yes":
+                try:
+                    if asyncio.iscoroutinefunction(action):
+                        resp = await action()
+                    else:
+                        resp = await asyncio.to_thread(action)
 
-    #     try:
-    #         if event.value:
-    #             __resp = await JuiceBoxAPI.start_rtb()
-    #             self.info.update("Se mandó __START__")
-    #         else:
-    #             __resp = await JuiceBoxAPI.stop_rtb()
-    #             self.info.update("Se mandó __STOP__")
-    #     except Exception:
-    #         # Si falla, revertimos el valor y mostramos error
-    #         event.switch.value = not event.value
-    #     finally:
-    #         # 4) Siempre reactivamos el switch y el lock
-    #         event.switch.disabled = False
-    #         self._power_busy = False
+                    __color: str = "green" if resp.status == Status.OK else "red"
+                    self.menu_info.update(
+                        f"{description}\n[{__color}]\n\nOperation {option}: {resp.status.upper()} [/{__color}]"
+                    )
+                except Exception as e:
+                    self.menu_info.update(
+                        f"{description}\n[red]\n\nOperation {option}: {e}[/red]"
+                    )
+            else:
+                self.menu_info.update(
+                    f"[yellow]Operation {option}: Cancelled ⚠︎[/yellow]"
+                )
+            self.__skip_resume = False
 
-    # async def on_button_pressed(self, event: Button.Pressed) -> None:
-    #     if event.button.name != "reset":
-    #         return
-    #     # Se presionó el botón
-    #     try:
-    #         event.button.disabled = True
-    #         resp = await JuiceBoxAPI.restart_rtb_status()
-    #         if resp.status == Status.OK:
-    #             self.notify(
-    #                 title="Successful reset!",
-    #                 message="Root The Box services reseted.",
-    #                 severity="information",
-    #                 timeout=5,
-    #                 markup=True,
-    #             )
-    #         else:
-    #             self.notify(
-    #                 title="Reset ERROR!",
-    #                 message=f"{resp.status}",
-    #                 severity="error",
-    #                 timeout=10,
-    #                 markup=True,
-    #             )
-    #     except Exception as e:
-    #         self.notify(title="Error!", message=str(e), severity="error", timeout=10)
-    #     finally:
-    #         await self.init()
-    #         await self.power.recompose()
-    #         event.button.disabled = False
-    #         self.set_focus(self.power)
+        self.run_worker(handle_confirm())
 
     async def on_screen_resume(self, event: ScreenResume) -> None:
         """
         Este evento salta cada vez que la pantalla vuelve a activarse (show).
-        Aquí forzamos que la opción 0 quede highlighted y le damos focus.
+        Aquí se forza a que la opción 0 quede resaltada y se le da el focus.
         """
-        # Se asegura de que el widget tenga el foco
-        if self.turn_on.is_disabled:
-            self.turn_off.focus()
-            return
-        self.turn_on.focus()
+        if not self.__skip_resume:
+            # Selecciona el índice 0
+            self.menu.highlighted = 0
+
+            # Se asegura que el widget tenga el enfoque
+            self.menu.focus()
 
     async def return_to_main(self) -> None:
         """Regresa a la pantalla del menú principal."""
@@ -217,37 +188,19 @@ class RootTheBoxScreen(Screen):
         """Regresa a la pantalla del menú principal."""
         await self.return_to_main()
 
+    async def on_option_list_option_highlighted(
+        self, event: OptionList.OptionHighlighted
+    ):
+        option: str = str(event.option.prompt).strip()
+        description = self.MENU_OPTIONS.get(option, "No menu_info available.")[0]
+        self.menu_info.update(description)
+
     async def get_conf(self) -> str:
         try:
             resp = await JuiceBoxAPI.get_rtb_config()
             return str(resp.data["config"])
         except Exception:
             return '"status": "error"'
-
-    # async def init(self) -> None:
-    #     self._ignore_switch_event = True
-    #     try:
-    #         __resp = await JuiceBoxAPI.get_rtb_status()
-    #         if __resp.status == Status.OK:
-    #             self.power.value = True
-    #             # self.info.update("Power value True")
-    #         else:
-    #             self.power.value = False
-    #             # self.info.update("Power value False")
-
-    #         __resp = await JuiceBoxAPI.get_rtb_config()
-    #         if __resp.status == Status.OK:
-    #             config_data = __resp.data["config"]
-    #             pretty_json = json.dumps(config_data, indent=4)
-    #             md_content = f"```json\n{pretty_json}\n```"
-    #             self.config_data.update_content(md_content)
-    #         else:
-    #             self.config_data.update_content("Nothing to show")
-
-    #     except Exception:
-    #         pass
-    #     finally:
-    #         await asyncio.sleep(0.1)  # Espera para evitar problemas de UI
 
     def _start_redis_listener(self) -> None:
         """Crea y arranca el hilo que escucha Redis."""
@@ -265,15 +218,15 @@ class RootTheBoxScreen(Screen):
         pubsub = client.pubsub()
         pubsub.subscribe("admin_channel", "client_channel")
 
-        # mensaje de arranque
+        # Mensaje de arranque
         self.app.call_from_thread(
             lambda: self.SERVICES_STATUS_DATA_WEBAPP.update("Listener started")
         )
 
         for message in pubsub.listen():
-            # mensaje de confirmación de subscribe, unsubscribe, etc
+            # Mensaje de confirmación de subscribe, unsubscribe, etc
             mtype = message.get("type")
-            # actualiza tipo (ejemplo)
+            # Actualiza el tipo (ejemplo)
             self.app.call_from_thread(
                 lambda m=mtype: self.SERVICES_STATUS_DATA_WEBAPP.update(
                     f"Message type: {m}"

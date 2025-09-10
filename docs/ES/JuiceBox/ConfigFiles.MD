@@ -1,11 +1,11 @@
-# Archivos de configuración (Config files)
+# Archivos de configuracion (Config files)
 
-Los archivos de configuración de `Juice Box Engine` se encuentran en la ruta: `JuiceBox/JuiceBoxEngine/configs`.
+Los archivos de configuracion de `Juice Box Engine` se encuentran en la ruta: `JuiceBox/JuiceBoxEngine/configs`.
 
-**NOTA:** NO se recomienda modificar los archivos de configuración directamente, lo recomendable es utilizar la interfaz basada en texto (TUI). La leyenda `[NO MODIFICAR]` aparecerá junto a los nombres de los archivos que bajo ninguna circunstancia deben ser modificados, ya que estos son generados de manera automática por el motor o son utilizados por partes críticas del motor.
+**NOTA:** NO se recomienda modificar los archivos de configuracion directamente, lo recomendable es utilizar la interfaz basada en texto (TUI). La leyenda `[NO MODIFICAR]` aparecera junto a los nombres de los archivos que bajo ninguna circunstancia deben ser modificados, ya que estos son generados de manera automatica por el motor o son utilizados por partes criticas del mismo.
 
 ## juiceShop.json
-Contiene las variables para la configuración y creación de los contenedores de la OWASP Juice Shop.
+Contiene las variables para la configuracion y creacion de los contenedores de la OWASP Juice Shop.
 
 ### Ejemplo
 
@@ -23,7 +23,7 @@ Contiene las variables para la configuración y creación de los contenedores de
 ```
 
 ## juiceShopRTBConfig.yml
-Contiene la configuración para el contenedor de Docker que genera el archivo XML con los desafíos/misiones y las banderas de la JuiceShop para Root The Box.
+Contiene la configuracion para el contenedor de Docker que genera el archivo XML con los desafios/misiones y las banderas de la JuiceShop para Root The Box.
 
 ### Ejemplo
 
@@ -38,10 +38,10 @@ insertHintSnippets: free
 ```
 
 ## missions.xml [NO MODIFICAR]
-Archivo de configuración para importar las misiones/desafíos y banderas de la JuiceShop en el motor CTF de Root The Box.
+Archivo de configuracion para importar las misiones/desafios y banderas de la JuiceShop en el motor CTF de Root The Box.
 
 ## rootTheBox.json
-Contiene las variables para la configuración y creación de los contenedores de Root The Box.
+Contiene las variables para la configuracion y creacion de los contenedores de Root The Box.
 
 ### Ejemplo
 
@@ -63,17 +63,17 @@ Instrucciones para que Docker Compose cree el contenedor de Redis.
 
 ```
 services:
-  redis:  # Definición del servicio Redis
+  redis:  # Definicion del servicio Redis
     image: redis:7-alpine
-    # Usa la imagen oficial de Redis en su versión 7 sobre Alpine Linux (ligera).
+    # Usa la imagen oficial de Redis en su version 7 sobre Alpine Linux (ligera).
     container_name: juicebox-redis
     # Nombre fijo del contenedor. Facilita comandos como `docker ps` o `docker logs`.
     restart: unless-stopped
-    # Política de reinicio:
+    # Politica de reinicio:
     # - always: reinicia siempre cuando el contenedor pare inesperadamente.
     # - unless-stopped: idem, pero no tras un `docker stop`.
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
-    # Sobrescribe el comando por defecto, apuntando a tu archivo de configuración.
+    # Sobrescribe el comando por defecto, apuntando a tu archivo de configuracion.
     ports:
       - "127.0.0.1:6379:6379"
     # Mapea el puerto 6379 del contenedor al mismo puerto en localhost del host.
@@ -81,14 +81,14 @@ services:
     volumes:
       - redis-data:/data
       # Volumen nombrado para persistir los datos de Redis.
-      # Docker gestiona su ubicación interna automáticamente.
+      # Docker gestiona su ubicacion interna automaticamente.
       - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
     # Monta tu archivo local `redis.conf` como solo lectura dentro del contenedor.
     healthcheck:
-      # Verifica periódicamente que Redis responda al comando PING.
+      # Verifica periodicamente que Redis responda al comando PING.
       test: ["CMD", "redis-cli", "-a", "C5L48", "ping"]
-      interval: 10s   # Tiempo entre cada comprobación.
-      timeout: 5s     # Tiempo máximo de espera de una sola comprobación.
+      interval: 10s   # Tiempo entre cada comprobacion.
+      timeout: 5s     # Tiempo maximo de espera de una sola comprobacion.
       retries: 5      # Reintentos antes de marcar el contenedor como “unhealthy”.
 
 volumes:
@@ -99,7 +99,7 @@ volumes:
 ```
 
 ## redis.conf [NO MODIFICAR]
-Archivo de configuración para redis
+Archivo de configuracion para redis
 
 ### Ejemplo
 
@@ -110,7 +110,7 @@ bind 0.0.0.0
 # Si alguien accidentalmente cambia bind, este modo repele conexiones externas
 protected-mode no
 
-# Contraseña de autenticación
+# Contraseña de autenticacion
 requirepass C5L48
 
 # Persistencia AOF

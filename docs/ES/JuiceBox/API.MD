@@ -1,6 +1,6 @@
 # Acerca de la API
 
-La API de Python ofrece métodos públicos para facilitar la comunicación con el motor de `Juice Box` y clientes hechos con Python.
+La API de Python ofrece metodos publicos para facilitar la comunicacion con el motor de `Juice Box` y clientes hechos con Python.
 
 ## Formato de mensaje enviado
 
@@ -17,12 +17,12 @@ La API de Python ofrece métodos públicos para facilitar la comunicación con e
 ```bash
 {
   "status": "ok | error",
-  "message": "Descripción",
+  "message": "Descripcion",
   "data": { ... }
 }
 ```
 
-# Métodos públicos
+# Metodos publicos
 
 ## get\_rtb\_config()
 
@@ -30,9 +30,9 @@ La API de Python ofrece métodos públicos para facilitar la comunicación con e
 
 `__CONFIG__`
 
-### Descripción
+### Descripcion
 
-Obtiene la configuración del manager de Root The Box.
+Obtiene la configuracion del manager de Root The Box.
 
 ### Argumentos
 
@@ -54,9 +54,9 @@ await JuiceBoxAPI.get_rtb_config()
 
 `__CONFIG__`
 
-### Descripción
+### Descripcion
 
-Obtiene la configuración del manager de OWASP Juice Shop.
+Obtiene la configuracion del manager de OWASP Juice Shop.
 
 ### Argumentos
 
@@ -78,7 +78,7 @@ await JuiceBoxAPI.get_js_config()
 
 `__STATUS__`
 
-### Descripción
+### Descripcion
 
 Obtiene el estado del manager de Root The Box.
 
@@ -102,7 +102,7 @@ await JuiceBoxAPI.get_rtb_status()
 
 `__STATUS__`
 
-### Descripción
+### Descripcion
 
 Obtiene el estado del manager de OWASP Juice Shop.
 
@@ -126,7 +126,7 @@ await JuiceBoxAPI.get_js_status()
 
 `__CONTAINER_STATUS__`
 
-### Descripción
+### Descripcion
 
 Obtiene el estado de un contenedor de Juice Shop por su puerto.
 
@@ -150,7 +150,7 @@ await JuiceBoxAPI.get_js_container_status_by_port(3000)
 
 `__CONTAINER_STATUS__`
 
-### Descripción
+### Descripcion
 
 Obtiene el estado de un contenedor de Juice Shop por su nombre.
 
@@ -174,7 +174,7 @@ await JuiceBoxAPI.get_js_container_status_by_name("juice_container")
 
 `__RESTART__`
 
-### Descripción
+### Descripcion
 
 Reinicia el manager de Root The Box.
 
@@ -198,7 +198,7 @@ await JuiceBoxAPI.restart_rtb_status()
 
 `__RESTART__`
 
-### Descripción
+### Descripcion
 
 Reinicia el manager de OWASP Juice Shop.
 
@@ -222,9 +222,9 @@ await JuiceBoxAPI.restart_js_status()
 
 `__SET_CONFIG__`
 
-### Descripción
+### Descripcion
 
-Modifica la configuración del manager de Root The Box.
+Modifica la configuracion del manager de Root The Box.
 
 ### Argumentos
 
@@ -246,9 +246,9 @@ await JuiceBoxAPI.set_rtb_config({"max_users": 10})
 
 `__SET_CONFIG__`
 
-### Descripción
+### Descripcion
 
-Modifica la configuración del manager de OWASP Juice Shop.
+Modifica la configuracion del manager de OWASP Juice Shop.
 
 ### Argumentos
 
@@ -270,7 +270,7 @@ await JuiceBoxAPI.set_js_config({"ports": [3000, 3001]})
 
 `__START__`
 
-### Descripción
+### Descripcion
 
 Inicia los contenedores de Root The Box.
 
@@ -294,7 +294,7 @@ await JuiceBoxAPI.start_rtb()
 
 `__START__`
 
-### Descripción
+### Descripcion
 
 Inicia los contenedores de OWASP Juice Shop.
 
@@ -318,7 +318,7 @@ await JuiceBoxAPI.start_js_container()
 
 `__STOP__`
 
-### Descripción
+### Descripcion
 
 Detiene el manager de Root The Box.
 
@@ -342,7 +342,7 @@ await JuiceBoxAPI.stop_rtb()
 
 `__STOP__`
 
-### Descripción
+### Descripcion
 
 Detiene el manager de OWASP Juice Shop.
 
@@ -366,7 +366,7 @@ await JuiceBoxAPI.stop_js()
 
 `__STOP_CONTAINER__`
 
-### Descripción
+### Descripcion
 
 Detiene un contenedor de Juice Shop dado su puerto.
 
@@ -390,7 +390,7 @@ await JuiceBoxAPI.stop_js_container(3000)
 
 `__GENERATE_XML__`
 
-### Descripción
+### Descripcion
 
 Genera el archivo XML de misiones para Root The Box.
 

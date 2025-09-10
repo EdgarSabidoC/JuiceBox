@@ -13,6 +13,14 @@ import importlib.resources as pkg_resources
 
 SOCKET_PATH = "/run/juicebox/juicebox.sock"
 
+MENU_OPTIONS = {
+    "Start": "Start OWASP Juice Shop services",
+    "Stop": "Stop OWASP Juice Shop services",
+    "Restart": "Restart OWASP Juice Shop services",
+    "Configuration": "Configuration file for OWASP Juice Shop services",
+    "Return": "Return to the main menu",
+}
+
 
 class JuiceShopScreen(Screen):
     CSS_PATH = "../styles/main.tcss"

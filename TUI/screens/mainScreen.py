@@ -104,7 +104,7 @@ class MainScreen(Screen):
     async def on_screen_resume(self, event: ScreenResume) -> None:
         """
         Este evento salta cada vez que la pantalla vuelve a activarse (show).
-        Aquí forzamos que la opción 0 quede highlighted y le damos focus.
+        Aquí se forza a que la opción 0 quede resaltada y le damos focus.
         """
         # 1) Seleccionar índice 0
         self.menu.highlighted = 0
