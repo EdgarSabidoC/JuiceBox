@@ -1,115 +1,115 @@
 from textual.app import ComposeResult
-from ..serverInfo import ServerInfo
 from textual.screen import Screen
-from textual.widgets.option_list import Option
 from ..widgets import get_footer
 from ..widgets import get_header
 from textual.screen import Screen
+from textual.events import ScreenResume
 from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Label, Static, OptionList, Placeholder, Link
+from textual.widgets import Label, Static, OptionList, Button, RichLog
 from textual.binding import Binding
-import textual.color as color
+from typing import Union
+import json, asyncio
+from ..widgets import CustomSwitch
+from textual.reactive import reactive
+from ..widgets import ReactiveMarkdown
+from rich.text import Text
+from ...Models import Status, Response
+import redis, threading
+from ...JuiceBoxEngine.api import JuiceBoxAPI
+from ..widgets.confirmModal import ConfirmModal
 import importlib.resources as pkg_resources
-
-SOCKET_PATH = "/run/juicebox/juicebox.sock"
-
-MENU_OPTIONS = {
-    "Start": "Start OWASP Juice Shop services",
-    "Stop": "Stop OWASP Juice Shop services",
-    "Restart": "Restart OWASP Juice Shop services",
-    "Configuration": "Configuration file for OWASP Juice Shop services",
-    "Return": "Return to the main menu",
-}
+from dotenv import dotenv_values
 
 
 class JuiceShopScreen(Screen):
     CSS_PATH = "../styles/main.tcss"
     JB_LOGO = pkg_resources.read_text("JuiceBox.TUI.media", "JuiceBoxLogo.txt")
 
+    MENU_OPTIONS = {
+        "Start": ("Start Root The Box services", JuiceBoxAPI.start_js_container),
+        "Stop": ("Stop Root The Box services", JuiceBoxAPI.stop_js_container),
+        "Restart": ("Restart Root The Box services", JuiceBoxAPI.restart_js_status),
+        "Configuration": (
+            "Configuration file for Root The Box services",
+            JuiceBoxAPI.set_js_config,
+        ),
+        "Return": ("Return to main menu", None),
+    }
+
     BINDINGS = [
-        Binding("^b", "go_back", "Back", show=True),
-        Binding("^q", "quit", "Quit", show=True),
+        Binding("ctrl+b", "go_back", "Back", show=True),
+        Binding("ctrl+q", "quit", "Quit", show=True),
     ]
 
     def compose(self) -> ComposeResult:
         # Header
         yield get_header()
 
-        # Contenedor horizontal 1
         with Horizontal(classes="hcontainer") as hcontainer:
             hcontainer.can_focus = False
-            # Contenedor vertical 1
+
             with Vertical(classes="vcontainer1") as vcontainer1:
                 vcontainer1.can_focus = False
-                # Contenedor vertical 3
-                with Vertical(classes="vinnercontainer") as vinnercontainer:
-                    vinnercontainer.can_focus = False
-                    # Logo de JuiceBox
-                    jb_logo = Static(self.JB_LOGO, classes="juice-box-logo")
-                    jb_logo.can_focus = False
-                    yield jb_logo
-                    # Contenedor horizontal interior
-                    with Horizontal(classes="hinnercontainer"):
-                        # Espacio vacío
-                        empty_space = Static("", classes="empty")
-                        empty_space.can_focus = False
-                        yield empty_space
-                        # Link de Github
-                        about_link = Link(
-                            text="github/EdgarSabidoC",
-                            url="https://github.com/EdgarSabidoC",
-                            classes="github-link",
-                        )
-                        about_link.can_focus = False
-                        about_link.border_title = "Developed by"
-                        yield about_link
+                # Logo de RTB
+                jb_logo = Static(self.JB_LOGO, classes="rtb-logo")
+                jb_logo.can_focus = False
+                yield jb_logo
 
                 # Menú
-                self.menu = OptionList(
-                    Option(prompt=" 📦 Root the Box".ljust(20)),
-                    Option(prompt=" 🧃 OWASP Juice Shop".ljust(20)),
-                    Option(prompt=" 🐋 Docker".ljust(20)),
-                    Option(prompt=" 🔎 Documentation".ljust(20)),
-                    Option(prompt=" ↩  Exit".ljust(20)),
-                    classes="menu",
-                )
-                self.menu.border_title = "Menu"
+                self.menu = OptionList(classes="menu")
+                self.menu.add_options(self.MENU_OPTIONS.keys())
                 yield self.menu
 
                 # Información sobre las opciones
-                placeholder = Placeholder()
-                placeholder.can_focus = False
-                placeholder.styles.height = "20%"
-                placeholder.styles.width = "100%"
-                placeholder.styles.border = ("double", "green")
-                placeholder.styles.border_title_background = "green"
-                placeholder.styles.border_title_color = color.WHITE
-                placeholder.styles.border_title_style = "bold"
-                placeholder.border_title = "Info"
-                placeholder.styles.padding = (1, 1, 1, 1)
-                placeholder.styles.content_align = ("left", "middle")
-                yield placeholder
+                self.menu_info = Static(classes="info-box")
+                self.menu_info.can_focus = False
+                self.menu_info.border_title = "Output"
+                yield self.menu_info
 
-            # Contenedor vertical 2
             with Vertical(classes="vcontainer2") as vcontainer2:
                 vcontainer2.can_focus = False
-                # System architecture
-                self.SYSTEM_ARCH = Static(str(self.SYSTEM_ARCH), expand=True)
-                self.SYSTEM_ARCH.styles.content_align = ("center", "middle")
-                self.SYSTEM_ARCH.styles.height = "100%"
-                self.SYSTEM_ARCH.styles.border = ("double", "green")
-                self.SYSTEM_ARCH.styles.border_title_align = "right"
-                self.SYSTEM_ARCH.styles.border_title_background = "green"
-                self.SYSTEM_ARCH.styles.border_title_color = color.WHITE
-                self.SYSTEM_ARCH.border_title = "System architecture"
-                self.SYSTEM_ARCH.styles.border_title_style = "bold"
-                arch_container = ScrollableContainer(self.SYSTEM_ARCH)
-                arch_container.scroll_visible(force=True)
-                arch_container.can_focus = False
-                arch_container.styles.content_align = ("center", "middle")
-                arch_container.styles.height = "70%"
-                with arch_container:
-                    yield self.SYSTEM_ARCH
+                self.config_container = ScrollableContainer(classes="config-container")
+                self.config_container.border_title = "Configuration"
+                self.config_data = ReactiveMarkdown(data="Loading configuration…")
+                self.config_data.can_focus = False
+                self.config_data.styles.color = "white"
+                self.config_container.can_focus = False
+                with self.config_container:
+                    yield self.config_data
+
+                # Services status
+                with Horizontal() as server_status:
+                    server_status.can_focus = False
+                    server_status.styles.content_align = ("center", "middle")
+                    server_status.styles.align = ("center", "middle")
+                    server_status.styles.border
+                    with Vertical(classes="services-status-keys") as server_info_keys:
+                        server_info_keys.can_focus = False
+                        self.SERVICES_STATUS_KEYS_WEBAPP = Label(
+                            classes="services-status-key"
+                        )
+                        self.SERVICES_STATUS_KEYS_WEBAPP.update("Webapp: ")
+                        yield self.SERVICES_STATUS_KEYS_WEBAPP
+                        self.SERVICES_STATUS_KEYS_CACHE = Label(
+                            classes="services-status-key"
+                        )
+                        self.SERVICES_STATUS_KEYS_CACHE.update("Caché: ")
+                        yield self.SERVICES_STATUS_KEYS_CACHE
+                    with Vertical(
+                        classes="services-status-data"
+                    ) as services_status_values:
+                        services_status_values.can_focus = False
+                        services_status_values.border_title = " Services Status"
+                        self.SERVICES_STATUS_DATA_WEBAPP = Label(
+                            classes="services-status-datum"
+                        )
+                        self.SERVICES_STATUS_DATA_WEBAPP.can_focus = False
+                        yield self.SERVICES_STATUS_DATA_WEBAPP
+                        self.SERVICES_STATUS_DATA_CACHE = Label(
+                            classes="services-status-datum"
+                        )
+                        self.SERVICES_STATUS_DATA_CACHE.can_focus = False
+                        yield self.SERVICES_STATUS_DATA_CACHE
 
         # Footer
         yield get_footer()

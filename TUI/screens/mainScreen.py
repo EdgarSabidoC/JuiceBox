@@ -84,7 +84,7 @@ class MainScreen(Screen):
                     self.SYSTEM_ARCH, classes="arch-container"
                 )
                 self.arch_container.scroll_visible(force=True)
-                self.arch_container.can_focus = True
+                self.arch_container.can_focus = False
                 with self.arch_container:
                     yield self.SYSTEM_ARCH
 

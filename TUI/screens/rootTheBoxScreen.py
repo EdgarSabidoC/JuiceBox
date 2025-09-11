@@ -5,7 +5,7 @@ from ..widgets import get_header
 from textual.screen import Screen
 from textual.events import ScreenResume
 from textual.containers import Vertical, Horizontal, ScrollableContainer
-from textual.widgets import Label, Static, OptionList, Button, RichLog
+from textual.widgets import Label, Static, OptionList, LoadingIndicator, Button, RichLog
 from textual.binding import Binding
 from typing import Union
 import json, asyncio
@@ -19,8 +19,7 @@ from ...JuiceBoxEngine.api import JuiceBoxAPI
 from ..widgets.confirmModal import ConfirmModal
 import importlib.resources as pkg_resources
 from dotenv import dotenv_values
-
-SOCKET_PATH = dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/juicebox.sock"
+from ..widgets.configModal import ConfigModal
 
 
 class RootTheBoxScreen(Screen):
@@ -41,6 +40,7 @@ class RootTheBoxScreen(Screen):
     BINDINGS = [
         Binding("ctrl+b", "go_back", "Back", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
+        Binding("ctrl+r", "refresh", "Refresh", show=True),
     ]
 
     __skip_resume: bool = (
@@ -80,6 +80,8 @@ class RootTheBoxScreen(Screen):
                 self.config_data.can_focus = False
                 self.config_data.styles.color = "white"
                 self.config_container.can_focus = False
+                self.config_data.visible = False
+                self.config_data.loading = True
                 with self.config_container:
                     yield self.config_data
 
@@ -122,7 +124,8 @@ class RootTheBoxScreen(Screen):
 
     async def on_mount(self) -> None:
         self._start_redis_listener()  # Se conecta al socket de Redis
-        # await self.init()
+        self.set_interval(5, self.action_refresh)  # Refresca cada 60 segundos
+        self.config_data.update_content(await self.get_conf())
 
     # Permite realizar una acción al presionar una opción del menú
     async def on_option_list_option_selected(
@@ -131,14 +134,45 @@ class RootTheBoxScreen(Screen):
         option: str = str(event.option.prompt).strip()
         description, action = self.MENU_OPTIONS.get(option, (None, None))
 
+        # Regresa al menú principal
         if action is None:
             await self.return_to_main()
             return
 
+        # Edita la configuración
+        if option == "Configuration":
+            try:
+                resp: Response = await JuiceBoxAPI.get_rtb_config()
+                config_dict = resp.data.get("config", {})
+                config_text = json.dumps(config_dict, indent=4)
+
+                self.__skip_resume = True
+                new_config = await self.app.push_screen_wait(ConfigModal(config_text))
+
+                if new_config:
+                    try:
+                        parsed = json.loads(new_config)
+                        resp = await action(parsed)
+                        color = "green" if resp.status == Status.OK else "red"
+                        self.menu_info.update(
+                            f"{description}\n[{color}]Config updated![/{color}]"
+                        )
+                    except Exception as e:
+                        self.menu_info.update(f"[red]Updating config error: {e}[/red]")
+                else:
+                    self.menu_info.update("[yellow]Edition cancelled[/yellow]")
+
+            except Exception as e:
+                self.menu_info.update(f"[red]Config couldn't be loaded: {e}[/red]")
+
+            self.__skip_resume = False
+            return
+
+        # Ejecuta el resto de acciones con confirmación
         async def handle_confirm():
             self.__skip_resume = True
             result = await self.app.push_screen_wait(
-                ConfirmModal(f"¿Seguro que deseas ejecutar: {option}?")
+                ConfirmModal(f"¿Are you sure you want to execute: {option}?")
             )
             if result == "yes":
                 try:
@@ -198,9 +232,24 @@ class RootTheBoxScreen(Screen):
     async def get_conf(self) -> str:
         try:
             resp = await JuiceBoxAPI.get_rtb_config()
+            if resp.status == Status.OK:
+                self.config_data.loading = False
+                self.config_data.visible = True
+            else:
+                self.config_data.visible = False
+                self.config_data.loading = True
             return str(resp.data["config"])
         except Exception:
             return '"status": "error"'
+
+    async def action_refresh(self) -> None:
+        """
+        Recarga la configuración y el estado de los servicios.
+        """
+        if not self.config_data.visible:
+            new_conf = await self.get_conf()
+            self.config_data.update_content(new_conf)
+            self.menu_info.update("[red]Data refreshed[/red]")
 
     def _start_redis_listener(self) -> None:
         """Crea y arranca el hilo que escucha Redis."""
@@ -241,7 +290,7 @@ class RootTheBoxScreen(Screen):
             except Exception:
                 continue
 
-            def _update():
+            def _update(data=data):
                 status = (
                     "[green]✔[/green]"
                     if data["status"] == "running"

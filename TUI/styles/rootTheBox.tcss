@@ -2,6 +2,12 @@ Markdown {
   color: $text
 }
 
+LoadingIndicator {
+    align: center middle;
+    color: $accent;
+    background: $panel;
+}
+
 .rtb-logo {
   height: 50%;
   width: 100%;
