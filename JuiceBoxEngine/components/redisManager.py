@@ -7,6 +7,7 @@ from docker.client import DockerClient
 from docker.errors import APIError
 from importlib.resources import files
 from ..utils import validate_container
+from pathlib import Path
 
 
 class JuiceBoxChannels:
@@ -72,11 +73,15 @@ class RedisManager(BaseManager):
             self.__docker_client: DockerClient = docker_client
 
         # Cliente Redis
+        redis_password: str | None = self.__get_password(
+            "JuiceBoxEngine.configs", "redis.conf"
+        )
+        self.__set_password(redis_password)
         self.__redis = redis.Redis(
             host=redis_host,
             port=redis_port,
             db=redis_db,
-            password=self.__get_password("JuiceBoxEngine.configs", "redis.conf"),
+            password=redis_password,
             decode_responses=True,
         )
 
@@ -92,6 +97,39 @@ class RedisManager(BaseManager):
                 if linea.startswith("requirepass"):
                     return linea.split(maxsplit=1)[1]
         return None
+
+    def __set_password(self, password: str | None) -> None:
+        """
+        Escribe el password en el archivo .env que está en la raíz de JuiceBox.
+        """
+        if not password:
+            return
+
+        # Ruta al archivo .env (dos niveles arriba desde redisManager.py)
+        env_path = Path(__file__).resolve().parents[2] / ".env"
+
+        # Leer líneas existentes si el archivo existe
+        lines = []
+        if env_path.exists():
+            with env_path.open("r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+        # Reemplaza o agrega REDIS_PASSWORD
+        found = False
+        for i, line in enumerate(lines):
+            if line.startswith("REDIS_PASSWORD="):
+                lines[i] = f"REDIS_PASSWORD={password}\n"
+                found = True
+                break
+
+        if not found:
+            lines.append(f"REDIS_PASSWORD={password}\n")
+
+        # Escribe el archivo actualizado
+        with env_path.open("w", encoding="utf-8") as f:
+            f.writelines(lines)
+
+        print(f"[INFO] REDIS_PASSWORD escrito en {env_path}")
 
     def __create(self) -> ManagerResult:
         """

@@ -2,6 +2,8 @@ from textual.screen import ModalScreen
 from textual.widgets import TextArea, Button, Static
 from textual.containers import Vertical, Horizontal
 from textual.app import ComposeResult
+from ..widgets.header import get_header
+from ..widgets.footer import get_footer
 
 
 class ConfigModal(ModalScreen[str]):
@@ -14,8 +16,11 @@ class ConfigModal(ModalScreen[str]):
         self.config_text = config_text
 
     def compose(self) -> ComposeResult:
+        # Encabezado
+        yield get_header()
+
         with Vertical(id="config-modal"):
-            yield Static("Edita la configuración de RootTheBox:", classes="modal-title")
+            yield Static("Edit RootTheBox configuration:", classes="modal-title")
 
             # TextArea para editar config
             self.editor = TextArea(language="json", classes="config-editor")
@@ -26,6 +31,9 @@ class ConfigModal(ModalScreen[str]):
             with Horizontal(classes="config-buttons"):
                 yield Button("Guardar", id="save", variant="success")
                 yield Button("Cancelar", id="cancel", variant="error")
+
+        # Pie de página
+        yield get_footer()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "save":

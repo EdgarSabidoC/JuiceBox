@@ -489,6 +489,15 @@ class JuiceBoxEngineServer:
             f"JuiceBoxEngine started and listening on port: {self.socket_path}"
         )
         self.redis_manager.start()  # Arranca el servicio de redis
+        # Publica el arranque del motor
+        self.redis_manager.publish_to_admin(
+            RedisPayload.from_dict(
+                {
+                    "container": "juicebox-engine",
+                    "status": "running",
+                }
+            )
+        )
         self.monitor.start_container_monitoring()  # Arranca la monitorización de contenedores
         while True:
             conn, _ = self.server_socket.accept()
@@ -721,6 +730,14 @@ class JuiceBoxEngineServer:
             __js_manager, __rtb_manager, __redis_manager, __monitor, __docker_client
         )
         # Detiene el motor
+        __redis_manager.publish_to_admin(
+            RedisPayload.from_dict(
+                {
+                    "container": "juicebox-engine",
+                    "status": "stopped",
+                }
+            )
+        )
         try:
             stop_response: ManagerResult = self.stop()
             if stop_response.success:
