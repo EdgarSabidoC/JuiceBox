@@ -316,7 +316,8 @@ class RootTheBoxScreen(Screen):
         """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        # Cargar .env cada vez antes de usar la contraseña
+
+        # Carga el .env cada vez antes de usar la contraseña
         env_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "../../.env")
         )
