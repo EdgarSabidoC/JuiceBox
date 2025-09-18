@@ -73,5 +73,8 @@ class ConfigModal(ModalScreen[str]):
                 self.cancel.focus()
             elif event.key == "up":
                 self.editor.focus()
-        elif self.cancel.has_focus and (event.key == "left" or event.key == "up"):
-            self.save.focus()
+        elif self.cancel.has_focus:
+            if event.key == "left" or event.key == "up":
+                self.save.focus()
+            elif event.key == "down":
+                self.editor.focus()

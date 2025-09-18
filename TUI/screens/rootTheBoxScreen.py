@@ -17,6 +17,7 @@ import importlib.resources as pkg_resources
 from ..widgets.configModal import ConfigModal
 from dotenv import load_dotenv
 from redis.exceptions import ConnectionError
+from asyncio import AbstractEventLoop
 
 NOT_AVAILABLE = "[red]Not available ✘[/red]"
 AVAILABLE = "[green]Active and running ✔[/green]"
@@ -196,8 +197,9 @@ class RootTheBoxScreen(Screen):
                     resp = await asyncio.to_thread(action)
 
                 __color, __severity = (
-                    ("green", "information") if resp.status == Status.OK else ("red"),
-                    "error",
+                    ("green", "information")
+                    if resp.status == Status.OK
+                    else ("red", "error")
                 )
                 self.menu_info.update(
                     f"{description}\n[{__color}]\n\nOperation {option.upper()}: {resp.status.upper()} [/{__color}]"
@@ -357,6 +359,60 @@ class RootTheBoxScreen(Screen):
         elif data["container"] == "rootthebox-memcached-1":
             self.SERVICES_STATUS_DATA_CACHE.update(status)
 
+    def __init_containers_status(self, loop: AbstractEventLoop) -> None:
+        """
+        Obtiene el estado inicial de los contenedores y los inicializa en la TUI.
+
+        Args:
+            loop (AbstractEventLoop): Loop de eventos.
+        """
+        try:
+            resp = loop.run_until_complete(JuiceBoxAPI.get_rtb_status())
+            if resp.status == Status.OK:
+                containers = resp.data.get("containers", [])
+                status = (
+                    AVAILABLE
+                    if containers[0]["data"]["status"] == "running"
+                    else NOT_AVAILABLE
+                )
+                self.app.call_from_thread(
+                    lambda status=status: self.SERVICES_STATUS_DATA_WEBAPP.update(
+                        status
+                    )
+                )
+                status = (
+                    AVAILABLE
+                    if containers[1]["data"]["status"] == "running"
+                    else NOT_AVAILABLE
+                )
+                self.app.call_from_thread(
+                    lambda status=status: self.SERVICES_STATUS_DATA_CACHE.update(status)
+                )
+        except Exception:
+            pass
+
+    def __load_config(self, loop: AbstractEventLoop) -> None:
+        """
+        Obtiene y carga la configuración en la TUI.
+        """
+        try:
+            conf_resp = loop.run_until_complete(JuiceBoxAPI.get_rtb_config())
+            if conf_resp.status == Status.OK:
+                config_text = json.dumps(conf_resp.data.get("config", {}), indent=4)
+                self.app.call_from_thread(
+                    lambda: setattr(self.config_data, "loading", False)
+                )
+                self.app.call_from_thread(
+                    lambda: setattr(self.config_data, "visible", True)
+                )
+                self.app.call_from_thread(
+                    lambda config_text=config_text: self.config_data.update_content(
+                        config_text, is_json=True
+                    )
+                )
+        except Exception:
+            pass
+
     def __listener_thread(self):
         """
         Hilo que mantiene conexión con Redis, actualiza estado de servicios
@@ -388,36 +444,7 @@ class RootTheBoxScreen(Screen):
                 self.app.call_from_thread(
                     lambda: setattr(self.config_data, "loading", True)
                 )
-
-                # Intenta obtener el estado inicial de los contenedores
-                try:
-                    resp = loop.run_until_complete(JuiceBoxAPI.get_rtb_status())
-                    if resp.status == Status.OK:
-                        containers = resp.data.get("containers", [])
-                        status = (
-                            AVAILABLE
-                            if containers[0]["data"]["status"] == "running"
-                            else NOT_AVAILABLE
-                        )
-                        self.app.call_from_thread(
-                            lambda status=status: self.SERVICES_STATUS_DATA_WEBAPP.update(
-                                status
-                            )
-                        )
-                        status = (
-                            AVAILABLE
-                            if containers[1]["data"]["status"] == "running"
-                            else NOT_AVAILABLE
-                        )
-                        self.app.call_from_thread(
-                            lambda status=status: self.SERVICES_STATUS_DATA_CACHE.update(
-                                status
-                            )
-                        )
-                    else:
-                        status = NOT_AVAILABLE
-                except Exception:
-                    pass  # Mantiene estado Unvailable si falla
+                self.__init_containers_status(loop)
 
                 # Loop principal de mensajes
                 while True:
@@ -434,27 +461,7 @@ class RootTheBoxScreen(Screen):
 
                     # Intenta cargar la configuración si está en loading
                     if self.config_data.loading:
-                        try:
-                            conf_resp = loop.run_until_complete(
-                                JuiceBoxAPI.get_rtb_config()
-                            )
-                            if conf_resp.status == Status.OK:
-                                config_text = json.dumps(
-                                    conf_resp.data.get("config", {}), indent=4
-                                )
-                                self.app.call_from_thread(
-                                    lambda: setattr(self.config_data, "loading", False)
-                                )
-                                self.app.call_from_thread(
-                                    lambda: setattr(self.config_data, "visible", True)
-                                )
-                                self.app.call_from_thread(
-                                    lambda config_text=config_text: self.config_data.update_content(
-                                        config_text, is_json=True
-                                    )
-                                )
-                        except Exception:
-                            pass
+                        self.__load_config(loop)
 
                     # Tiempo para reintentar la reconexión a Redis
                     time.sleep(1)
