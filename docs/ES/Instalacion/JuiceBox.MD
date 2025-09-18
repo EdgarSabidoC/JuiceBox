@@ -20,6 +20,7 @@ El motor de `Juice Box` utiliza Python v3.12+, además debe de tener instalados 
 - docker
 - dotenv
 - textual
+- textual[syntax]
 - py-cpuinfo
 - linkify-it-py
 - systemd-python

@@ -30,6 +30,7 @@ Asegura que el archivo *requirements.txt* en */opt/JuiceBox* contenga:
 docker
 dotenv
 textual
+textual[syntax]
 py-cpuinfo
 linkify-it-py
 systemd-python

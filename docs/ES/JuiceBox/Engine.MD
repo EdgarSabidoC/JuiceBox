@@ -26,17 +26,17 @@ Servidor
 │   └── Socket de UNIX
 ├── Monitor
 └── Docker
-    ├── Redis
+    ├── Redis (Juice Box Engine)
     ├── Cliente Juice Box
-    ├── OWASP Juice Shop
-    └── Root The Box
+    ├── OWASP Juice Shop (Juice Box Engine)
+    └── Root The Box (Juice Box Engine)
 ```
 
 ---
 
 ## COMUNICACION POR SOCKET
 
-La comunicacion esta basada **comandos**, **señales** o **eventos** por medio de un Unix Domain Socket personalizado.
+La comunicacion esta basada en **comandos**, **señales** o **eventos** por medio de un Unix Domain Socket personalizado.
 
 ---
 

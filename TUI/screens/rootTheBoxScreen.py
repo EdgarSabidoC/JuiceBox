@@ -18,7 +18,7 @@ from ..widgets.configModal import ConfigModal
 from dotenv import load_dotenv
 from redis.exceptions import ConnectionError
 
-UNVAILABLE = "[red]Not available ✘[/red]"
+NOT_AVAILABLE = "[red]Not available ✘[/red]"
 AVAILABLE = "[green]Active and running ✔[/green]"
 
 
@@ -145,9 +145,18 @@ class RootTheBoxScreen(Screen):
             try:
                 parsed = json.loads(result)
                 resp = await JuiceBoxAPI.set_rtb_config(parsed)
-                __color = "green" if resp.status == Status.OK else "red"
+                __color, __severity = (
+                    ("green", "information")
+                    if resp.status == Status.OK
+                    else ("red", "error")
+                )
                 self.menu_info.update(
-                    f"{description}\n[{__color}]\nOperation configuration: {resp.status.upper()} [/{__color}]"
+                    f"{description}\n[{__color}]\nOperation CONFIGURATION: {resp.status.upper()} [/{__color}]"
+                )
+                self.notify(
+                    f"[b]CONFIGURATION[/b] editing has finished: [b]{resp.status.upper()}[/b]",
+                    title="Operation Status:",
+                    severity=__severity,
                 )
                 # Se actualiza la TUI con la nueva configuración
                 resp_refresh = await JuiceBoxAPI.get_rtb_config()
@@ -158,11 +167,16 @@ class RootTheBoxScreen(Screen):
                     self.config_data.update_content(config_text, is_json=True)
             except Exception as e:
                 self.menu_info.update(
-                    f"{description}\n[red]\n\nOperation Configuration: {e}[/red]"
+                    f"{description}\n[red]\n\nOperation CONFIGURATION: {e}[/red]"
                 )
         else:
             self.menu_info.update(
-                "[yellow]Operation Configuration: Cancelled ⚠︎[/yellow]"
+                "[yellow]Operation CONFIGURATION: Canceled ⚠︎[/yellow]"
+            )
+            self.notify(
+                "[b]CONFIGURATION[/b] editing has been [b]canceled[/b]",
+                title="Operation Status:",
+                severity="warning",
             )
         self.__skip_resume = False
 
@@ -172,7 +186,7 @@ class RootTheBoxScreen(Screen):
         """
         self.__skip_resume = True
         result = await self.app.push_screen_wait(
-            ConfirmModal(f"¿Are you sure you want to execute: {option}?")
+            ConfirmModal(f"¿Are you sure you want to execute: {option.upper()}?")
         )
         if result == "yes":
             try:
@@ -181,16 +195,31 @@ class RootTheBoxScreen(Screen):
                 else:
                     resp = await asyncio.to_thread(action)
 
-                __color: str = "green" if resp.status == Status.OK else "red"
+                __color, __severity = (
+                    ("green", "information") if resp.status == Status.OK else ("red"),
+                    "error",
+                )
                 self.menu_info.update(
-                    f"{description}\n[{__color}]\n\nOperation {option}: {resp.status.upper()} [/{__color}]"
+                    f"{description}\n[{__color}]\n\nOperation {option.upper()}: {resp.status.upper()} [/{__color}]"
+                )
+                self.notify(
+                    f"[b]{option.upper()}[/b] has finished: [b]{resp.status.upper()}[/b]",
+                    title="Operation status:",
+                    severity=__severity,
                 )
             except Exception as e:
                 self.menu_info.update(
-                    f"{description}\n[red]\n\nOperation {option}: {e}[/red]"
+                    f"{description}\n[red]\n\nOperation {option.upper()}: {e}[/red]"
                 )
         else:
-            self.menu_info.update(f"[yellow]Operation {option}: Cancelled ⚠︎[/yellow]")
+            self.menu_info.update(
+                f"[yellow]Operation {option.upper()}: Canceled ⚠︎[/yellow]"
+            )
+            self.notify(
+                f"[b]{option.upper()}[/b] has been [b]canceled[/b]",
+                title="Operation status:",
+                severity="warning",
+            )
         self.__skip_resume = False
 
     async def on_option_list_option_selected(
@@ -307,7 +336,7 @@ class RootTheBoxScreen(Screen):
         if not self.config_data.visible:
             new_conf = await self.get_conf()
             self.config_data.update_content(new_conf, is_json=True)
-            self.menu_info.update("[red]Data refreshed[/red]")
+            self.menu_info.update("[yellow]Data refreshed[/yellow]")
 
     def __update_ui(self, data: dict) -> None:
         """
@@ -316,7 +345,7 @@ class RootTheBoxScreen(Screen):
         Args:
             data (dict): Diccionario con 'container' y 'status'.
         """
-        status = AVAILABLE if data["status"] == "running" else UNVAILABLE
+        status = AVAILABLE if data["status"] == "running" else NOT_AVAILABLE
         if data["container"] == "juicebox-engine":
             # Refresca la configuración
             asyncio.run_coroutine_threadsafe(
@@ -368,7 +397,7 @@ class RootTheBoxScreen(Screen):
                         status = (
                             AVAILABLE
                             if containers[0]["data"]["status"] == "running"
-                            else UNVAILABLE
+                            else NOT_AVAILABLE
                         )
                         self.app.call_from_thread(
                             lambda status=status: self.SERVICES_STATUS_DATA_WEBAPP.update(
@@ -378,7 +407,7 @@ class RootTheBoxScreen(Screen):
                         status = (
                             AVAILABLE
                             if containers[1]["data"]["status"] == "running"
-                            else UNVAILABLE
+                            else NOT_AVAILABLE
                         )
                         self.app.call_from_thread(
                             lambda status=status: self.SERVICES_STATUS_DATA_CACHE.update(
@@ -386,7 +415,7 @@ class RootTheBoxScreen(Screen):
                             )
                         )
                     else:
-                        status = UNVAILABLE
+                        status = NOT_AVAILABLE
                 except Exception:
                     pass  # Mantiene estado Unvailable si falla
 
@@ -433,10 +462,10 @@ class RootTheBoxScreen(Screen):
             except ConnectionError:
                 # Redis no está disponible
                 self.app.call_from_thread(
-                    lambda: self.SERVICES_STATUS_DATA_WEBAPP.update(UNVAILABLE)
+                    lambda: self.SERVICES_STATUS_DATA_WEBAPP.update(NOT_AVAILABLE)
                 )
                 self.app.call_from_thread(
-                    lambda: self.SERVICES_STATUS_DATA_CACHE.update(UNVAILABLE)
+                    lambda: self.SERVICES_STATUS_DATA_CACHE.update(NOT_AVAILABLE)
                 )
                 self.app.call_from_thread(
                     lambda: setattr(self.config_data, "loading", True)
