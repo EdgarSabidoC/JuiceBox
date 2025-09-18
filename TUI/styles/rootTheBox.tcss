@@ -1,0 +1,92 @@
+Markdown {
+  color: $text
+}
+
+LoadingIndicator {
+    align: center middle;
+    color: $accent;
+    background: $panel;
+}
+
+.rtb-logo {
+  height: 50%;
+  width: 100%;
+  content-align: center middle;
+  border: $border;
+  hatch: right $accent 40%;
+}
+
+.config-container {
+  width: 100%;
+  align: center middle;
+  content-align: center middle;
+  border: $border;
+  border-title-align: right;
+  border-title-style: bold;
+}
+
+.controllers-container{
+  height: 30%;
+  width: 100%;
+  align: center middle;
+  content-align: center middle;
+  border: $border;
+}
+
+.controllers {
+  height: auto;
+  width: auto;
+  align: center middle;
+  content-align: center middle;
+}
+
+.controller-label {
+  height: auto;
+  content-align: center middle;
+  align: center middle;
+  width: auto;
+  padding: 1 1 1 1;
+  text-style: bold;
+}
+
+Button:focus {
+  border: vkey $secondary;
+}
+
+CustomSwitch {
+  height: auto;
+  width: auto;
+  content-align: center middle;
+  align: center middle;
+}
+
+Switch:focus {
+  border: hkey $secondary;
+}
+
+/* Cambiar el color del slider cuando está apagado */
+CustomSwitch.off > .switch--slider {
+    color: $error;
+}
+
+/* Cambiar el color del slider cuando está encendido */
+CustomSwitch.on > .switch--slider {
+    color: $success;
+}
+
+.services-status-keys {
+  align: right middle;
+  content-align: right middle;
+  border-top: $border;
+  border-left: $border;
+  border-bottom: $border;
+}
+
+.services-status-data {
+  align: left middle;
+  content-align: left middle;
+  border-title-align: right;
+  border-top: $border;
+  border-right: $border;
+  border-bottom: $border;
+}

@@ -1,0 +1,163 @@
+Screen {
+  background: $background;
+  color: $foreground;
+}
+
+Header {
+  text-style: bold;
+}
+
+Footer {
+  text-style: bold;
+}
+
+.github-link {
+  hatch: right $accent 20%;
+  color: $link-color;
+  width: 50%;
+  height: 100%;
+  text-style: bold;
+  border: $border;
+  border-title-align: left;
+  border-title-style: bold;
+  content-align: center middle;
+  margin: 0 0 0 0;
+  padding: 1 0 0 0;
+}
+
+.github-link:hover {
+  color: $link-color-hover;
+  text-style: bold;
+}
+
+.juice-box-logo {
+  hatch: right $accent 20%;
+  border: $border;
+  border_bottom: none;
+  content_align: center middle;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+  height: 80%;
+  width: 100%;
+}
+
+.menu {
+  margin: 0 0 0 0;
+  padding: 1 1 1 1;
+  height: 30%;
+  width: 100%;
+  border: $border;
+  border-title-align: left;
+  border-title-style: bold;
+}
+
+.info-box {
+  height: 20%;
+  width: 100%;
+  border: $border;
+  border_title_style: bold;
+  padding: 1 1 1 1;
+  content-align: left middle;
+  background: $surface;
+}
+
+.option-list--option-highlighted {
+    text-style: bold;
+}
+
+.option-list--option-hover {
+  text-style: bold;
+}
+
+.arch-container {
+  content_align: center middle;
+  height: 68%;
+  overflow_x: auto;
+  overflow_y: auto;
+}
+
+.arch-box {
+  background: $surface;
+  content_align: center middle;
+  height: 100%;
+  width: 100%;
+  border: $border;
+  border_title_align: right;
+  border_title_style: bold;
+}
+
+.server-info-container {
+  width: 100%;
+  height: 32%;
+}
+
+.server-info-keys {
+  background: $surface;
+  content-align: right middle;
+  width: 50%;
+  height: 100%;
+  padding: 1 1 1 1;
+  border-top: $border;
+  border-left: $border;
+  border-bottom: $border;
+  text-style: bold;
+}
+
+.server-info-data {
+  background: $surface;
+  content-align: left middle;
+  width: 50%;
+  height: 100%;
+  padding: 1 1 1 1;
+  border-top: $border;
+  border-right: $border;
+  border-bottom: $border;
+  border_title_align: right;
+  border_title_style: bold;
+}
+
+.empty {
+  hatch: right $accent 20%;
+  width: 50%;
+  height: 100%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+  border-bottom: $border;
+  border-left: $border;
+  content-align: right bottom;
+}
+
+.hcontainer {
+  width: 100%;
+  height: 100%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
+
+.vinnercontainer {
+  width: 100%;
+  height: 50%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
+
+.hinnercontainer {
+  width: 100%;
+  height: 20%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
+
+.vcontainer1 {
+  width: 40%;
+  height: 100%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}
+
+.vcontainer2 {
+  width: 60%;
+  height: 100%;
+  margin: 0 0 0 0;
+  padding: 0 0 0 0;
+}

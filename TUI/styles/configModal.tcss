@@ -1,0 +1,51 @@
+.config-modal{
+  align: center middle;
+  content-align: center middle;
+  height: 100%;
+  width: 100%;
+}
+
+.modal-title{
+  margin: 1;
+}
+
+.config-editor {
+  width: 100%;
+}
+
+.config-buttons{
+  align: center top;
+  content-align: center middle;
+  margin: 2;
+  padding: 2;
+}
+
+.save-button {
+  margin: 0 3 0 0;
+}
+
+.save-button:focus {
+  background: $primary;
+  color: auto;
+  border: tall $accent;
+}
+
+.save-button:hover {
+  background: $primary;
+  color: auto;
+}
+
+.cancel-button {
+  margin: 0 0 0 3;
+}
+
+.cancel-button:focus {
+  background: $primary;
+  color: auto;
+  border: tall $accent;
+}
+
+.cancel-button:hover {
+  background: $primary;
+  color: auto;
+}
