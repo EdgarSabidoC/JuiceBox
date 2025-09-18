@@ -89,6 +89,13 @@ class RedisManager(BaseManager):
         """
         Lee `resource_name` dentro del paquete `package`
         y extrae el valor de la línea que empieza con `requirepass`.
+
+        Args:
+            package (str): Nombre del paquete donde se encuentra el recurso.
+            resource_name (str): Nombre del archivo recurso.
+
+        Returns:
+            (str | None): Contraseña si se encuentra, None en caso contrario.
         """
         recurso = files(package).joinpath(resource_name)
         with recurso.open("r", encoding="utf-8") as f:
@@ -101,6 +108,9 @@ class RedisManager(BaseManager):
     def __set_password(self, password: str | None) -> None:
         """
         Escribe el password en el archivo .env que está en la raíz de JuiceBox.
+
+        Args:
+            password (str | None): Contraseña a escribir.
         """
         if not password:
             return
@@ -129,15 +139,12 @@ class RedisManager(BaseManager):
         with env_path.open("w", encoding="utf-8") as f:
             f.writelines(lines)
 
-        print(f"[INFO] REDIS_PASSWORD escrito en {env_path}")
-
     def __create(self) -> ManagerResult:
         """
         Crea el contenedor Redis usando docker-compose.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            subprocess.CalledProcessError: Si ocurre un error al ejecutar docker-compose.
         """
         try:
             # Si no existe el contenedor, se crea:
@@ -168,10 +175,9 @@ class RedisManager(BaseManager):
     def start(self) -> ManagerResult:
         """
         Inicia el contenedor Redis. Si el contenedor ya existe, intenta iniciarlo. Si no existe, lo crea.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            APIError: Si ocurre un error al interactuar con la API de Docker.
         """
         try:
             # Se valida si existe el contenedor
@@ -202,10 +208,9 @@ class RedisManager(BaseManager):
     def stop(self) -> ManagerResult:
         """
         Detiene y elimina el contenedor Redis.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            Exception: Si ocurre un error al detener o eliminar el contenedor.
         """
         try:
             if validate_container(self.__docker_client, self.container_name):
@@ -243,10 +248,9 @@ class RedisManager(BaseManager):
         Args:
             channel (str): Nombre del canal.
             payload (RedisPayload): Mensaje a publicar.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            Exception: Si ocurre un error al publicar el mensaje.
         """
         try:
             message: str = payload.to_json()
@@ -270,10 +274,9 @@ class RedisManager(BaseManager):
 
         Args:
             payload (RedisPayload): Mensaje a publicar.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            Exception: Si ocurre un error al publicar el mensaje.
         """
         return self.publish(JuiceBoxChannels.ADMIN, payload)
 
@@ -283,20 +286,19 @@ class RedisManager(BaseManager):
 
         Args:
             payload (RedisPayload): Mensaje a publicar.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            Exception: Si ocurre un error al publicar el mensaje.
         """
         return self.publish(JuiceBoxChannels.CLIENT, payload)
 
     def close(self) -> ManagerResult:
         """
         Cierra la conexión al cliente Redis.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            Exception: Si ocurre un error al cerrar la conexión.
+
         """
         try:
             self.__redis.close()
@@ -307,10 +309,9 @@ class RedisManager(BaseManager):
     def cleanup(self) -> ManagerResult:
         """
         Destruye el contenedor y libera los recursos.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            Exception: Si ocurre un error durante la limpieza.
         """
         try:
             __res: ManagerResult = self.close()

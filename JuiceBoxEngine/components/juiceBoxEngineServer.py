@@ -179,6 +179,15 @@ class JuiceBoxEngineServer:
             conn.close()
 
     def __rtb_start(self, manager: RootTheBoxManager) -> Response:
+        """_summary_
+        Inicia los contenedores gestionados por Root The Box.
+
+        Args:
+            manager (RootTheBoxManager): Instancia del manejador de Root The Box
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         self.__init_manager(manager)  # Se asegura de que la config esté cargada
         __res: ManagerResult = manager.start()
         __message: str = __res.message
@@ -197,8 +206,14 @@ class JuiceBoxEngineServer:
         )
 
     def __rtb_restart(self) -> Response:
-        """
+        """_summary_
         Reinicia la instancia del manager de Root The Box.
+
+        Args:
+            manager (RootTheBoxManager): Instancia del manejador de Root The Box
+
+        Returns:
+            Response: Respuesta de la operación
         """
         try:
             self.rtb_manager.cleanup()
@@ -214,6 +229,15 @@ class JuiceBoxEngineServer:
         return Response.ok("Root The Box Manager restarted")
 
     def __rtb_stop(self, manager: RootTheBoxManager) -> Response:
+        """
+        Detiene los contenedores gestionados por Root The Box.
+
+        Args:
+            manager (RootTheBoxManager): Instancia del manejador de Root The Box
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         __res: ManagerResult = manager.stop()
         __message: str = __res.message
         if __res.success:
@@ -231,6 +255,15 @@ class JuiceBoxEngineServer:
         )
 
     def __rtb_status(self, manager: RootTheBoxManager) -> Response:
+        """
+        Obtiene el estado actual de los contenedores gestionados por Root The Box.
+
+        Args:
+            manager (RootTheBoxManager): Manejador de Root The Box
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         __res: ManagerResult = manager.status()
         __response: Response = Response.error(
             message=f"Error when trying to retrieve Root The Box Manager Status -> {__res.error}",
@@ -259,6 +292,16 @@ class JuiceBoxEngineServer:
         return __response
 
     def __rtb_set_config(self, manager: RootTheBoxManager, config: Any) -> Response:
+        """
+        Cambia la configuración del manager de Root The Box y reinicia el servicio.
+
+        Args:
+            manager (RootTheBoxManager): Instancia del manejador de Root The Box
+            config (Any):  Nueva configuración en formato dict
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         __resp: ManagerResult = manager.set_config(config)
         if __resp.success:
             self.monitor.info(
@@ -280,6 +323,15 @@ class JuiceBoxEngineServer:
         return Response.error(message=__resp.error or __resp.message, data={})
 
     def __rtb_config(self, manager: RootTheBoxManager) -> Response:
+        """
+        Obtiene la configuración actual del manager de Root The Box.
+
+        Args:
+            manager (RootTheBoxManager): Instancia del manejador de Root The Box
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         __res: ManagerResult = manager.show_config()
         if __res.success and __res.data:
             self.monitor.info(
@@ -294,6 +346,15 @@ class JuiceBoxEngineServer:
         )
 
     def __js_start_container(self, manager: JuiceShopManager) -> Response:
+        """
+        Inicia un nuevo contenedor de Juice Shop.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         __res: ManagerResult = manager.start()
         if __res.success:
             self.monitor.info(message=f"Juice Shop container started -> {__res.data}")
@@ -308,6 +369,9 @@ class JuiceBoxEngineServer:
     def __js_restart(self) -> Response:
         """
         Reinicia la instancia del manager de la Juice Shop.
+
+        Returns:
+            Response: Respuesta de la operación
         """
         try:
             result: ManagerResult = self.js_manager.cleanup()
@@ -330,6 +394,15 @@ class JuiceBoxEngineServer:
         return Response.ok("Juice Shop Manager restarted")
 
     def __js_set_config(self, manager: JuiceShopManager, config: Any) -> Response:
+        """
+        Cambia la configuración del manager de Juice Shop y reinicia el servicio.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+            config (Any):  Nueva configuración en formato dict
+        Returns:
+            Response: Respuesta de la operación
+        """
         __resp: ManagerResult = manager.set_config(config)
         if __resp.success:
             self.monitor.info(
@@ -351,6 +424,16 @@ class JuiceBoxEngineServer:
         return Response.error(message=__resp.error or __resp.message, data={})
 
     def __js_stop_container(self, manager: JuiceShopManager, args: Any) -> Response:
+        """
+        Detiene un contenedor específico de Juice Shop.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+            args (Any): Argumentos adicionales (puerto: int | nombre: str)
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         container: str | int = args.get("port") or args.get("container")
         if not container:
             return Response.error("Missing 'port' or 'container' in args")
@@ -370,6 +453,14 @@ class JuiceBoxEngineServer:
             )
 
     def __js_stop(self, manager: JuiceShopManager) -> Response:
+        """
+        Detiene todos los contenedores gestionados por Juice Shop.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+        Returns:
+            Response: Respuesta de la operación
+        """
         __res: ManagerResult = manager.stop()
         if __res.success:
             self.monitor.info(
@@ -385,6 +476,15 @@ class JuiceBoxEngineServer:
             )
 
     def __js_container_status(self, manager: JuiceShopManager, args: Any) -> Response:
+        """
+        Obtiene el estado de un contenedor específico de Juice Shop.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+            args (Any): Argumentos adicionales (puerto: int | nombre: str)
+        Returns:
+            Response: Respuesta de la operación
+        """
         container: str | int = args.get("port") or args.get("container")
         if not container:
             return Response.error("Missing 'port' or 'container' in args")
@@ -411,6 +511,15 @@ class JuiceBoxEngineServer:
             )
 
     def __js_config(self, manager: JuiceShopManager) -> Response:
+        """
+        Obtiene la configuración actual del manager de Juice Shop.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         __res: ManagerResult = manager.show_config()
         if __res.success and __res.data:
             self.monitor.info(
@@ -426,6 +535,15 @@ class JuiceBoxEngineServer:
             )
 
     def __js_generate_xml(self, manager: JuiceShopManager) -> Response:
+        """
+        Genera el archivo XML de configuración para Root The Box basado en la configuración actual de Juice Shop.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         __res: ManagerResult = manager.generate_rtb_config()
         if __res.success:
             self.monitor.info(
@@ -441,6 +559,15 @@ class JuiceBoxEngineServer:
             )
 
     def __js_status(self) -> Response:
+        """
+        Obtiene el estado actual de los contenedores gestionados por Juice Shop.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+
+        Returns:
+            Response: Respuesta de la operación
+        """
         if self.js_manager:
             self.monitor.info(
                 message="Juice Shop Manager status retrieved -> JS Manager status is: [active]."

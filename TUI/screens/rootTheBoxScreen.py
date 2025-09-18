@@ -140,6 +140,32 @@ class RootTheBoxScreen(Screen):
 
         # Ejecuta el resto de acciones con confirmación
 
+    async def __on_config_dismissed(self, result: str | None, description: str) -> None:
+        if result:
+            try:
+                parsed = json.loads(result)
+                resp = await JuiceBoxAPI.set_rtb_config(parsed)
+                __color = "green" if resp.status == Status.OK else "red"
+                self.menu_info.update(
+                    f"{description}\n[{__color}]\nOperation configuration: {resp.status.upper()} [/{__color}]"
+                )
+                # Se actualiza la TUI con la nueva configuración
+                resp_refresh = await JuiceBoxAPI.get_rtb_config()
+                if resp_refresh.status == Status.OK:
+                    config_text = json.dumps(
+                        resp_refresh.data.get("config", {}), indent=4
+                    )
+                    self.config_data.update_content(config_text, is_json=True)
+            except Exception as e:
+                self.menu_info.update(
+                    f"{description}\n[red]\n\nOperation Configuration: {e}[/red]"
+                )
+        else:
+            self.menu_info.update(
+                "[yellow]Operation Configuration: Cancelled ⚠︎[/yellow]"
+            )
+        self.__skip_resume = False
+
     async def __handle_confirm(self, option: str, description: str, action) -> None:
         """
         Muestra la confirmación y ejecuta la acción seleccionada.
@@ -189,34 +215,27 @@ class RootTheBoxScreen(Screen):
             try:
                 resp: Response = await JuiceBoxAPI.get_rtb_config()
                 config_dict = resp.data.get("config", {})
+                # Se eliminan las claves que no deben editarse
+                config_dict.pop("network_name", None)
+                config_dict.pop("webapp_container_name", None)
+                config_dict.pop("cache_container_name", None)
+                config_dict.pop("rtb_dir", None)
                 config_text = json.dumps(config_dict, indent=4)
 
+                async def __run_handle_config():
+                    result = await self.app.push_screen_wait(ConfigModal(config_text))
+                    await self.__on_config_dismissed(result, description)
+
                 self.__skip_resume = True
-                new_config = await self.app.push_screen_wait(ConfigModal(config_text))
-
-                if new_config:
-                    try:
-                        parsed = json.loads(new_config)
-                        resp = await action(parsed)
-                        color = "green" if resp.status == Status.OK else "red"
-                        self.menu_info.update(
-                            f"{description}\n[{color}]Config updated![/{color}]"
-                        )
-                    except Exception as e:
-                        self.menu_info.update(f"[red]Updating config error: {e}[/red]")
-                else:
-                    self.menu_info.update("[yellow]Edition cancelled[/yellow]")
-
+                self.run_worker(__run_handle_config)
             except Exception as e:
                 self.menu_info.update(f"[red]Config couldn't be loaded: {e}[/red]")
-
-            self.__skip_resume = False
             return
 
-        async def run_handle_confirm():
+        async def __run_handle_confirm():
             await self.__handle_confirm(option, description, action)
 
-        self.run_worker(run_handle_confirm)
+        self.run_worker(__run_handle_confirm)
 
     async def on_screen_resume(self, event: ScreenResume) -> None:
         """
@@ -344,17 +363,30 @@ class RootTheBoxScreen(Screen):
                 # Intenta obtener el estado inicial de los contenedores
                 try:
                     resp = loop.run_until_complete(JuiceBoxAPI.get_rtb_status())
-                    status = AVAILABLE if resp.status == Status.OK else UNVAILABLE
-                    self.app.call_from_thread(
-                        lambda status=status: self.SERVICES_STATUS_DATA_WEBAPP.update(
-                            status
+                    if resp.status == Status.OK:
+                        containers = resp.data.get("containers", [])
+                        status = (
+                            AVAILABLE
+                            if containers[0]["data"]["status"] == "running"
+                            else UNVAILABLE
                         )
-                    )
-                    self.app.call_from_thread(
-                        lambda status=status: self.SERVICES_STATUS_DATA_CACHE.update(
-                            status
+                        self.app.call_from_thread(
+                            lambda status=status: self.SERVICES_STATUS_DATA_WEBAPP.update(
+                                status
+                            )
                         )
-                    )
+                        status = (
+                            AVAILABLE
+                            if containers[1]["data"]["status"] == "running"
+                            else UNVAILABLE
+                        )
+                        self.app.call_from_thread(
+                            lambda status=status: self.SERVICES_STATUS_DATA_CACHE.update(
+                                status
+                            )
+                        )
+                    else:
+                        status = UNVAILABLE
                 except Exception:
                     pass  # Mantiene estado Unvailable si falla
 

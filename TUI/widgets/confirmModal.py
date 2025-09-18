@@ -1,7 +1,7 @@
 # screens/confirm_modal.py
 from textual.screen import ModalScreen
 from textual.widgets import Button, Static
-from textual.containers import Vertical, Horizontal, Middle
+from textual.containers import Vertical, Horizontal
 from textual.app import ComposeResult
 from textual import events
 from textual.binding import Binding
