@@ -30,11 +30,14 @@ class JuiceShopScreen(Screen):
     SERVICE_LABELS: dict[str, tuple[Horizontal, Label]] = {}
 
     MENU_OPTIONS = {
-        "Start containers": (
-            "Start OWASP Juice Shop container",
+        "Start a container": (
+            "Start an OWASP Juice Shop container",
             JuiceBoxAPI.start_js_container,
         ),
-        "Stop containers": ("Stop OWASP Juice Shop container", JuiceBoxAPI.stop_js),
+        "Stop all containers": (
+            "Stop all OWASP Juice Shop containers",
+            JuiceBoxAPI.stop_js,
+        ),
         "Restart": (
             "Restart OWASP Juice Shop services",
             JuiceBoxAPI.restart_js_status,
@@ -149,7 +152,6 @@ class JuiceShopScreen(Screen):
                 # Actualizar rango de puertos tras la nueva configuración
                 resp_ports = await JuiceBoxAPI.get_js_ports_range()
                 if resp_ports.status == Status.OK:
-                    self.notify("Entró a resp_ports")
                     self.ports_range = resp_ports.data.get("ports_range", [])
 
                     valid_containers = {
@@ -363,7 +365,6 @@ class JuiceShopScreen(Screen):
                 loop=asyncio.get_event_loop(),
             )
         elif "owasp" in data["container"]:
-            # self.notify("Entró al OWASP")
             # Refresca todo el bloque de servicios
             asyncio.run_coroutine_threadsafe(
                 self.refresh_status(),
