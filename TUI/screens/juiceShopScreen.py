@@ -42,6 +42,10 @@ class JuiceShopScreen(Screen):
             "Restart OWASP Juice Shop services",
             JuiceBoxAPI.restart_js_status,
         ),
+        "Generate missions": (
+            "Generate new XML with missions for Root The Box (This feature requires internet connection)",
+            JuiceBoxAPI.generate_xml,
+        ),
         "Configuration": (
             "Configuration file for OWASP Juice Shop services",
             JuiceBoxAPI.set_js_config,
@@ -198,6 +202,14 @@ class JuiceShopScreen(Screen):
         )
         if result == "yes":
             try:
+                if option == "Generate missions":
+                    self.notify(
+                        "Please wait while the RTB missions file loads, it may take a while...",
+                        severity="warning",
+                        title="Patience is a virtue:",
+                        timeout=30,
+                    )
+
                 if asyncio.iscoroutinefunction(action):
                     resp = await action()
                 else:
@@ -215,6 +227,7 @@ class JuiceShopScreen(Screen):
                     f"[b]{option.upper()}[/b] has finished: [b]{resp.status.upper()}[/b]",
                     title="Operation status:",
                     severity=__severity,
+                    timeout=10,
                 )
             except Exception as e:
                 self.menu_info.update(
