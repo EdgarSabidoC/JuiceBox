@@ -25,7 +25,7 @@ AVAILABLE = "[green]Active and running ✔[/green]"
 
 class RootTheBoxScreen(Screen):
     CSS_PATH = "../styles/rootTheBox.tcss"
-    JB_LOGO = pkg_resources.read_text("JuiceBox.TUI.media", "RootTheBoxLogo.txt")
+    RTB_LOGO = pkg_resources.read_text("JuiceBox.TUI.media", "RootTheBoxLogo.txt")
 
     MENU_OPTIONS = {
         "Start": ("Start Root The Box services", JuiceBoxAPI.start_rtb),
@@ -65,9 +65,9 @@ class RootTheBoxScreen(Screen):
             with Vertical(classes="vcontainer1") as vcontainer1:
                 vcontainer1.can_focus = False
                 # Logo de RTB
-                jb_logo = Static(self.JB_LOGO, classes="rtb-logo")
-                jb_logo.can_focus = False
-                yield jb_logo
+                rtb_logo = Static(self.RTB_LOGO, classes="rtb-logo")
+                rtb_logo.can_focus = False
+                yield rtb_logo
 
                 # Menú
                 self.menu = OptionList(classes="menu")
@@ -96,13 +96,15 @@ class RootTheBoxScreen(Screen):
                     yield self.config_data
 
                 # Services status
-                with Horizontal() as server_status:
-                    server_status.can_focus = False
-                    server_status.styles.content_align = ("center", "middle")
-                    server_status.styles.align = ("center", "middle")
-                    server_status.styles.border
-                    with Vertical(classes="services-status-keys") as server_info_keys:
-                        server_info_keys.can_focus = False
+                with Horizontal() as services_status:
+                    services_status.can_focus = False
+                    services_status.styles.content_align = ("center", "middle")
+                    services_status.styles.align = ("center", "middle")
+                    services_status.styles.border
+                    with Vertical(
+                        classes="services-status-keys"
+                    ) as services_status_keys:
+                        services_status_keys.can_focus = False
                         self.SERVICES_STATUS_KEYS_WEBAPP = Label(
                             classes="services-status-key"
                         )

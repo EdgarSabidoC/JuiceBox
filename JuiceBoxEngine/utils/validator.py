@@ -119,7 +119,7 @@ def validate_ports_range(ports_range: list[int], name: str) -> list[int]:
     - InvalidConfiguration: Si los valores no son enteros o están fuera de rango.
     """
     # Valores por defecto
-    start, end = 3000, 3009
+    start, end = 3000, 3001
 
     if (
         isinstance(ports_range, list)

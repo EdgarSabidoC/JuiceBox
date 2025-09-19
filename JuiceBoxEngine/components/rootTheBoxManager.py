@@ -131,6 +131,15 @@ class RootTheBoxManager(BaseManager):
         """
         return self.config.cache_container_name
 
+    def get_containers(self) -> list[str]:
+        """
+        Obtiene la lista de contenedores de la configuración actual de Root The Box.
+
+        Returns:
+          (list[str]): Lista con los nombres de los contenedores
+        """
+        return [self.webapp_container_name, self.cache_container_name]
+
     def __generate_docker_compose(self, output_path: str) -> ManagerResult:
         """
         Genera el archivo docker-compose.yml para Root The Box.

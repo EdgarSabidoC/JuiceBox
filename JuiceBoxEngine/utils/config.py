@@ -14,7 +14,7 @@ RTB_SCHEMA = {
     "cache_container_name": ("MEMCACHED_CONTAINER_NAME", validate_str),
 }
 
-JUICESHOP_SCHEMA = {
+JS_SCHEMA = {
     "containers_name": ("CONTAINERS_NAME", validate_str),
     "ports_range": ("PORTS_RANGE", validate_ports_range),
     "ctf_key": ("CTF_KEY", validate_str),
@@ -206,7 +206,7 @@ class JuiceShopConfig:
             config (dict): Diccionario con la configuración cargada desde JSON.
             key (str): Clave interna de la configuración a actualizar.
         """
-        json_key, validator = JUICESHOP_SCHEMA[key]
+        json_key, validator = JS_SCHEMA[key]
         if json_key in config:
             setattr(self, key, validator(config[json_key], json_key))
 
@@ -232,7 +232,7 @@ class JuiceShopConfig:
             if not self.CONFIG_PATH.exists():
                 updated_data = {
                     json_key: getattr(self, key)
-                    for key, (json_key, _) in JUICESHOP_SCHEMA.items()
+                    for key, (json_key, _) in JS_SCHEMA.items()
                 }
                 self.CONFIG_PATH.write_text(
                     json.dumps(updated_data, indent=4), encoding="utf-8"
@@ -241,14 +241,13 @@ class JuiceShopConfig:
             else:
                 config_data = json.loads(self.CONFIG_PATH.read_text(encoding="utf-8"))
 
-            # Aplica configuración
-            for key in JUICESHOP_SCHEMA:
+            # Aplica configuración desde JSON
+            for key in JS_SCHEMA:
                 self.__update_if_present(config_data, key)
 
             # Escribe JSON actualizado
             updated_data = {
-                json_key: getattr(self, key)
-                for key, (json_key, _) in JUICESHOP_SCHEMA.items()
+                json_key: getattr(self, key) for key, (json_key, _) in JS_SCHEMA.items()
             }
             self.CONFIG_PATH.write_text(
                 json.dumps(updated_data, indent=4), encoding="utf-8"
@@ -285,17 +284,17 @@ class JuiceShopConfig:
             if self.CONFIG_PATH.exists():
                 existing_data = json.loads(self.CONFIG_PATH.read_text(encoding="utf-8"))
 
-            for key in JUICESHOP_SCHEMA:
-                json_key, validator = JUICESHOP_SCHEMA[key]
+            # Aplica cambios
+            for key in JS_SCHEMA:
+                json_key, validator = JS_SCHEMA[key]
                 if key in config:
                     setattr(self, key, validator(config[key], json_key))
                 elif json_key in existing_data:
-                    setattr(self, key, validator(existing_data[json_key], json_key))
+                    setattr(self, key, existing_data[json_key])
 
             # Escribe JSON actualizado
             updated_data = {
-                json_key: getattr(self, key)
-                for key, (json_key, _) in JUICESHOP_SCHEMA.items()
+                json_key: getattr(self, key) for key, (json_key, _) in JS_SCHEMA.items()
             }
             self.CONFIG_PATH.write_text(
                 json.dumps(updated_data, indent=4), encoding="utf-8"
@@ -303,9 +302,7 @@ class JuiceShopConfig:
 
             return self.load_config()
         except Exception as e:
-            return ManagerResult.failure(
-                "Error updating JuiceShop config", error=str(e)
-            )
+            return ManagerResult.failure("Error updating JS config", error=str(e))
 
     def __generate_yaml(self, output_filename: str = "juiceShopRTBConfig.yml") -> dict:
         """

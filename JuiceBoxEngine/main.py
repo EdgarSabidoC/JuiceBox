@@ -27,7 +27,6 @@ def main():
     monitor = Monitor(
         name="JuiceBoxEngine",
         use_journal=True,
-        rtb_containers=["rootthebox-webapp-1", "rootthebox-memcached-1"],
         redis_manager=redis,
     )
 

@@ -129,6 +129,19 @@ class JuiceShopManager(BaseManager):
         """
         return self.config.detach_mode
 
+    def get_containers(self) -> list[str]:
+        """
+        Obtiene la lista de contenedores de la configuración actual de la Juice Shop.
+
+        Returns:
+          (list[str]): Lista con los nombres de los contenedores
+        """
+        __containers: list[str] = []
+        for port in range(self.starting_port, self.ending_port + 1):
+            __container: str = self.container_prefix + str(port)
+            __containers.append(__container)
+        return __containers
+
     def __get_available_port(self) -> tuple[int, str]:
         """
         Obtiene un puerto disponible.
@@ -136,7 +149,7 @@ class JuiceShopManager(BaseManager):
         Returns:
             tuple[int, "available" | "not available"]: Puerto y disponibilidad.
         """
-        for port in self.ports_range:
+        for port in range(self.starting_port, self.ending_port + 1):
             __container: str = self.container_prefix + str(port)
             # Se verifica que no exista el contenedor
             if not validate_container(self.__docker_client, __container):
@@ -157,7 +170,13 @@ class JuiceShopManager(BaseManager):
         return int(container_name[len(self.container_prefix) :])
 
     def is_valid_port(self, port: int) -> bool:
-        return port in self.ports_range
+        """
+        Valida si un puerto está dentro del rango de puertos del Juice Shop Manager.
+
+        Returns:
+          bool: True si el puerto está dentro del rango, en otro caso, False.
+        """
+        return port in range(self.starting_port, self.ending_port + 1)
 
     def start(self) -> ManagerResult:
         """
@@ -268,7 +287,7 @@ class JuiceShopManager(BaseManager):
         # Destruye todos los contenedores de la JuiceShop
         containers_results: list[ManagerResult] = []
         overall_ok = True
-        for port in self.ports_range:
+        for port in range(self.starting_port, self.ending_port + 1):
             result = self.stop_container(self.container_prefix + str(port))
 
             if not result.success:
@@ -354,17 +373,37 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             str: Estado del contenedor ('running', 'exited', 'not_found', etc.).
-
-        Raises:
-            errors.NotFound: Si el contenedor no existe.
         """
         try:
             container = self.__docker_client.containers.get(container_name)
             return container.status
-        except errors.NotFound as e:
-            return str(e)
+        except errors.NotFound:
+            return "not_found"
 
-    def status(self, container: str | int) -> ManagerResult:
+    def __get_port(self, container_name: str) -> int:
+        """
+        Obtiene el puerto mapeado de un contenedor de Juice Shop.
+
+        Args:
+            container_name (str): Nombre del contenedor.
+
+        Returns:
+            int: Puerto asignado o -1 si no tiene.
+        """
+        try:
+            container = self.__docker_client.containers.get(container_name)
+            ports = container.attrs["NetworkSettings"]["Ports"]
+            # ejemplo: {'3000/tcp': [{'HostIp': '0.0.0.0', 'HostPort': '3001'}]}
+            bindings = ports.get("3000/tcp")
+            if bindings and len(bindings) > 0:
+                return int(bindings[0]["HostPort"])
+            return -1
+        except errors.NotFound:
+            return -1
+        except Exception as e:
+            raise RuntimeError(f"Error getting port for {container_name}: {e}")
+
+    def container_status(self, container: str | int) -> ManagerResult:
         """
         Obtiene el estado actual de un contenedor de la Juice Shop.
         Args:
@@ -398,6 +437,58 @@ class JuiceShopManager(BaseManager):
                     "container": container_name,
                     "status": "error",
                 },
+            )
+
+    def status(self) -> ManagerResult:
+        """
+        Obtiene el estado actual de los contenedores de Juice Shop.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+        """
+        containers_results: list[ManagerResult] = []
+        overall_ok = True
+
+        for i in range(self.starting_port, self.ending_port + 1):
+            container_name = f"{self.container_prefix}{i}"
+            try:
+                __status: str = self.__get_status(container_name)
+                __port: int = self.__get_port(container_name)
+                _data: dict[str, str | int] = {
+                    "container": container_name,
+                    "status": __status,
+                    "port": __port,
+                }
+                containers_results.append(
+                    ManagerResult.ok(
+                        message="Container status retrieved",
+                        data=_data,
+                    )
+                )
+            except Exception as e:
+                overall_ok = False
+                containers_results.append(
+                    ManagerResult.failure(
+                        message="Error getting container status",
+                        error=str(e),
+                        data={"container": container_name, "status": "error"},
+                    )
+                )
+
+        __data: dict[str, list[dict]] = {
+            "containers": [r.to_dict() for r in containers_results]
+        }
+
+        if overall_ok:
+            return ManagerResult.ok(
+                message="Success at retrieving Juice Shop containers' statuses",
+                data=__data,
+            )
+        else:
+            return ManagerResult.failure(
+                message="Failure at retrieving some Juice Shop containers' statuses",
+                error="Some containers statuses could not be retrieved",
+                data=__data,
             )
 
     def generate_rtb_config(

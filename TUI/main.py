@@ -3,8 +3,7 @@ from textual.app import App
 from textual.binding import Binding
 from .screens import MainScreen
 from .screens import RootTheBoxScreen
-
-# from .screens import JuiceShopScreen
+from .screens import JuiceShopScreen
 from .screens import DocumentationScreen
 from .styles.theme import (
     juice_box_theme,
@@ -24,7 +23,7 @@ class JuiceBoxApp(App):
     SCREENS = {
         "main": MainScreen,
         "root": RootTheBoxScreen,
-        # "juice": JuiceShopScreen,
+        "juice": JuiceShopScreen,
         "documentation": DocumentationScreen,
     }
     SOCKET_PATH = "/tmp/juiceboxengine.sock"
