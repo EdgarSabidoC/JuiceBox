@@ -680,6 +680,7 @@ class JuiceBoxEngineServer:
             f"Engine started and listening on port: {self.socket_path}"
         )
         self.redis_manager.start()  # Arranca el servicio de redis
+        self.__init_manager(self.rtb_manager)  # Carga la config de RootTheBox
         self.__init_manager(self.js_manager)  # Carga la config de JuiceShop
         # Se cargan los contenedores al monitor:
         self.monitor.set_containers(

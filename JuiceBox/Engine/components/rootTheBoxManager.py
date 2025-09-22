@@ -82,10 +82,6 @@ class RootTheBoxManager(BaseManager):
         self.project_root = os.path.dirname(os.path.dirname(self.script_dir))
         # Ruta absoluta a configs/
         self.configs_dir = os.path.join(self.project_root, "Engine", "configs")
-        # Ruta absoluta al docker-compose.yml (que vive en RootTheBox/)
-        self.compose_file_path = os.path.join(
-            self.project_root, "RootTheBox", self.__rtb_yaml
-        )
 
         atexit.register(self.cleanup)
 
@@ -131,6 +127,13 @@ class RootTheBoxManager(BaseManager):
         """
         return self.config.cache_container_name
 
+    @property
+    def compose_file_path(self) -> str:
+        """
+        Ruta al docker-compose.yml de RootTheBox, usando la configuración actual.
+        """
+        return os.path.join(self.rtb_dir, self.__rtb_yaml)
+    
     def get_containers(self) -> list[str]:
         """
         Obtiene la lista de contenedores de la configuración actual de Root The Box.

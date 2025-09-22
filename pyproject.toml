@@ -2,14 +2,9 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = [
-  "JuiceBoxEngine",
-  "Models",
-  "RootTheBox",
-  "TUI",
-  "WebClient"
-]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["JuiceBox*"]
 
 
 [project]
