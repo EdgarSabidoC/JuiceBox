@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 import json, yaml
-from .validator import validate_str, validate_port, validate_bool, validate_ports_range
+from .validator import (
+    validate_str,
+    validate_port,
+    validate_bool,
+    validate_ports_range,
+    validate_int,
+)
 from Models import Status, ManagerResult
 from importlib.resources import files
 from pathlib import Path
@@ -17,6 +23,7 @@ RTB_SCHEMA = {
 JS_SCHEMA = {
     "containers_name": ("CONTAINERS_NAME", validate_str),
     "ports_range": ("PORTS_RANGE", validate_ports_range),
+    "lifespan": ("LIFESPAN", validate_int),
     "ctf_key": ("CTF_KEY", validate_str),
     "node_env": ("NODE_ENV", validate_str),
     "detach_mode": ("DETACH_MODE", validate_bool),
@@ -174,6 +181,7 @@ class JuiceShopConfig:
         self.ports_range: list[int] = [3000, 3009]
         self.ctf_key: str = "test"
         self.node_env: str = "ctf"
+        self.lifespan: int = 180
         self.detach_mode: bool = True
         self.loaded: bool = False
         self.error = None
@@ -268,12 +276,14 @@ class JuiceShopConfig:
             self.error = e
             return ManagerResult.failure("Error loading JuiceShop config", error=str(e))
 
-    def set_config(self, config: dict[str, str | list[int] | bool]) -> ManagerResult:
+    def set_config(
+        self, config: dict[str, str | int | list[int] | bool]
+    ) -> ManagerResult:
         """
         Aplica cambios a la configuración y recarga JSON y YAML.
 
         Args:
-            config (dict[str, str | list[int] | bool]): Diccionario con valores a actualizar.
+            config (dict[str, str | int | list[int] | bool]): Diccionario con valores a actualizar.
 
         Returns:
             (ManagerResult): Estado de éxito o fallo de la operación.
@@ -323,7 +333,6 @@ class JuiceShopConfig:
             "insertHintUrls": "free",
             "insertHintSnippets": "free",
         }
-        # full_path = os.path.join(self.configs_dir, output_filename)
         self.configs_dir.mkdir(
             parents=True, exist_ok=True
         )  # Se asegura que el directorio exista
@@ -340,16 +349,17 @@ class JuiceShopConfig:
                 "message": f"YAML file could not be created: {e}",
             }
 
-    def get_config(self) -> dict[str, str | list[int] | bool]:
+    def get_config(self) -> dict[str, str | int | list[int] | bool]:
         """
         Devuelve un diccionario con la configuración actual de JuiceShop.
 
         Returns:
-            (dict[str, str | list[int] | bool]): Configuración actual de JuiceShop.
+            (dict[str, str | int | list[int] | bool]): Configuración actual de JuiceShop.
         """
         return {
             "containers_name": self.containers_name,
             "ports_range": self.ports_range,
+            "lifespan": self.lifespan,
             "ctf_key": self.ctf_key,
             "node_env": self.node_env,
             "detach_mode": self.detach_mode,

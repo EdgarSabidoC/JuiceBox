@@ -128,6 +128,11 @@ class JuiceBoxEngineServer:
         """
         try:
             data = conn.recv(1024).decode().strip()
+            if not data:
+                self.monitor.warning("Empty message received from client, ignoring.")
+                conn.close()
+                return
+
             self.monitor.info(f"Data received: {data}")
             self.monitor.command_received(conn, data, conn.getpeername())
             self.command_queue.put((conn, data))
@@ -802,6 +807,8 @@ class JuiceBoxEngineServer:
             Response: Respuesta serializada en formato JSON
         """
         __resp: Response = Response.error(message="Program not supported by engine")
+        if not raw_data:
+            return Response.error(message="Empty request received")
         try:
             payload = json.loads(raw_data)
             prog = payload.get("prog")

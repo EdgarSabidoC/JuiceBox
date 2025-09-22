@@ -52,7 +52,9 @@ async def run_all_tests():
     print_response(await JuiceBoxAPI.stop_js_container(3000))
 
     print("\n=== TEST: SET CONFIG ===")
-    print_response(await JuiceBoxAPI.set_rtb_config({"webapp_port": 8889}))
+    print_response(
+        await JuiceBoxAPI.set_rtb_config({"webapp_port": 8889, "lifespan": 1})
+    )
     print_response(
         await JuiceBoxAPI.set_js_config(
             {"ctf_key": "test1", "ports_range": [3000, 3001]}

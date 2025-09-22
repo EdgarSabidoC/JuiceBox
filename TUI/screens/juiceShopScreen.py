@@ -34,6 +34,14 @@ class JuiceShopScreen(Screen):
             "Start an OWASP Juice Shop container",
             JuiceBoxAPI.start_js_container,
         ),
+        "Start n containers": (
+            "Start n OWASP Juice Shop containers",
+            JuiceBoxAPI.start_n_js_containers,
+        ),
+        "Stop a container": (
+            "Stop an OWASP Juice Shop container",
+            JuiceBoxAPI.stop_js_container,
+        ),
         "Stop all containers": (
             "Stop all OWASP Juice Shop containers",
             JuiceBoxAPI.stop_js,
@@ -413,10 +421,17 @@ class JuiceShopScreen(Screen):
         """
         Inicializa o actualiza el estado de los contenedores en la UI.
         """
+        future = None
         try:
             # Ejecutar la API de manera segura
             future = asyncio.run_coroutine_threadsafe(JuiceBoxAPI.get_js_status(), loop)
             resp = future.result(timeout=5)
+
+            if resp is None:
+                for _, label_status in self.SERVICE_LABELS.values():
+                    self.app.call_from_thread(
+                        lambda ls=label_status: ls.update(NOT_AVAILABLE)
+                    )
 
             if resp.status != Status.OK:
                 return

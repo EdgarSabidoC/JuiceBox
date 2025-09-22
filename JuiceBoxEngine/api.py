@@ -287,12 +287,26 @@ class JuiceBoxAPI:
     @staticmethod
     async def start_js_container() -> Response:
         """
-        Inicia los contenedores de JS.
+        Inicia un contenedor de JS.
 
         Returns:
             Response: Resultado de la operación.
         """
         return await JuiceBoxAPI.__start(Programs.JS)
+
+    @staticmethod
+    async def start_n_js_containers(n: int) -> list[Response]:
+        """
+        Inicia n contenedores de JS.
+
+        Returns:
+            list[Response]: Lista con los resultados de las operaciones.
+        """
+        __containers: list[Response] = []
+        for _ in range(n):
+            __response: Response = await JuiceBoxAPI.__start(Programs.JS)
+            __containers.append(__response)
+        return __containers
 
     # STOP --------------------------------------------------------------
 

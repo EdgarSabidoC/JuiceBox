@@ -111,6 +111,13 @@ class JuiceShopManager(BaseManager):
         return self.config.ending_port
 
     @property
+    def lifespan(self) -> int:
+        """
+        Tiempo de vida de los contenedores de la Juice Shop en minutos.
+        """
+        return self.config.lifespan
+
+    @property
     def ctf_key(self) -> str:
         """
         Clave CTF para Juice Shop.
@@ -204,6 +211,7 @@ class JuiceShopManager(BaseManager):
                     f"CTF_KEY={self.ctf_key}",
                     f"NODE_ENV={self.node_env}",
                 ],
+                labels={"lifespan": str(self.lifespan), "program": "JS"},
             )
             return ManagerResult.ok(
                 message="Container has been created and now is running",
@@ -335,6 +343,7 @@ class JuiceShopManager(BaseManager):
                 "config": {
                     "container_prefix": self.container_prefix,
                     "ports_range": self.ports_range,
+                    "lifespan": self.lifespan,
                     "ctf_key": self.ctf_key,
                     "node_env": self.node_env,
                     "detach_mode": self.detach_mode,
