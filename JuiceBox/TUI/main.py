@@ -26,7 +26,7 @@ class JuiceBoxApp(App):
         "juice": JuiceShopScreen,
         "documentation": DocumentationScreen,
     }
-    SOCKET_PATH = "/tmp/juiceboxengine.sock"
+    SOCKET_PATH = "/run/juicebox/engine.sock"#"/tmp/juiceboxengine.sock"
 
     async def on_mount(self) -> None:
         self.set_themes()

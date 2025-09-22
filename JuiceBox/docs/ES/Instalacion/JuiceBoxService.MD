@@ -10,6 +10,8 @@ Este documento detalla todos los pasos necesarios para copiar el proyecto `Juice
 sudo adduser --system --group juicebox
 sudo mkdir -p /opt/juicebox
 sudo chown -R juicebox:juicebox /opt/juicebox
+sudo mkdir -p /run/juicebox
+sudo chown juicebox:juicebox /run/juicebox
 sudo usermod -aG docker juicebox
 ```
 **NOTA**: Es importante que los usuarios que vayan a utilizar la app estén dentro del grupo `docker`.

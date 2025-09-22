@@ -22,13 +22,13 @@ Juice Box es un orquestador para contenedores de Docker de OWASP Juice Shop y Ro
 
 # Instalación [ES]
 
-- [Juice Box](docs/ES/Instalacion/JuiceBox.MD)
-- [Servicio Juice Box](docs/ES/Instalacion/JuiceBoxService.MD)
-- [Root The Box](docs/ES/Instalacion/RootTheBox.MD)
-- [TUI](docs/ES/Instalacion/TUI.MD)
+- [Juice Box](JuiceBox/docs/ES/Instalacion/JuiceBox.MD)
+- [Servicio Juice Box](JuiceBox/docs/ES/Instalacion/JuiceBoxService.MD)
+- [Root The Box](JuiceBox/docs/ES/Instalacion/RootTheBox.MD)
+- [TUI](JuiceBox/docs/ES/Instalacion/TUI.MD)
 
 # Contenido [ES]
 
-- [Motor Juice Box](docs/ES/JuiceBox/Engine.MD)
-- [API](docs/ES/JuiceBox/API.MD)
-- [Archivos de configuracion](docs/ES/JuiceBox/ConfigFiles.MD)
+- [Motor Juice Box](JuiceBox/docs/ES/JuiceBox/Engine.MD)
+- [API](JuiceBox/docs/ES/JuiceBox/API.MD)
+- [Archivos de configuracion](JuiceBox/docs/ES/JuiceBox/ConfigFiles.MD)
