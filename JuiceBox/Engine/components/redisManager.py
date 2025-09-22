@@ -64,7 +64,7 @@ class RedisManager(BaseManager):
         if compose_file:
             self.__compose_file = compose_file
         else:
-            with path("JuiceBoxEngine.configs", "redis-docker-compose.yml") as p:
+            with path("Engine.configs", "redis-docker-compose.yml") as p:
                 self.__compose_file = str(p)
         self.container_name = container_name
 
@@ -74,7 +74,7 @@ class RedisManager(BaseManager):
 
         # Cliente Redis
         redis_password: str | None = self.__get_password(
-            "JuiceBoxEngine.configs", "redis.conf"
+            "Engine.configs", "redis.conf"
         )
         self.__set_password(redis_password)
         self.__redis = redis.Redis(

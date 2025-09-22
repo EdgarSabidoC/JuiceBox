@@ -675,9 +675,9 @@ class JuiceBoxEngineServer:
         """
         Arranca el motor y acepta conexiones entrantes indefinidamente.
         """
-        print(f"🔌 JuiceBoxEngine started and listening on port: {self.socket_path}")
+        print(f"🔌 Engine started and listening on port: {self.socket_path}")
         self.monitor.info(
-            f"JuiceBoxEngine started and listening on port: {self.socket_path}"
+            f"Engine started and listening on port: {self.socket_path}"
         )
         self.redis_manager.start()  # Arranca el servicio de redis
         self.__init_manager(self.js_manager)  # Carga la config de JuiceShop

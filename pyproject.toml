@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+  "JuiceBoxEngine",
+  "Models",
+  "RootTheBox",
+  "TUI",
+  "WebClient"
+]
+
+
+[project]
+name = "JuiceBox"
+version = "1.1.0"
+description = "JuiceBox engine and orchestrator to create CTF competitions based on Root The Box and OWASP Juice Shop with Docker containers."
+authors = [
+  { name="Edgar Sabido Cortés"}
+]
+readme = "README.MD"
+requires-python = ">=3.12"
+dependencies = [
+  "docker",
+  "python-dotenv",
+  "textual",
+  "textual[syntax]",
+  "py-cpuinfo",
+  "linkify-it-py",
+  "systemd-python",
+  "redis",
+  "pydantic",
+  "psutil",
+  "PyYAML",
+]
+
+[project.scripts]
+juicebox = "JuiceBox.__main__:JuiceBoxEngine"

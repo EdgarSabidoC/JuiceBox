@@ -78,10 +78,10 @@ class RootTheBoxManager(BaseManager):
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Subo dos niveles: de components/ -> JuiceBoxEngine/ -> JuiceBox/
+        # Subo dos niveles: de components/ -> Engine/ -> JuiceBox/
         self.project_root = os.path.dirname(os.path.dirname(self.script_dir))
         # Ruta absoluta a configs/
-        self.configs_dir = os.path.join(self.project_root, "JuiceBoxEngine", "configs")
+        self.configs_dir = os.path.join(self.project_root, "Engine", "configs")
         # Ruta absoluta al docker-compose.yml (que vive en RootTheBox/)
         self.compose_file_path = os.path.join(
             self.project_root, "RootTheBox", self.__rtb_yaml

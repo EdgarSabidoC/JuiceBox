@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 
 class Monitor:
     """
-    Clase para monitorear eventos en JuiceBoxEngine.
+    Clase para monitorear eventos en Engine.
 
     ## Características
     - Gestión de logs mediante un logger personalizado.
@@ -28,7 +28,7 @@ class Monitor:
     def __init__(
         # Logger:
         self,
-        name: str = "JuiceBoxEngine",
+        name: str = "Engine",
         use_journal: bool = True,
         level: int = logging.DEBUG,
         # Docker:

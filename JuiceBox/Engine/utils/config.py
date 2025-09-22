@@ -31,7 +31,7 @@ JS_SCHEMA = {
 
 
 class RTBConfig:
-    CONFIG_PATH = Path(str(files("JuiceBoxEngine.configs").joinpath("rootTheBox.json")))
+    CONFIG_PATH = Path(str(files("Engine.configs").joinpath("rootTheBox.json")))
 
     def __init__(self) -> None:
         """
@@ -165,7 +165,7 @@ class RTBConfig:
 
 
 class JuiceShopConfig:
-    CONFIG_PATH = Path(str(files("JuiceBoxEngine.configs").joinpath("juiceShop.json")))
+    CONFIG_PATH = Path(str(files("Engine.configs").joinpath("juiceShop.json")))
 
     def __init__(self) -> None:
         """
@@ -174,7 +174,7 @@ class JuiceShopConfig:
         self.utils_dir = Path(__file__).resolve().parent
         self.scripts_dir = self.utils_dir.parent
         self.project_root = self.scripts_dir.parent
-        self.configs_dir = self.project_root / "JuiceBoxEngine" / "configs"
+        self.configs_dir = self.project_root / "Engine" / "configs"
 
         # Valores por defecto
         self.containers_name: str = "owasp-juice-shop-"
