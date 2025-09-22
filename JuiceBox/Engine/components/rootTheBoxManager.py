@@ -133,7 +133,7 @@ class RootTheBoxManager(BaseManager):
         Ruta al docker-compose.yml de RootTheBox, usando la configuración actual.
         """
         return os.path.join(self.rtb_dir, self.__rtb_yaml)
-    
+
     def get_containers(self) -> list[str]:
         """
         Obtiene la lista de contenedores de la configuración actual de Root The Box.

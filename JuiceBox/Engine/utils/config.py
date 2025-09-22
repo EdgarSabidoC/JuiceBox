@@ -57,7 +57,11 @@ class RTBConfig:
         """
         json_key, validator = RTB_SCHEMA[key]
         if json_key in config:
-            setattr(self, key, validator(config[json_key], json_key))
+            value = validator(config[json_key], json_key)
+            # Normaliza ruta si es rtb_dir
+            if key == "rtb_dir":
+                value = str(Path(value).resolve())
+            setattr(self, key, value)
 
     def __restart_state(self) -> None:
         """
