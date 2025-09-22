@@ -1,0 +1,8 @@
+{
+    "WEBAPP_PORT": 8889,
+    "MEMCACHED_PORT": 11211,
+    "NETWORK_NAME": "rootthebox_default",
+    "RTB_DIRECTORY": "RootTheBox",
+    "WEB_APP_CONTAINER_NAME": "rootthebox-webapp-1",
+    "MEMCACHED_CONTAINER_NAME": "rootthebox-memcached-1"
+}

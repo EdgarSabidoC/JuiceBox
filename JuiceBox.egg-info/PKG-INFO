@@ -1,0 +1,34 @@
+Metadata-Version: 2.4
+Name: JuiceBox
+Version: 1.1.0
+Summary: JuiceBox engine and orchestrator to create CTF competitions based on Root The Box and OWASP Juice Shop with Docker containers.
+Author: Edgar Sabido Cortés
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: docker
+Requires-Dist: python-dotenv
+Requires-Dist: textual
+Requires-Dist: textual[syntax]
+Requires-Dist: py-cpuinfo
+Requires-Dist: linkify-it-py
+Requires-Dist: systemd-python
+Requires-Dist: redis
+Requires-Dist: pydantic
+Requires-Dist: psutil
+Requires-Dist: PyYAML
+
+# Acerca de Juice Box [ES]
+Juice Box es un orquestador para contenedores de Docker de OWASP Juice Shop y Root The Box para crear tus propios juegos de Capturar La Bandera (CLB/CTF).
+
+# Instalación [ES]
+
+- [Juice Box](docs/ES/Instalacion/JuiceBox.MD)
+- [Servicio Juice Box](docs/ES/Instalacion/JuiceBoxService.MD)
+- [Root The Box](docs/ES/Instalacion/RootTheBox.MD)
+- [TUI](docs/ES/Instalacion/TUI.MD)
+
+# Contenido [ES]
+
+- [Motor Juice Box](docs/ES/JuiceBox/Engine.MD)
+- [API](docs/ES/JuiceBox/API.MD)
+- [Archivos de configuracion](docs/ES/JuiceBox/ConfigFiles.MD)

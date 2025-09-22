@@ -1,0 +1,7 @@
+ctfFramework: RootTheBox
+juiceShopUrl: https://juice-shop.herokuapp.com
+ctfKey: test1
+countryMapping: https://raw.githubusercontent.com/juice-shop/juice-shop/master/config/fbctf.yml
+insertHints: free
+insertHintUrls: free
+insertHintSnippets: free

@@ -1,7 +1,7 @@
 # client.py
 import asyncio
 import argparse
-from JuiceBoxEngine.api import JuiceBoxAPI
+from Engine.api import JuiceBoxAPI
 
 
 def print_response(res):

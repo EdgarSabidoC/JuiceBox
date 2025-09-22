@@ -1,0 +1,35 @@
+# IMPORTANTE [NO MODIFICAR]
+services:
+  redis:  # Definición del servicio Redis
+    image: redis:7-alpine
+    # Usa la imagen oficial de Redis en su versión 7 sobre Alpine Linux (ligera).
+    container_name: juicebox-redis
+    # Nombre fijo del contenedor. Facilita comandos como `docker ps` o `docker logs`.
+    restart: unless-stopped
+    # Política de reinicio:
+    # - always: reinicia siempre cuando el contenedor pare inesperadamente.
+    # - unless-stopped: idem, pero no tras un `docker stop`.
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    # Sobrescribe el comando por defecto, apuntando a tu archivo de configuración.
+    ports:
+      - "127.0.0.1:6379:6379"
+    # Mapea el puerto 6379 del contenedor al mismo puerto en localhost del host.
+    # Queda inaccesible desde otras interfaces de red externas.
+    volumes:
+      - redis-data:/data
+      # Volumen nombrado para persistir los datos de Redis.
+      # Docker gestiona su ubicación interna automáticamente.
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+    # Monta tu archivo local `redis.conf` como solo lectura dentro del contenedor.
+    healthcheck:
+      # Verifica periódicamente que Redis responda al comando PING.
+      test: ["CMD", "redis-cli", "-a", "C5L48", "ping"]
+      interval: 10s   # Tiempo entre cada comprobación.
+      timeout: 5s     # Tiempo máximo de espera de una sola comprobación.
+      retries: 5      # Reintentos antes de marcar el contenedor como “unhealthy”.
+
+volumes:
+  redis-data:
+    driver: local
+      # Controlador por defecto. Los datos quedan en el host bajo
+      # /var/lib/docker/volumes/redis-data/_data (o ruta configurada en el Docker daemon).

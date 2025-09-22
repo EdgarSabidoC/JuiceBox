@@ -11,7 +11,7 @@ from textual.binding import Binding
 from ..widgets import ReactiveMarkdown
 from rich.text import Text
 from ...Models import Status, Response
-from ...JuiceBoxEngine.api import JuiceBoxAPI
+from ...Engine.api import JuiceBoxAPI
 from ..widgets.confirmModal import ConfirmModal
 import importlib.resources as pkg_resources
 from ..widgets.configModal import ConfigModal
