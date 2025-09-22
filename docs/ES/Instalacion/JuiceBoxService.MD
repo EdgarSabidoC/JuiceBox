@@ -8,9 +8,8 @@ Este documento detalla todos los pasos necesarios para copiar el proyecto `Juice
 
 ```bash
 sudo adduser --system --group juicebox
-sudo mkdir -p /opt/JuiceBox
-sudo cp -R ~/JuiceBox/. /opt/JuiceBox
-sudo chown -R juicebox:juicebox /opt/JuiceBox
+sudo mkdir -p /opt/juicebox
+sudo chown -R juicebox:juicebox /opt/juicebox
 sudo usermod -aG docker juicebox
 ```
 **NOTA**: Es importante que los usuarios que vayan a utilizar la app estén dentro del grupo `docker`.
@@ -20,10 +19,10 @@ sudo usermod -aG docker juicebox
 
 ```bash
 cd /opt/JuiceBox
-python3 -m venv venv
+sudo -u juicebox python3 -m venv /opt/juicebox/venv
 ```
 
-### 2.2. Instalar dependencias
+### 2.2. Instalar el paquete y dependencias
 Asegura que el archivo *requirements.txt* en */opt/JuiceBox* contenga:
 
 ```
@@ -42,12 +41,12 @@ PyYAML
 
 Activa el entorno virtual con el shell de Bash:
 ```bash
-source venv/bin/activate
+source /opt/juicebox/venv/bin/activate
 ```
 
 Si el intérprete del shell es Fish utilizar:
 ```bash
-source venv/bin/activate.fish
+source /opt/juicebox/venv/bin/activate.fish
 ```
 
 Instala los paquetes de ***requirements.txt***:
@@ -61,34 +60,8 @@ Desactiva el entorno virtual:
 deactivate
 ```
 
-## 3. Crear el script de entrada
-### 3.1. Archivo /opt/JuiceBox/entrypoint.sh
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-# 1. Activa el entorno virtual
-source /opt/JuiceBox/venv/bin/activate
-
-# 2. Ajusta PYTHONPATH y la ruta del socket
-export PYTHONPATH=/opt/JuiceBox
-export JUICEBOX_SOCKET=/run/juicebox/engine.sock
-
-# 3. Ejecuta la aplicación
-#exec python /opt/JuiceBox/JuiceBoxEngine/main.py
-exec python -m JuiceBox
-```
-
-### 3.2. Dar permisos de ejecución al archivo
-
-```bash
-sudo chmod +x /opt/JuiceBox/entrypoint.sh
-
-```
-
-## 4. Define las unidades systemd
-### 4.1. Socket: /etc/systemd/system/juiceboxengine.socket
+## 3. Define las unidades systemd
+### 3.1. Socket: /etc/systemd/system/juiceboxengine.socket
 
 ```
 [Unit]
@@ -107,7 +80,7 @@ RuntimeDirectoryMode=0755
 WantedBy=sockets.target
 ```
 
-### 4.2. Servicio: /etc/systemd/system/juiceboxengine.service
+### 3.2. Servicio: /etc/systemd/system/juiceboxengine.service
 
 ```
 [Unit]
@@ -119,8 +92,9 @@ Requires=docker.service
 Type=simple
 User=juicebox
 Group=juicebox
-WorkingDirectory=/opt/JuiceBox
-ExecStart=/opt/JuiceBox/entrypoint.sh
+WorkingDirectory=/opt/juicebox
+ExecStart=/opt/juicebox/venv/bin/python -m JuiceBox
+Environment="JUICEBOX_SOCKET=/run/juicebox/engine.sock"
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
@@ -130,8 +104,8 @@ StandardError=journal
 WantedBy=multi-user.target
 ```
 
-## 5. Habilita, arranca y verifica el servicio
-### 5.1. Recargar unidades y habilitar el servicio
+## 4. Habilita, arranca y verifica el servicio
+### 4.1. Recargar unidades y habilitar el servicio
 
 ```bash
 sudo systemctl daemon-reload
@@ -139,19 +113,19 @@ sudo systemctl enable juiceboxengine.socket
 sudo systemctl enable juiceboxengine.service
 ```
 
-### 5.2. Iniciar el socket
+### 4.2. Iniciar el socket
 
 ```bash
 sudo systemctl start juiceboxengine.socket
 ```
 El servicio se activará automáticamente en el primer acceso al socket.
 
-### 5.3. Comprobar estado y logs
+### 4.3. Comprobar estado y logs
 
 ```bash
-sudo systemctl status juiceboxengine.socket
-sudo systemctl status juiceboxengine.service
-sudo journalctl -u juiceboxengine.service -f
+systemctl status juiceboxengine.socket
+systemctl status juiceboxengine.service
+journalctl -u juiceboxengine.service -f
 ```
 ---
 
