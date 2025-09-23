@@ -3,7 +3,6 @@ from ..utils import Logger
 from .redisManager import RedisManager
 from Models import ManagerResult, ManagerResult, RedisPayload
 from docker.models.containers import Container
-from ..utils import validate_container
 from docker import DockerClient
 from ..api import JuiceBoxAPI
 from datetime import datetime, timezone, timedelta
@@ -28,7 +27,7 @@ class Monitor:
     def __init__(
         # Logger:
         self,
-        name: str = "Engine",
+        name: str = "juiceboxengine",
         use_journal: bool = True,
         level: int = logging.DEBUG,
         # Docker:

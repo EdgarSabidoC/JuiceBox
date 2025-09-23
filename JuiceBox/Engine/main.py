@@ -25,7 +25,7 @@ def main():
 
     # Se instancia el monitor
     monitor = Monitor(
-        name="JuiceBoxEngine",
+        name="juiceboxengine",
         use_journal=True,
         redis_manager=redis,
     )

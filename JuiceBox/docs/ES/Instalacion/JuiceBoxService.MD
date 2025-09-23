@@ -1,31 +1,65 @@
-# Juice Box Engine: Despliegue con systemd y Socket Activation
+# Juice Box Engine: Despliegue con systemd y activacion del Socket
 
-Este documento detalla todos los pasos necesarios para copiar el proyecto `JuiceBox`, preparar el entorno de Python, crear los scripts de arranque, definir las unidades systemd (socket y servicio) y verificar que todo funcione correctamente.
+Este documento detalla todos los pasos necesarios para copiar/transferir el proyecto `Juice Box`, preparar el entorno virtual de Python (venv), crear los scripts de arranque, definir las unidades systemd (socket y servicio) y verificar que todo funcione correctamente.
 
 ---
 
-## 1. Crear usuario, carpeta y copiar el proyecto
+## 1. Creacion del usuario y carpetas y transferencia de la aplicacion
+
+## Para shell `Bash` (distros basadas en Ubuntu/Debian):
 
 ```bash
 sudo adduser --system --group juicebox
 sudo mkdir -p /opt/juicebox
 sudo chown -R juicebox:juicebox /opt/juicebox
-sudo mkdir -p /run/juicebox
-sudo chown juicebox:juicebox /run/juicebox
 sudo usermod -aG docker juicebox
+newgrp docker
 ```
-**NOTA**: Es importante que los usuarios que vayan a utilizar la app estén dentro del grupo `docker`.
 
-## 2. Configurar el entorno Python
-### 2.1 Crear y activar el entorno virtual
+## Para shell `Fish` (distros basadas en Arch):
 
 ```bash
-cd /opt/JuiceBox
+sudo useradd -r -s /usr/bin/nologin -U juicebox
+sudo mkdir -p /opt/juicebox
+sudo chown -R juicebox:juicebox /opt/juicebox
+sudo usermod -aG docker juicebox
+newgrp docker
+```
+
+**NOTA**: Es importante que los usuarios que vayan a utilizar la app esten dentro del grupo `docker`, esto ya se toma en cuenta para la creacion del usuario `juicebox`.
+
+## 1.2. Transferencia de las carpetas de la aplicacion
+
+### De forma local (dentro de la misma PC)
+
+```bash
+sudo rsync -av --exclude venv /ruta/de/la/app/ /opt/juicebox/
+```
+
+### De PC a un servidor remoto por medio de SSH:
+
+```bash
+rsync -av --exclude venv /ruta/de/la/app/ usuario@servidor:/opt/juicebox/
+```
+
+## 1.3 Otorgar los permisos al usuario `juicebox`
+
+```bash
+sudo chown -R juicebox:juicebox /opt/juicebox
+```
+
+## 2. Configuracion del entorno de Python
+
+### 2.1. Creacion y activacion del entorno virtual (venv)
+
+```bash
+cd /opt/juicebox
 sudo -u juicebox python3 -m venv /opt/juicebox/venv
 ```
 
-### 2.2. Instalar el paquete y dependencias
-Asegura que el archivo *requirements.txt* en */opt/JuiceBox* contenga:
+### 2.2. Instalacion del paquete de la aplicacion y dependencias en el entorno virtual
+
+Asegura que el archivo *requirements.txt* en */opt/juicebox* contenga:
 
 ```
 docker
@@ -41,31 +75,111 @@ psutil
 PyYAML
 ```
 
-Activa el entorno virtual con el shell de Bash:
+#### 2.2.1. Activacion del venv
+
+##### Shell `Bash` (distros basadas en Ubuntu/Debian):
+
 ```bash
 source /opt/juicebox/venv/bin/activate
 ```
 
-Si el intérprete del shell es Fish utilizar:
+##### Shell `Fish` (distros basadas en Arch):
+
 ```bash
 source /opt/juicebox/venv/bin/activate.fish
 ```
 
-Instala los paquetes de ***requirements.txt***:
+#### 2.2.2. Verificacion del python y pip del venv
+
+Para saber si se esta utilizando el Python y pip del entorno virtual (venv), se deben ejecutar los siguientes comandos:
+
+```bash
+which python
+which pip
+```
+
+Una vez ejecutados dichos comandos deberia verse algo asi:
+
+```bash
+/opt/juicebox/venv/bin/python
+/opt/juicebox/venv/bin/pip
+```
+
+Si por el contrario se ve algo asi:
+
+```bash
+/usr/bin/python
+/usr/bin/pip
+```
+
+Quiere decir que no se esta utilizando el entorno virtual (venv).
+
+#### 2.2.3. Instalacion de los paquetes de ***requirements.txt*** en el venv:
+
+Estando en la ruta `/opt/juicebox/` y con el venv activado, ejecutar:
+
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Desactiva el entorno virtual:
+#### Desactivacion del entorno virtual:
+
+Para poder salir o desactivar el entorno virtual basta con utilizar el comando `deactivate`.
+
 ```bash
 deactivate
 ```
 
-## 3. Define las unidades systemd
-### 3.1. Socket: /etc/systemd/system/juiceboxengine.socket
+## 3. Instalaciones de la aplicacion y de Root The Box
 
+### 3.1. Instalacion de la aplicacion
+
+Una vez preparado el entorno virtual y aun dentro de este, se debe instalar el paquete de `Juice Box` en Python utilizando la herramienta `pip`.
+
+Se debe estar en la ruta `/opt/juicebox/` y ejecutar:
+
+```bash
+/opt/juicebox/venv/bin/pip install -e .
 ```
+
+En caso de no estar en `/opt/juicebox/`, utilizar:
+
+```bash
+/opt/juicebox/venv/bin/pip install -e /opt/juicebox
+```
+
+**NOTA:** La bandera `-e` es opcional, esta permite instalar el paquete de la aplicacion en modo editable.
+
+Una vez instalado el paquete, puede ser llamado desde el shell del entorno virtual (venv) utilizando el comando `juicebox`. De igual forma se puede utilizar el comando `python3 -m JuiceBox` para llamar a la aplicacion del motor.
+
+#### 3.1.1. Verificacion de la instalacion
+
+```bash
+/opt/juicebox/venv/bin/pip list | grep juicebox
+```
+
+### 3.2. Instalacion de Root The Box
+
+Para instalar `Root The Box` [ver el siguiente enlace](RootTheBox.MD).
+
+## 4. Creacion de las unidades systemd
+
+### 4.1. Socket: /etc/systemd/system/juiceboxengine.socket
+
+#### 4.1.1 Creacion del archivo `juiceboxengine.socket`
+
+Crear el archivo con `Nano`
+
+```bash
+sudo nano /etc/systemd/system/juiceboxengine.socket
+```
+
+Posteriormente copiar dentro el contenido del archivo y darle a `ctrl+o`, `enter` y luego `ctrl+x`.
+
+##### Contenido del archivo `juiceboxengine.socket`
+
+```bash
 [Unit]
 Description=Socket for JuiceBox Engine
 PartOf=juiceboxengine.service
@@ -82,9 +196,21 @@ RuntimeDirectoryMode=0755
 WantedBy=sockets.target
 ```
 
-### 3.2. Servicio: /etc/systemd/system/juiceboxengine.service
+### 4.2. Servicio: /etc/systemd/system/juiceboxengine.service
 
+#### 4.2.1. Creacion del archivo `juiceboxengine.service`
+
+Crear el archivo con `Nano` utilizando
+
+```bash
+sudo nano /etc/systemd/system/juiceboxengine.service
 ```
+
+Posteriormente copiar dentro el contenido del archivo y darle a `ctrl+o`, `enter` y luego `ctrl+x`.
+
+##### Contenido del archivo `juiceboxengine.service`
+
+```bash
 [Unit]
 Description=JuiceBox CTF Orchestrator for Root The Box & OWASP Juice Shop
 After=network.target docker.service
@@ -106,8 +232,9 @@ StandardError=journal
 WantedBy=multi-user.target
 ```
 
-## 4. Habilita, arranca y verifica el servicio
-### 4.1. Recargar unidades y habilitar el servicio
+## 5. Habilitacion, arranque y verificacion del servicio y socket
+
+### 5.1. Recargar unidades y habilitar el servicio y socket
 
 ```bash
 sudo systemctl daemon-reload
@@ -115,20 +242,59 @@ sudo systemctl enable juiceboxengine.socket
 sudo systemctl enable juiceboxengine.service
 ```
 
-### 4.2. Iniciar el socket
+### 5.2. Iniciacion del socket
 
 ```bash
 sudo systemctl start juiceboxengine.socket
 ```
-El servicio se activará automáticamente en el primer acceso al socket.
+El servicio se activara automaticamente en el primer acceso al socket.
 
-### 4.3. Comprobar estado y logs
+### 5.3. Comprobacion del estado del servicio y socket
 
 ```bash
 systemctl status juiceboxengine.socket
 systemctl status juiceboxengine.service
+```
+
+## 6. Logs del servicio
+
+## 6.1. Seguimiento en tiempo real:
+
+```bash
 journalctl -u juiceboxengine.service -f
 ```
+
+### 6.1.1. Filtrado por SYSLOG_IDENTIFIER:
+
+```bash
+journalctl SYSLOG_IDENTIFIER=juiceboxengine -f
+
+```
+
+**Nota:** La bandera `-f` permite seguir en tiempo real. Mientras que `-u` se usa solo para unidades systemd, que en el caso de `Juice Box` seria `juiceboxengine.service`.
+
+### 6.2. Filtrado de logs por nivel de severidad (prioridad)
+
+Los logs pueden ser utilizados con banderas como:
+
+```bash
+journalctl -u juiceboxengine.service -p err        # Solo errores
+journalctl -u juiceboxengine.service -p warning    # Warnings y mas graves
+journalctl -u juiceboxengine.service -p info       # Info y mas graves
+```
+
+Los niveles disponibles son: `emerg`, `alert`, `crit`, `err`, `warning`, `notice`, `info`, `debug`.
+
+### 6.3. Filtrado por tiempo
+
+journal tambien permite filtrar por tiempo, por ejemplo:
+
+```bash
+journalctl -u juiceboxengine.service --since today
+journalctl -u juiceboxengine.service --since "2025-09-22 10:00:00" --until "2025-09-22 12:00:00"
+journalctl -u juiceboxengine.service --since "1 hour ago"
+```
+
 ---
 
-Con estos pasos JuiceBox Engine quedará desplegado en ***/opt/JuiceBox***, gestionado por ***systemd*** y preparado para recibir conexiones vía ***socket UNIX***.
+Con esto Juice Box debera estar desplegado en ***/opt/juicebox*** y gestionado por ***systemd***, las conexiones se recibiran por medio del ***socket UNIX*** en la siguiente ruta: `/run/juicebox/engine.sock`.

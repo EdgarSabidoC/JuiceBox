@@ -1,10 +1,8 @@
 # Juice Box
 
-## Proceso de instalación
+## Dependencias
 
-### Dependencias
-
-#### Sistema operativo/host/servidor
+### Sistema operativo/host/servidor
 
 Para instalar `Juice Box` es necesario tener previamente instalado en el sistema operativo lo siguiente:
 
@@ -13,7 +11,7 @@ Para instalar `Juice Box` es necesario tener previamente instalado en el sistema
 
 **NOTA:** Dado que `Juice Box Engine` tiene un componente orquestador de Docker es indispensable instalar el motor de `Docker`, así como el plugin `docker-compose`.
 
-#### Python
+### Python
 
 El motor de `Juice Box` utiliza Python v3.12+, además debe de tener instalados los siguientes paquetes:
 
@@ -33,16 +31,12 @@ El motor de `Juice Box` utiliza Python v3.12+, además debe de tener instalados 
 
 ---
 
-### Instalación de `Juice Box` como servicio
+## Instalación de `Juice Box` como servicio
 
 Para instalar `Juice Box` como servicio en tu servidor [ver el siguiente enlace](JuiceBoxService.MD).
 
-**NOTA:** El script `tui.sh` se encuentra en la ruta `JuiceBox/TUI/tui.sh`.
-
 ---
 
-### Instalación de la TUI de `Juice Box` como servicio
+## Instalación de la TUI de `Juice Box` como servicio
 
 Para instalar la TUI como servicio [ver el siguiente enlace](TUI.MD).
-
-**NOTA:** El script `tui.sh` se encuentra en la ruta `JuiceBox/TUI/tui.sh`.
