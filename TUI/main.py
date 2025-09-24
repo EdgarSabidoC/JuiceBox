@@ -11,13 +11,14 @@ from .styles.theme import (
     hacker_dark_green_theme,
     synthwave_80s_theme,
 )
+from dotenv import dotenv_values
 
 
 class JuiceBoxApp(App):
     BINDINGS = [
         Binding(key="^q", action="quit", description="Quit", show=True),
     ]
-    VERSION: float = 1.1
+    VERSION: str = "1.1.0"
     TITLE = "JuiceBox Manager 🍊"
     SUB_TITLE = f"v.{VERSION}"
     SCREENS = {
@@ -26,7 +27,7 @@ class JuiceBoxApp(App):
         "juice": JuiceShopScreen,
         "documentation": DocumentationScreen,
     }
-    SOCKET_PATH = "/run/juicebox/engine.sock"#"/tmp/juiceboxengine.sock"
+    SOCKET_PATH = dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/engine.sock"
 
     async def on_mount(self) -> None:
         self.set_themes()

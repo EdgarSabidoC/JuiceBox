@@ -6,13 +6,14 @@ Clase JuiceBoxManager que carga configuración desde JuiceShopConfig
 y gestiona los contenedores via Docker SDK.
 """
 
-import os, atexit
+import os, atexit, shutil
 from docker import errors
 from ..utils import JuiceShopConfig
 from ..utils import validate_container
-from Models import ManagerResult, Status, BaseManager
+from Models import ManagerResult, BaseManager
 from docker import DockerClient
 from docker.models.containers import Container
+from docker.models.networks import Network
 
 
 LOGO = """
@@ -73,10 +74,16 @@ class JuiceShopManager(BaseManager):
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Directorio padre del proyecto (contiene 'scripts/' y 'configs/')
-        self.project_root = os.path.dirname(self.script_dir)
+        # Directorio padre del script
+        self.components_dir = os.path.dirname(self.script_dir)
+        # Directorio de la carpeta raíz del proyecto
+        self.project_root = os.path.abspath(os.path.join(self.script_dir, "../../.."))
+        # Directorio de RootTheBox/missions/
+        self.missions_dir = os.path.abspath(
+            os.path.join(self.project_root, "RootTheBox/missions/")
+        )
         # Ruta absoluta a configs/
-        self.configs_dir = os.path.join(self.project_root, "configs")
+        self.configs_dir = os.path.join(self.components_dir, "configs")
 
         self.image = "bkimminich/juice-shop:latest"
 
@@ -501,59 +508,97 @@ class JuiceShopManager(BaseManager):
             )
 
     def generate_rtb_config(
-        self,
-        input_filename: str = "juiceShopRTBConfig.yml",
-        output_filename: str = "missions.xml",
-    ) -> ManagerResult:
-        """
-        Lanza el contenedor juice-shop-ctf y genera el archivo XML de configuración para Root The Box en configs/.
-        Es equivalente a:
-          `docker run -ti --rm -v $(pwd):/data bkimminich/juice-shop-ctf --config juiceShopRTBConfig.yml --output missions.xml`
+        self, input_filename="juiceShopRTBConfig.yml", output_filename="missions.xml"
+    ):
+        import os, time
+        from docker import errors
 
-        Args:
-            input_filename (str): Nombre del archivo YAML de entrada en configs/.
-            output_filename (str): Nombre del archivo XML de salida a generar en configs/.
-
-        Returns:
-            ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al generar el archivo.
-        """
         try:
-            # Ruta al YAML de entrada dentro de configs/
+            # Paths
             full_config_path = os.path.join(self.configs_dir, input_filename)
-
             if not os.path.isfile(full_config_path):
                 return ManagerResult.failure(
-                    message="YAML file not found",
-                    error=f"YAML file could not be found at {full_config_path}",
+                    message="YAML file not found", error=full_config_path
                 )
 
-            # Monta configs/ en /data, usa /data como working_dir
-            self.__docker_client.containers.run(
-                image="bkimminich/juice-shop-ctf",
-                command=[
-                    "--config",
-                    os.path.basename(full_config_path),
-                    "--output",
-                    output_filename,
-                ],
-                volumes={self.configs_dir: {"bind": "/data", "mode": "rw"}},
-                working_dir="/data",
-                tty=True,  # -t
-                stdin_open=True,  # -i
-                remove=True,  # --rm
+            client = self.__docker_client
+            network_name = "juice-net"
+
+            # 1. Crea la red si no existe
+            __net: Network
+            try:
+                __net = client.networks.get(network_name)
+            except errors.NotFound:
+                __net = client.networks.create(network_name)
+
+            # 2. Levanta un contenedor de la Juice Shop temporal
+            js_container = client.containers.run(
+                image="bkimminich/juice-shop",
+                name="juice-shop-temp",
+                network=network_name,
+                detach=True,
             )
-            return ManagerResult.ok(
-                message=f"{output_filename} generated at {self.configs_dir}",
-                data={"path": self.configs_dir},
-            )
+
+            # 3. Espera unos segundos para que arranque
+            time.sleep(5)
+
+            try:
+                # 4. Ejecuta juice-shop-ctf en la misma red
+                client.containers.run(
+                    image="bkimminich/juice-shop-ctf",
+                    command=[
+                        "--config",
+                        os.path.basename(full_config_path),
+                        "--output",
+                        output_filename,
+                    ],
+                    volumes={self.configs_dir: {"bind": "/data", "mode": "rw"}},
+                    working_dir="/data",
+                    network=network_name,
+                    tty=True,
+                    stdin_open=True,
+                    remove=True,
+                )
+            finally:
+                # 5. Detiene y elimina el contenedor Juice Shop temporal
+                js_container.stop()
+                js_container.remove()
+                if __net is not None:
+                    try:
+                        __net.reload()
+                        if not __net.containers:
+                            __net.remove()
+                    except Exception as e:
+                        ManagerResult.failure(
+                            message=f"Temporary network {__net} couldn't be removed",
+                            error=str(e),
+                        )
+
+            # 7. Verifica la existencia del archivo
+            output_path = os.path.join(self.configs_dir, output_filename)
+            if os.path.isfile(output_path):
+                dest_path = os.path.join(self.missions_dir, output_filename)
+
+                # Si ya existe el archivo en el destino, se elimina
+                if os.path.isfile(dest_path):
+                    os.remove(dest_path)
+
+                # Se mueve el archivo a RootTheBox/missions/
+                shutil.move(output_path, dest_path)
+
+                return ManagerResult.ok(
+                    message=f"{output_filename} file saved in {self.missions_dir}",
+                    data={"path": self.missions_dir},
+                )
+            else:
+                return ManagerResult.failure(
+                    message=f"{output_filename} couldn't be generated",
+                    error="Non-existent file",
+                )
 
         except Exception as e:
             return ManagerResult.failure(
-                message="XML file could not be generated",
-                error=f"{e}",
+                message="Error while generating XML file", error=str(e)
             )
 
     def cleanup(self) -> ManagerResult:

@@ -73,9 +73,7 @@ class RedisManager(BaseManager):
             self.__docker_client: DockerClient = docker_client
 
         # Cliente Redis
-        redis_password: str | None = self.__get_password(
-            "Engine.configs", "redis.conf"
-        )
+        redis_password: str | None = self.__get_password("Engine.configs", "redis.conf")
         self.__set_password(redis_password)
         self.__redis = redis.Redis(
             host=redis_host,

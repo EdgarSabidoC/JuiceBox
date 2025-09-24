@@ -330,7 +330,7 @@ class JuiceShopConfig:
         """
         data = {
             "ctfFramework": "RootTheBox",
-            "juiceShopUrl": "https://juice-shop.herokuapp.com",
+            "juiceShopUrl": "http://juice-shop-temp:3000",
             "ctfKey": self.ctf_key,
             "countryMapping": "https://raw.githubusercontent.com/juice-shop/juice-shop/master/config/fbctf.yml",
             "insertHints": "free",

@@ -1,5 +1,5 @@
 {
-    "WEBAPP_PORT": 8889,
+    "WEBAPP_PORT": 8888,
     "MEMCACHED_PORT": 11211,
     "NETWORK_NAME": "rootthebox_default",
     "RTB_DIRECTORY": "/home/hunterzx/Documents/CSLab/JuiceBox/RootTheBox",

@@ -1,7 +1,6 @@
 from textual.app import ComposeResult
 from ..serverInfo import ServerInfo
 from textual.screen import Screen
-from textual.widgets.option_list import Option
 from ..widgets import get_footer
 from ..widgets import get_header
 from textual.events import ScreenResume
@@ -12,10 +11,10 @@ import importlib.resources as pkg_resources
 
 class MainScreen(Screen):
     CSS_PATH = "../styles/main.tcss"
-    JB_LOGO = pkg_resources.read_text("JuiceBox.TUI.media", "JuiceBoxLogo.txt")
+    JB_LOGO = pkg_resources.read_text("TUI.media", "JuiceBoxLogo.txt")
 
     SERVER_INFO = Label(classes="server-info-data")
-    SYSTEM_ARCH = pkg_resources.read_text("JuiceBox.TUI.media", "Architecture.txt")
+    SYSTEM_ARCH = pkg_resources.read_text("TUI.media", "Architecture.txt")
 
     MENU_OPTIONS = {
         "📦 Root the Box": "Admin tools to manage Root the Box docker containers",

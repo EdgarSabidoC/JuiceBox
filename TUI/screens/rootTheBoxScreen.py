@@ -1,62 +1,37 @@
-import time, os, json, asyncio, redis, threading, functools
+import time, os, json, asyncio, redis, threading
 from textual.app import ComposeResult
 from textual.screen import Screen
 from ..widgets import get_footer
 from ..widgets import get_header
 from textual.screen import Screen
 from textual.events import ScreenResume
-from textual.containers import Vertical, Horizontal, ScrollableContainer, VerticalScroll
+from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Label, Static, OptionList
 from textual.binding import Binding
 from ..widgets import ReactiveMarkdown
-from rich.text import Text
-from ...Models import Status, Response
-from ...Engine.api import JuiceBoxAPI
+from JuiceBox.Models import Status, Response
+from JuiceBox.Engine.api import JuiceBoxAPI, REDIS_PASSWORD
 from ..widgets.confirmModal import ConfirmModal
 import importlib.resources as pkg_resources
 from ..widgets.configModal import ConfigModal
-from dotenv import load_dotenv
 from redis.exceptions import ConnectionError
 from asyncio import AbstractEventLoop
-from functools import partial
 
 NOT_AVAILABLE = "[red]Not available ✘[/red]"
 AVAILABLE = "[green]Active and running ✔[/green]"
 
 
-class JuiceShopScreen(Screen):
-    CSS_PATH = "../styles/juiceShop.tcss"
-    JS_LOGO = pkg_resources.read_text("JuiceBox.TUI.media", "JuiceShopLogo.txt")
-    SERVICE_LABELS: dict[str, tuple[Horizontal, Label]] = {}
+class RootTheBoxScreen(Screen):
+    CSS_PATH = "../styles/rootTheBox.tcss"
+    RTB_LOGO = pkg_resources.read_text("TUI.media", "RootTheBoxLogo.txt")
 
     MENU_OPTIONS = {
-        "Start a container": (
-            "Start an OWASP Juice Shop container",
-            JuiceBoxAPI.start_js_container,
-        ),
-        "Start n containers": (
-            "Start n OWASP Juice Shop containers",
-            JuiceBoxAPI.start_n_js_containers,
-        ),
-        "Stop a container": (
-            "Stop an OWASP Juice Shop container",
-            JuiceBoxAPI.stop_js_container,
-        ),
-        "Stop all containers": (
-            "Stop all OWASP Juice Shop containers",
-            JuiceBoxAPI.stop_js,
-        ),
-        "Restart": (
-            "Restart OWASP Juice Shop services",
-            JuiceBoxAPI.restart_js_status,
-        ),
-        "Generate missions": (
-            "Generate new XML with missions for Root The Box (This feature requires internet connection)",
-            JuiceBoxAPI.generate_xml,
-        ),
+        "Start": ("Start Root The Box services", JuiceBoxAPI.start_rtb),
+        "Stop": ("Stop Root The Box services", JuiceBoxAPI.stop_rtb),
+        "Restart": ("Restart Root The Box services", JuiceBoxAPI.restart_rtb_status),
         "Configuration": (
-            "Configuration file for OWASP Juice Shop services",
-            JuiceBoxAPI.set_js_config,
+            "Configuration file for Root The Box services",
+            JuiceBoxAPI.set_rtb_config,
         ),
         "Return": ("Return to main menu", None),
     }
@@ -87,10 +62,10 @@ class JuiceShopScreen(Screen):
 
             with Vertical(classes="vcontainer1") as vcontainer1:
                 vcontainer1.can_focus = False
-                # Logo de JS
-                js_logo = Static(self.JS_LOGO, classes="js-logo")
-                js_logo.can_focus = False
-                yield js_logo
+                # Logo de RTB
+                rtb_logo = Static(self.RTB_LOGO, classes="rtb-logo")
+                rtb_logo.can_focus = False
+                yield rtb_logo
 
                 # Menú
                 self.menu = OptionList(classes="menu")
@@ -104,9 +79,9 @@ class JuiceShopScreen(Screen):
                 yield self.menu_info
 
             # Configuración y estado de servicios
-            with VerticalScroll(classes="vcontainer2") as vcontainer2:
+            with Vertical(classes="vcontainer2") as vcontainer2:
                 vcontainer2.can_focus = False
-                self.config_container = VerticalScroll(classes="config-container")
+                self.config_container = ScrollableContainer(classes="config-container")
                 self.config_container.border_title = "Configuration"
                 self.config_data = ReactiveMarkdown(data="Loading configuration…")
                 self.config_data.can_focus = False
@@ -119,11 +94,40 @@ class JuiceShopScreen(Screen):
                     yield self.config_data
 
                 # Services status
-                self.services_status = ScrollableContainer(classes="services-status")
-                self.services_status.styles.overflow_y = "scroll"
-                self.services_status.can_focus = False
-                self.services_status.border_title = "Services Status"
-                yield self.services_status
+                with Horizontal() as services_status:
+                    services_status.can_focus = False
+                    services_status.styles.content_align = ("center", "middle")
+                    services_status.styles.align = ("center", "middle")
+                    services_status.styles.border
+                    with Vertical(
+                        classes="services-status-keys"
+                    ) as services_status_keys:
+                        services_status_keys.can_focus = False
+                        self.SERVICES_STATUS_KEYS_WEBAPP = Label(
+                            classes="services-status-key"
+                        )
+                        self.SERVICES_STATUS_KEYS_WEBAPP.update("Webapp: ")
+                        yield self.SERVICES_STATUS_KEYS_WEBAPP
+                        self.SERVICES_STATUS_KEYS_CACHE = Label(
+                            classes="services-status-key"
+                        )
+                        self.SERVICES_STATUS_KEYS_CACHE.update("Caché: ")
+                        yield self.SERVICES_STATUS_KEYS_CACHE
+                    with Vertical(
+                        classes="services-status-data"
+                    ) as services_status_values:
+                        services_status_values.can_focus = False
+                        services_status_values.border_title = " Services Status"
+                        self.SERVICES_STATUS_DATA_WEBAPP = Label(
+                            classes="services-status-datum"
+                        )
+                        self.SERVICES_STATUS_DATA_WEBAPP.can_focus = False
+                        yield self.SERVICES_STATUS_DATA_WEBAPP
+                        self.SERVICES_STATUS_DATA_CACHE = Label(
+                            classes="services-status-datum"
+                        )
+                        self.SERVICES_STATUS_DATA_CACHE.can_focus = False
+                        yield self.SERVICES_STATUS_DATA_CACHE
 
         # Footer
         yield get_footer()
@@ -133,11 +137,6 @@ class JuiceShopScreen(Screen):
         Evento que se ejecuta al montar la pantalla.
         Inicia el listener de Redis que refresca la información inicial de configuración y estado.
         """
-        # Obtiene el rango de puertos del manager
-        ports_resp = await JuiceBoxAPI.get_js_ports_range()
-        if ports_resp.status != Status.OK:
-            return
-        self.ports_range = ports_resp.data.get("ports_range", [])
         self.__start_redis_listener()  # Se conecta al socket de Redis
 
         # Ejecuta el resto de acciones con confirmación
@@ -146,7 +145,7 @@ class JuiceShopScreen(Screen):
         if result:
             try:
                 parsed = json.loads(result)
-                resp = await JuiceBoxAPI.set_js_config(parsed)
+                resp = await JuiceBoxAPI.set_rtb_config(parsed)
                 __color, __severity = (
                     ("green", "information")
                     if resp.status == Status.OK
@@ -160,26 +159,8 @@ class JuiceShopScreen(Screen):
                     title="Operation Status:",
                     severity=__severity,
                 )
-
-                # Actualizar rango de puertos tras la nueva configuración
-                resp_ports = await JuiceBoxAPI.get_js_ports_range()
-                if resp_ports.status == Status.OK:
-                    self.ports_range = resp_ports.data.get("ports_range", [])
-
-                    valid_containers = {
-                        f"owasp-juice-shop-{port}" for port in range(*self.ports_range)
-                    }
-
-                    # Limpiar labels que ya no aplican
-                    to_remove = [
-                        cn for cn in self.SERVICE_LABELS if cn not in valid_containers
-                    ]
-                    for cn in to_remove:
-                        h_container, _ = self.SERVICE_LABELS.pop(cn)
-                        h_container.remove()
-
                 # Se actualiza la TUI con la nueva configuración
-                resp_refresh = await JuiceBoxAPI.get_js_config()
+                resp_refresh = await JuiceBoxAPI.get_rtb_config()
                 if resp_refresh.status == Status.OK:
                     config_text = json.dumps(
                         resp_refresh.data.get("config", {}), indent=4
@@ -210,14 +191,6 @@ class JuiceShopScreen(Screen):
         )
         if result == "yes":
             try:
-                if option == "Generate missions":
-                    self.notify(
-                        "Please wait while the RTB missions file loads, it may take a while...",
-                        severity="warning",
-                        title="Patience is a virtue:",
-                        timeout=30,
-                    )
-
                 if asyncio.iscoroutinefunction(action):
                     resp = await action()
                 else:
@@ -235,7 +208,6 @@ class JuiceShopScreen(Screen):
                     f"[b]{option.upper()}[/b] has finished: [b]{resp.status.upper()}[/b]",
                     title="Operation status:",
                     severity=__severity,
-                    timeout=10,
                 )
             except Exception as e:
                 self.menu_info.update(
@@ -272,13 +244,13 @@ class JuiceShopScreen(Screen):
         # Edita la configuración
         if option == "Configuration":
             try:
-                resp: Response = await JuiceBoxAPI.get_js_config()
+                resp: Response = await JuiceBoxAPI.get_rtb_config()
                 config_dict = resp.data.get("config", {})
                 # Se eliminan las claves que no deben editarse
-                config_dict.pop("container_prefix", None)
-                config_dict.pop("node_env", None)
-                config_dict.pop("detach_mode", None)
-                config_dict.pop("image", None)
+                config_dict.pop("network_name", None)
+                config_dict.pop("webapp_container_name", None)
+                config_dict.pop("cache_container_name", None)
+                config_dict.pop("rtb_dir", None)
                 config_text = json.dumps(config_dict, indent=4)
 
                 async def __run_handle_config():
@@ -348,7 +320,7 @@ class JuiceShopScreen(Screen):
             str: Configuración como string JSON, o un string de error si falla.
         """
         try:
-            resp = await JuiceBoxAPI.get_js_config()
+            resp = await JuiceBoxAPI.get_rtb_config()
             if resp.status == Status.OK:
                 self.config_data.loading = False
                 self.config_data.visible = True
@@ -368,39 +340,62 @@ class JuiceShopScreen(Screen):
             self.config_data.update_content(new_conf, is_json=True)
             self.menu_info.update("[yellow]Data refreshed[/yellow]")
 
-    async def refresh_status(self) -> None:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: self.__init_containers_status(loop))
-
     def __update_ui(self, data: dict) -> None:
         """
-        Actualiza el estado de un contenedor en la UI según los datos recibidos.
+        Actualiza el estado de los servicios en la UI según datos recibidos.
 
         Args:
             data (dict): Diccionario con 'container' y 'status'.
         """
+        status = AVAILABLE if data["status"] == "running" else NOT_AVAILABLE
         if data["container"] == "juicebox-engine":
             # Refresca la configuración
             asyncio.run_coroutine_threadsafe(
                 self.action_refresh(),
                 loop=asyncio.get_event_loop(),
             )
-        elif "owasp" in data["container"]:
-            # Refresca todo el bloque de servicios
-            asyncio.run_coroutine_threadsafe(
-                self.refresh_status(),
-                asyncio.get_event_loop(),
-            )
+        elif data["container"] == "rootthebox-webapp-1":
+            self.SERVICES_STATUS_DATA_WEBAPP.update(status)
+        elif data["container"] == "rootthebox-memcached-1":
+            self.SERVICES_STATUS_DATA_CACHE.update(status)
+
+    def __init_containers_status(self, loop: AbstractEventLoop) -> None:
+        """
+        Obtiene el estado inicial de los contenedores y los inicializa en la TUI.
+
+        Args:
+            loop (AbstractEventLoop): Loop de eventos.
+        """
+        try:
+            resp = loop.run_until_complete(JuiceBoxAPI.get_rtb_status())
+            if resp.status == Status.OK:
+                containers = resp.data.get("containers", [])
+                for c in containers:
+                    name = c["data"]["container"]
+                    status = (
+                        AVAILABLE if c["data"]["status"] == "running" else NOT_AVAILABLE
+                    )
+                    if name == "rootthebox-webapp-1":
+                        self.app.call_from_thread(
+                            lambda status=status: self.SERVICES_STATUS_DATA_WEBAPP.update(
+                                status
+                            )
+                        )
+                    elif name == "rootthebox-memcached-1":
+                        self.app.call_from_thread(
+                            lambda status=status: self.SERVICES_STATUS_DATA_CACHE.update(
+                                status
+                            )
+                        )
+        except Exception:
+            pass
 
     def __load_config(self, loop: AbstractEventLoop) -> None:
         """
         Obtiene y carga la configuración en la TUI.
-
-        Args:
-            loop (AbstractEventLoop): Loop de eventos
         """
         try:
-            conf_resp = loop.run_until_complete(JuiceBoxAPI.get_js_config())
+            conf_resp = loop.run_until_complete(JuiceBoxAPI.get_rtb_config())
             if conf_resp.status == Status.OK:
                 config_text = json.dumps(conf_resp.data.get("config", {}), indent=4)
                 self.app.call_from_thread(
@@ -417,74 +412,13 @@ class JuiceShopScreen(Screen):
         except Exception:
             pass
 
-    def __init_containers_status(self, loop: AbstractEventLoop) -> None:
-        """
-        Inicializa o actualiza el estado de los contenedores en la UI.
-        """
-        future = None
-        try:
-            # Ejecutar la API de manera segura
-            future = asyncio.run_coroutine_threadsafe(JuiceBoxAPI.get_js_status(), loop)
-            resp = future.result(timeout=5)
-
-            if resp is None:
-                for _, label_status in self.SERVICE_LABELS.values():
-                    self.app.call_from_thread(
-                        lambda ls=label_status: ls.update(NOT_AVAILABLE)
-                    )
-
-            if resp.status != Status.OK:
-                return
-
-            containers_list = resp.data.get("containers", [])
-            containers_map = {
-                entry.get("data", {})
-                .get("container"): entry.get("data", {})
-                .get("status")
-                for entry in containers_list
-                if entry.get("data", {}).get("container")
-            }
-
-            start, end = self.ports_range
-            for port in range(start, end + 1):
-                container_name = f"owasp-juice-shop-{port}"
-                status_str = containers_map.get(container_name, "not_found")
-                status_display = AVAILABLE if status_str == "running" else NOT_AVAILABLE
-
-                # Actualiza UI en hilo principal
-                def update_label(cn=container_name, sd=status_display):
-                    if cn not in self.SERVICE_LABELS:
-                        # Crear nuevos widgets
-                        h_container = Horizontal(classes="h_container_services_data")
-                        label_name = Label(f"{cn}: ", classes="services-status-key")
-                        label_status = Label(sd, classes="services-status-datum")
-                        self.SERVICE_LABELS[cn] = (h_container, label_status)
-                        self.services_status.mount(h_container)
-                        h_container.mount(label_name)
-                        h_container.mount(label_status)
-                    else:
-                        # Solo actualizar texto
-                        _, label_status = self.SERVICE_LABELS[cn]
-                        label_status.update(sd)
-
-                self.app.call_from_thread(update_label)
-
-        except Exception:
-            # Fallback: marcar todos como no disponibles
-            for _, label_status in self.SERVICE_LABELS.values():
-                self.app.call_from_thread(
-                    lambda ls=label_status: ls.update(NOT_AVAILABLE)
-                )
-
     def __listener_thread(self):
+        """
+        Hilo que mantiene conexión con Redis, actualiza estado de servicios
+        y refresca la configuración mientras Redis está activo.
+        """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-
-        env_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "../../.env")
-        )
-        load_dotenv(env_path)
-        redis_pass = os.getenv("REDIS_PASSWORD")
 
         while True:
             try:
@@ -492,7 +426,7 @@ class JuiceShopScreen(Screen):
                     host="localhost",
                     port=6379,
                     db=0,
-                    password=redis_pass,
+                    password=REDIS_PASSWORD,
                     decode_responses=True,
                 )
                 pubsub = client.pubsub()
@@ -504,6 +438,7 @@ class JuiceShopScreen(Screen):
                 )
                 self.__init_containers_status(loop)
 
+                # Loop principal de mensajes
                 while True:
                     message = pubsub.get_message(timeout=0.5)
                     if message and message.get("type") == "message":
@@ -516,18 +451,21 @@ class JuiceShopScreen(Screen):
                             lambda data=data: self.__update_ui(data)
                         )
 
+                    # Intenta cargar la configuración si está en loading
                     if self.config_data.loading:
                         self.__load_config(loop)
 
+                    # Tiempo para reintentar la reconexión a Redis
                     time.sleep(1)
 
             except ConnectionError:
-                # Redis no disponible: marca todos los servicios como no disponibles
-                for _, label_status in self.SERVICE_LABELS.values():
-                    self.app.call_from_thread(
-                        lambda ls=label_status: ls.update(NOT_AVAILABLE)
-                    )
-
+                # Redis no está disponible
+                self.app.call_from_thread(
+                    lambda: self.SERVICES_STATUS_DATA_WEBAPP.update(NOT_AVAILABLE)
+                )
+                self.app.call_from_thread(
+                    lambda: self.SERVICES_STATUS_DATA_CACHE.update(NOT_AVAILABLE)
+                )
                 self.app.call_from_thread(
                     lambda: setattr(self.config_data, "loading", True)
                 )

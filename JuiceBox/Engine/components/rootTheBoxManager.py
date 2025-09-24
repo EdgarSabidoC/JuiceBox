@@ -168,7 +168,10 @@ class RootTheBoxManager(BaseManager):
                 "webapp": {
                     "build": ".",
                     "ports": [f"{self.config.webapp_port}:8888"],
-                    "volumes": ["./files:/opt/rtb/files:rw"],
+                    "volumes": [
+                        "./files:/opt/rtb/files:rw",
+                        "./missions:/opt/rtb/missions:rw",
+                    ],
                     "environment": ["COMPOSE_CONVERT_WINDOWS_PATHS=1"],
                 },
             },

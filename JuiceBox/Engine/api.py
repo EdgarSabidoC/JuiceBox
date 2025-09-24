@@ -4,8 +4,10 @@ from dotenv import dotenv_values
 from Models import Response, Status
 
 SOCKET_PATH: str | None = dotenv_values().get(
-    "JUICEBOX_SOCKET", "/run/juicebox/juicebox.sock"
+    "JUICEBOX_SOCKET", "/run/juicebox/engine.sock"
 )
+
+REDIS_PASSWORD: str | None = dotenv_values().get("REDIS_PASSWORD", "")
 
 
 class Programs:
