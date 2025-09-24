@@ -184,6 +184,7 @@ class RootTheBoxScreen(Screen):
     async def __handle_confirm(self, option: str, description: str, action) -> None:
         """
         Muestra la confirmación y ejecuta la acción seleccionada.
+        Refresca la UI de servicios si se trata de un restart.
         """
         self.__skip_resume = True
         result = await self.app.push_screen_wait(
@@ -191,6 +192,7 @@ class RootTheBoxScreen(Screen):
         )
         if result == "yes":
             try:
+                # Ejecuta la acción, ya sea coroutine o función síncrona
                 if asyncio.iscoroutinefunction(action):
                     resp = await action()
                 else:
@@ -209,6 +211,14 @@ class RootTheBoxScreen(Screen):
                     title="Operation status:",
                     severity=__severity,
                 )
+
+                # --- REFRESCO PARA RESTART ---
+                if option == "Restart" and resp.status == Status.OK:
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(
+                        None, lambda: self.__init_containers_status(loop)
+                    )
+
             except Exception as e:
                 self.menu_info.update(
                     f"{description}\n[red]\n\nOperation {option.upper()}: {e}[/red]"

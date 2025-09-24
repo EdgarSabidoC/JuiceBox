@@ -138,7 +138,16 @@ class JuiceShopScreen(Screen):
         self.ports_range = ports_resp.data.get("ports_range", [])
         self.__start_redis_listener()  # Se conecta al socket de Redis
 
-        # Ejecuta el resto de acciones con confirmación
+    async def on_unmount(self) -> None:
+        """
+        Se ejecuta al cerrar la pantalla. Cancela tareas pendientes.
+        """
+        if getattr(self, "_refresh_task", None):
+            self._refresh_task.cancel()
+            try:
+                await asyncio.wrap_future(self._refresh_task)
+            except (asyncio.CancelledError, Exception):
+                pass
 
     async def __on_config_dismissed(self, result: str | None, description: str) -> None:
         if result:
@@ -373,15 +382,30 @@ class JuiceShopScreen(Screen):
             self.menu_info.update("[yellow]Data refreshed[/yellow]")
 
     async def refresh_status(self) -> None:
+        """
+        Refresca el estado de los contenedores de Juice Shop en la UI.
+        Maneja correctamente asyncio.CancelledError.
+        """
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: self.__init_containers_status(loop))
+        try:
+            # Ejecutamos la inicialización de contenedores en un thread executor
+            await loop.run_in_executor(
+                None, functools.partial(self.__init_containers_status, loop)
+            )
+        except asyncio.CancelledError:
+            # Aquí puedes hacer limpieza si es necesario antes de cancelar la tarea
+            # Por ejemplo, marcar todos los servicios como no disponibles temporalmente
+            for _, label_status in self.SERVICE_LABELS.values():
+                self.app.call_from_thread(
+                    lambda ls=label_status: ls.update(NOT_AVAILABLE)
+                )
+            # Re-lanzamos la excepción para que asyncio la gestione correctamente
+            raise
 
     def __update_ui(self, data: dict) -> None:
         """
         Actualiza el estado de un contenedor en la UI según los datos recibidos.
-
-        Args:
-            data (dict): Diccionario con 'container' y 'status'.
+        Se asegura de no lanzar múltiples corutinas concurrentes.
         """
         if data["container"] == "juicebox-engine":
             # Refresca la configuración
@@ -390,11 +414,15 @@ class JuiceShopScreen(Screen):
                 loop=asyncio.get_event_loop(),
             )
         elif "owasp" in data["container"]:
-            # Refresca todo el bloque de servicios
-            asyncio.run_coroutine_threadsafe(
-                self.refresh_status(),
-                asyncio.get_event_loop(),
-            )
+            # Refresca el bloque de servicios, pero solo si no hay tarea pendiente
+            if (
+                getattr(self, "_refresh_task", None) is None
+                or self._refresh_task.done()
+            ):
+                loop = asyncio.get_event_loop()
+                self._refresh_task = asyncio.run_coroutine_threadsafe(
+                    self.refresh_status(), loop
+                )
 
     def __load_config(self, loop: AbstractEventLoop) -> None:
         """
