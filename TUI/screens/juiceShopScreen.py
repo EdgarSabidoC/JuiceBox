@@ -131,23 +131,13 @@ class JuiceShopScreen(Screen):
         Evento que se ejecuta al montar la pantalla.
         Inicia el listener de Redis que refresca la información inicial de configuración y estado.
         """
-        # Obtiene el rango de puertos del manager
-        ports_resp = await JuiceBoxAPI.get_js_ports_range()
-        if ports_resp.status != Status.OK:
-            return
-        self.ports_range = ports_resp.data.get("ports_range", [])
         self.__start_redis_listener()  # Se conecta al socket de Redis
 
-    async def on_unmount(self) -> None:
-        """
-        Se ejecuta al cerrar la pantalla. Cancela tareas pendientes.
-        """
-        if getattr(self, "_refresh_task", None):
-            self._refresh_task.cancel()
-            try:
-                await asyncio.wrap_future(self._refresh_task)
-            except (asyncio.CancelledError, Exception):
-                pass
+        # Espera a que la pantalla se haya montado completamente
+        await asyncio.sleep(0.1)
+
+        # Dibuja los contenedores iniciales y consulta sus estados
+        await self.refresh_status()
 
     async def __on_config_dismissed(self, result: str | None, description: str) -> None:
         if result:
@@ -355,7 +345,7 @@ class JuiceShopScreen(Screen):
 
     async def get_conf(self) -> str:
         """
-        Obtiene la configuración actual de RootTheBox.
+        Obtiene la configuración actual de OWASP Juice Shop.
 
         Returns:
             str: Configuración como string JSON, o un string de error si falla.
@@ -382,39 +372,20 @@ class JuiceShopScreen(Screen):
             self.menu_info.update("[yellow]Data refreshed[/yellow]")
 
     async def refresh_status(self) -> None:
-        """
-        Refresca el estado de los contenedores de Juice Shop en la UI.
-        Maneja correctamente asyncio.CancelledError.
-        """
         loop = asyncio.get_event_loop()
-        try:
-            # Ejecutamos la inicialización de contenedores en un thread executor
-            await loop.run_in_executor(
-                None, functools.partial(self.__init_containers_status, loop)
-            )
-        except asyncio.CancelledError:
-            # Aquí puedes hacer limpieza si es necesario antes de cancelar la tarea
-            # Por ejemplo, marcar todos los servicios como no disponibles temporalmente
-            for _, label_status in self.SERVICE_LABELS.values():
-                self.app.call_from_thread(
-                    lambda ls=label_status: ls.update(NOT_AVAILABLE)
-                )
-            # Re-lanzamos la excepción para que asyncio la gestione correctamente
-            raise
+        await loop.run_in_executor(None, lambda: self.__init_containers_status(loop))
 
     def __update_ui(self, data: dict) -> None:
-        """
-        Actualiza el estado de un contenedor en la UI según los datos recibidos.
-        Se asegura de no lanzar múltiples corutinas concurrentes.
-        """
-        if data["container"] == "juicebox-engine":
-            # Refresca la configuración
+        container = data.get("container", "")
+
+        if container == "juicebox-engine" and data.get("event") == "set_js_config":
+            # Solo si el mensaje indica un cambio de configuración
             asyncio.run_coroutine_threadsafe(
                 self.action_refresh(),
                 loop=asyncio.get_event_loop(),
             )
-        elif "owasp" in data["container"]:
-            # Refresca el bloque de servicios, pero solo si no hay tarea pendiente
+        elif "owasp" in container:
+            # Solo actualiza el status
             if (
                 getattr(self, "_refresh_task", None) is None
                 or self._refresh_task.done()
@@ -424,17 +395,19 @@ class JuiceShopScreen(Screen):
                     self.refresh_status(), loop
                 )
 
-    def __load_config(self, loop: AbstractEventLoop) -> None:
-        """
-        Obtiene y carga la configuración en la TUI.
-
-        Args:
-            loop (AbstractEventLoop): Loop de eventos
-        """
+    def __load_config(self, loop: AbstractEventLoop) -> bool:
         try:
             conf_resp = loop.run_until_complete(JuiceBoxAPI.get_js_config())
             if conf_resp.status == Status.OK:
-                config_text = json.dumps(conf_resp.data.get("config", {}), indent=4)
+                config = conf_resp.data.get("config", {})
+                config_text = json.dumps(config, indent=4)
+
+                # Calcula el rango de puertos aquí
+                resp_ports = loop.run_until_complete(JuiceBoxAPI.get_js_ports_range())
+                if resp_ports.status == Status.OK:
+                    self.ports_range = resp_ports.data.get("ports_range", [])
+
+                # actualizar UI
                 self.app.call_from_thread(
                     lambda: setattr(self.config_data, "loading", False)
                 )
@@ -442,12 +415,19 @@ class JuiceShopScreen(Screen):
                     lambda: setattr(self.config_data, "visible", True)
                 )
                 self.app.call_from_thread(
-                    lambda config_text=config_text: self.config_data.update_content(
-                        config_text, is_json=True
+                    lambda ct=config_text: self.config_data.update_content(
+                        ct, is_json=True
                     )
                 )
+                # self.app.call_from_thread(
+                #     lambda pr=ports_range: self.ports_label.update(f"Ports: {pr}")
+                # )
+
+                return True
+            else:
+                return False
         except Exception:
-            pass
+            return False
 
     def __init_containers_status(self, loop: AbstractEventLoop) -> None:
         """
@@ -524,42 +504,42 @@ class JuiceShopScreen(Screen):
                 pubsub = client.pubsub()
                 pubsub.subscribe("admin_channel", "client_channel")
 
-                # Estado inicial
-                self.app.call_from_thread(
-                    lambda: setattr(self.config_data, "loading", True)
-                )
-                self.__init_containers_status(loop)
-
+                # Carga config + status de contenedores con reintento hasta tener éxito
                 while True:
-                    message = pubsub.get_message(timeout=0.5)
-                    if message and message.get("type") == "message":
+                    try:
+                        self.app.call_from_thread(
+                            lambda: setattr(self.config_data, "loading", True)
+                        )
+
+                        # Se carga la configuración
+                        self.__load_config(loop)
+                        # self.__init_containers_status(loop)
+                        break  # éxito, salimos del retry
+                    except Exception:
+                        # ❌ no hay respuesta del engine todavía
+                        time.sleep(5)
+
+                # 👂 Escuchar Redis
+                for message in pubsub.listen():
+                    if message.get("type") == "message":
                         try:
                             data = json.loads(message["data"])
+                            self.app.call_from_thread(
+                                lambda d=data: self.__update_ui(d)
+                            )
                         except Exception:
                             continue
 
-                        self.app.call_from_thread(
-                            lambda data=data: self.__update_ui(data)
-                        )
-
-                    if self.config_data.loading:
-                        self.config_data.loading = False
-                        self.__load_config(loop)
-
-                    time.sleep(1)
-
             except ConnectionError:
-                # Redis no disponible: marca todos los servicios como no disponibles
+                # Redis no disponible → reintentar
                 for _, label_status in self.SERVICE_LABELS.values():
                     self.app.call_from_thread(
                         lambda ls=label_status: ls.update(NOT_AVAILABLE)
                     )
-
                 self.app.call_from_thread(
                     lambda: setattr(self.config_data, "loading", True)
                 )
                 time.sleep(5)
-                continue
 
     def __start_redis_listener(self):
         """
