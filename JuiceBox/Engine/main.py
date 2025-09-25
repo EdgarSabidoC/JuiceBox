@@ -25,9 +25,8 @@ def main():
 
     # Se instancia el monitor
     monitor = Monitor(
-        name="JuiceBoxEngine",
+        name="juiceboxengine",
         use_journal=True,
-        rtb_containers=["rootthebox-webapp-1", "rootthebox-memcached-1"],
         redis_manager=redis,
     )
 

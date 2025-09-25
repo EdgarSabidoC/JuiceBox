@@ -1,37 +1,37 @@
 # Juice Box Engine TUI
 
-## JuiceBox TUI como ejecutable
+## Juice Box TUI como ejecutable
 
-### Crear un script ejecutable */opt/JuiceBox/TUI/tui.sh* con lo siguiente
+### Crear un script ejecutable */opt/juicebox/TUI/tui.sh* con lo siguiente
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
 # 1. Activar el entorno virtual
-source /opt/JuiceBox/venv/bin/activate
+source /opt/juicebox/venv/bin/activate
 
-# 2. Asegurar que Python vea tu paquete JuiceBox
-export PYTHONPATH=/opt/JuiceBox
+# 2. Asegurar que Python vea el paquete Juice Box
+export PYTHONPATH=/opt/juicebox
 
 # 3. Opcional: moverse al root del paquete
-cd /opt/JuiceBox
+cd /opt/juicebox
 
-# 4. Arrancar la TUI como módulo, pasando todos los args
+# 4. Arrancar la TUI como modulo, pasando todos los args
 exec python -m JuiceBox.TUI "$@"
 
 ```
 
-### Otorgar permiso de ejecución
+### Otorgar permiso de ejecucion
 
 ```bash
-sudo chmod 750 /opt/JuiceBox/TUI/juicebox_tui.sh
+sudo chmod 750 /opt/juicebox/TUI/juicebox_tui.sh
 ```
 
-### Crea un enlace simbólico en un directorio del PATH
+### Crea un enlace simbolico en un directorio del PATH
 
 ```bash
-sudo ln -s /opt/JuiceBox/TUI/tui.sh /usr/local/bin/juicebox
+sudo ln -s /opt/juicebox/TUI/tui.sh /usr/local/bin/juicebox
 ```
 
 ## Grupo juicebox para controlar acceso a la TUI
@@ -50,15 +50,15 @@ sudo usermod -aG juicebox el_usuario
 ### Cambiar grupo y permisos del script para que solo el grupo juicebox pueda ejecutarlo
 
 ```bash
-sudo chown root:juicebox /opt/JuiceBox/TUI/juicebox_tui.sh
-sudo chmod 750 /opt/JuiceBox/TUI/juicebox_tui.sh
+sudo chown root:juicebox /opt/juicebox/TUI/juicebox_tui.sh
+sudo chmod 750 /opt/juicebox/TUI/juicebox_tui.sh
 ```
 
-### Opcional (recomendado): controlar ejecución del binario desde /usr/local/bin/juicebox
+### Opcional (recomendado): controlar ejecucion del binario desde /usr/local/bin/juicebox
 
 ```bash
 sudo chown root:juicebox /usr/local/bin/juicebox
 sudo chmod 750 /usr/local/bin/juicebox
 ```
 
-**NOTA:** Como el enlace simbólico apunta al script, heredará permisos. Pero si quieres seguridad adicional, esta parte opcional permite que el enlace simbólico sea propiedad de root y grupo juicebox y permisos 750 también.
+**NOTA:** Como el enlace simbolico apunta al script, heredara permisos. Pero si quieres seguridad adicional, esta parte opcional permite que el enlace simbolico sea propiedad de root y grupo juicebox y permisos 750 tambien.

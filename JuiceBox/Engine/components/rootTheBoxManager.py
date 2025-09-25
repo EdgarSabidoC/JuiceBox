@@ -78,14 +78,10 @@ class RootTheBoxManager(BaseManager):
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Subo dos niveles: de components/ -> JuiceBoxEngine/ -> JuiceBox/
+        # Subo dos niveles: de components/ -> Engine/ -> JuiceBox/
         self.project_root = os.path.dirname(os.path.dirname(self.script_dir))
         # Ruta absoluta a configs/
-        self.configs_dir = os.path.join(self.project_root, "JuiceBoxEngine", "configs")
-        # Ruta absoluta al docker-compose.yml (que vive en RootTheBox/)
-        self.compose_file_path = os.path.join(
-            self.project_root, "RootTheBox", self.__rtb_yaml
-        )
+        self.configs_dir = os.path.join(self.project_root, "Engine", "configs")
 
         atexit.register(self.cleanup)
 
@@ -131,6 +127,22 @@ class RootTheBoxManager(BaseManager):
         """
         return self.config.cache_container_name
 
+    @property
+    def compose_file_path(self) -> str:
+        """
+        Ruta al docker-compose.yml de RootTheBox, usando la configuración actual.
+        """
+        return os.path.join(self.rtb_dir, self.__rtb_yaml)
+
+    def get_containers(self) -> list[str]:
+        """
+        Obtiene la lista de contenedores de la configuración actual de Root The Box.
+
+        Returns:
+          (list[str]): Lista con los nombres de los contenedores
+        """
+        return [self.webapp_container_name, self.cache_container_name]
+
     def __generate_docker_compose(self, output_path: str) -> ManagerResult:
         """
         Genera el archivo docker-compose.yml para Root The Box.
@@ -156,7 +168,10 @@ class RootTheBoxManager(BaseManager):
                 "webapp": {
                     "build": ".",
                     "ports": [f"{self.config.webapp_port}:8888"],
-                    "volumes": ["./files:/opt/rtb/files:rw"],
+                    "volumes": [
+                        "./files:/opt/rtb/files:rw",
+                        "./missions:/opt/rtb/missions:rw",
+                    ],
                     "environment": ["COMPOSE_CONVERT_WINDOWS_PATHS=1"],
                 },
             },

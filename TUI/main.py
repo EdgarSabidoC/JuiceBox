@@ -3,8 +3,7 @@ from textual.app import App
 from textual.binding import Binding
 from .screens import MainScreen
 from .screens import RootTheBoxScreen
-
-# from .screens import JuiceShopScreen
+from .screens import JuiceShopScreen
 from .screens import DocumentationScreen
 from .styles.theme import (
     juice_box_theme,
@@ -12,22 +11,23 @@ from .styles.theme import (
     hacker_dark_green_theme,
     synthwave_80s_theme,
 )
+from dotenv import dotenv_values
 
 
 class JuiceBoxApp(App):
     BINDINGS = [
         Binding(key="^q", action="quit", description="Quit", show=True),
     ]
-    VERSION: float = 1.1
+    VERSION: str = "1.1.0"
     TITLE = "JuiceBox Manager 🍊"
     SUB_TITLE = f"v.{VERSION}"
     SCREENS = {
         "main": MainScreen,
         "root": RootTheBoxScreen,
-        # "juice": JuiceShopScreen,
+        "juice": JuiceShopScreen,
         "documentation": DocumentationScreen,
     }
-    SOCKET_PATH = "/tmp/juiceboxengine.sock"
+    SOCKET_PATH = dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/engine.sock"
 
     async def on_mount(self) -> None:
         self.set_themes()

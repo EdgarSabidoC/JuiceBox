@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 import json, yaml
-from .validator import validate_str, validate_port, validate_bool, validate_ports_range
+from .validator import (
+    validate_str,
+    validate_port,
+    validate_bool,
+    validate_ports_range,
+    validate_int,
+)
 from Models import Status, ManagerResult
 from importlib.resources import files
 from pathlib import Path
@@ -14,9 +20,10 @@ RTB_SCHEMA = {
     "cache_container_name": ("MEMCACHED_CONTAINER_NAME", validate_str),
 }
 
-JUICESHOP_SCHEMA = {
+JS_SCHEMA = {
     "containers_name": ("CONTAINERS_NAME", validate_str),
     "ports_range": ("PORTS_RANGE", validate_ports_range),
+    "lifespan": ("LIFESPAN", validate_int),
     "ctf_key": ("CTF_KEY", validate_str),
     "node_env": ("NODE_ENV", validate_str),
     "detach_mode": ("DETACH_MODE", validate_bool),
@@ -24,7 +31,7 @@ JUICESHOP_SCHEMA = {
 
 
 class RTBConfig:
-    CONFIG_PATH = Path(str(files("JuiceBoxEngine.configs").joinpath("rootTheBox.json")))
+    CONFIG_PATH = Path(str(files("Engine.configs").joinpath("rootTheBox.json")))
 
     def __init__(self) -> None:
         """
@@ -50,7 +57,11 @@ class RTBConfig:
         """
         json_key, validator = RTB_SCHEMA[key]
         if json_key in config:
-            setattr(self, key, validator(config[json_key], json_key))
+            value = validator(config[json_key], json_key)
+            # Normaliza ruta si es rtb_dir
+            if key == "rtb_dir":
+                value = str(Path(value).resolve())
+            setattr(self, key, value)
 
     def __restart_state(self) -> None:
         """
@@ -158,7 +169,7 @@ class RTBConfig:
 
 
 class JuiceShopConfig:
-    CONFIG_PATH = Path(str(files("JuiceBoxEngine.configs").joinpath("juiceShop.json")))
+    CONFIG_PATH = Path(str(files("Engine.configs").joinpath("juiceShop.json")))
 
     def __init__(self) -> None:
         """
@@ -167,13 +178,14 @@ class JuiceShopConfig:
         self.utils_dir = Path(__file__).resolve().parent
         self.scripts_dir = self.utils_dir.parent
         self.project_root = self.scripts_dir.parent
-        self.configs_dir = self.project_root / "JuiceBoxEngine" / "configs"
+        self.configs_dir = self.project_root / "Engine" / "configs"
 
         # Valores por defecto
         self.containers_name: str = "owasp-juice-shop-"
         self.ports_range: list[int] = [3000, 3009]
         self.ctf_key: str = "test"
         self.node_env: str = "ctf"
+        self.lifespan: int = 180
         self.detach_mode: bool = True
         self.loaded: bool = False
         self.error = None
@@ -206,7 +218,7 @@ class JuiceShopConfig:
             config (dict): Diccionario con la configuración cargada desde JSON.
             key (str): Clave interna de la configuración a actualizar.
         """
-        json_key, validator = JUICESHOP_SCHEMA[key]
+        json_key, validator = JS_SCHEMA[key]
         if json_key in config:
             setattr(self, key, validator(config[json_key], json_key))
 
@@ -232,7 +244,7 @@ class JuiceShopConfig:
             if not self.CONFIG_PATH.exists():
                 updated_data = {
                     json_key: getattr(self, key)
-                    for key, (json_key, _) in JUICESHOP_SCHEMA.items()
+                    for key, (json_key, _) in JS_SCHEMA.items()
                 }
                 self.CONFIG_PATH.write_text(
                     json.dumps(updated_data, indent=4), encoding="utf-8"
@@ -241,14 +253,13 @@ class JuiceShopConfig:
             else:
                 config_data = json.loads(self.CONFIG_PATH.read_text(encoding="utf-8"))
 
-            # Aplica configuración
-            for key in JUICESHOP_SCHEMA:
+            # Aplica configuración desde JSON
+            for key in JS_SCHEMA:
                 self.__update_if_present(config_data, key)
 
             # Escribe JSON actualizado
             updated_data = {
-                json_key: getattr(self, key)
-                for key, (json_key, _) in JUICESHOP_SCHEMA.items()
+                json_key: getattr(self, key) for key, (json_key, _) in JS_SCHEMA.items()
             }
             self.CONFIG_PATH.write_text(
                 json.dumps(updated_data, indent=4), encoding="utf-8"
@@ -269,12 +280,14 @@ class JuiceShopConfig:
             self.error = e
             return ManagerResult.failure("Error loading JuiceShop config", error=str(e))
 
-    def set_config(self, config: dict[str, str | list[int] | bool]) -> ManagerResult:
+    def set_config(
+        self, config: dict[str, str | int | list[int] | bool]
+    ) -> ManagerResult:
         """
         Aplica cambios a la configuración y recarga JSON y YAML.
 
         Args:
-            config (dict[str, str | list[int] | bool]): Diccionario con valores a actualizar.
+            config (dict[str, str | int | list[int] | bool]): Diccionario con valores a actualizar.
 
         Returns:
             (ManagerResult): Estado de éxito o fallo de la operación.
@@ -285,17 +298,17 @@ class JuiceShopConfig:
             if self.CONFIG_PATH.exists():
                 existing_data = json.loads(self.CONFIG_PATH.read_text(encoding="utf-8"))
 
-            for key in JUICESHOP_SCHEMA:
-                json_key, validator = JUICESHOP_SCHEMA[key]
+            # Aplica cambios
+            for key in JS_SCHEMA:
+                json_key, validator = JS_SCHEMA[key]
                 if key in config:
                     setattr(self, key, validator(config[key], json_key))
                 elif json_key in existing_data:
-                    setattr(self, key, validator(existing_data[json_key], json_key))
+                    setattr(self, key, existing_data[json_key])
 
             # Escribe JSON actualizado
             updated_data = {
-                json_key: getattr(self, key)
-                for key, (json_key, _) in JUICESHOP_SCHEMA.items()
+                json_key: getattr(self, key) for key, (json_key, _) in JS_SCHEMA.items()
             }
             self.CONFIG_PATH.write_text(
                 json.dumps(updated_data, indent=4), encoding="utf-8"
@@ -303,9 +316,7 @@ class JuiceShopConfig:
 
             return self.load_config()
         except Exception as e:
-            return ManagerResult.failure(
-                "Error updating JuiceShop config", error=str(e)
-            )
+            return ManagerResult.failure("Error updating JS config", error=str(e))
 
     def __generate_yaml(self, output_filename: str = "juiceShopRTBConfig.yml") -> dict:
         """
@@ -319,14 +330,13 @@ class JuiceShopConfig:
         """
         data = {
             "ctfFramework": "RootTheBox",
-            "juiceShopUrl": "https://juice-shop.herokuapp.com",
+            "juiceShopUrl": "http://juice-shop-temp:3000",
             "ctfKey": self.ctf_key,
             "countryMapping": "https://raw.githubusercontent.com/juice-shop/juice-shop/master/config/fbctf.yml",
             "insertHints": "free",
             "insertHintUrls": "free",
             "insertHintSnippets": "free",
         }
-        # full_path = os.path.join(self.configs_dir, output_filename)
         self.configs_dir.mkdir(
             parents=True, exist_ok=True
         )  # Se asegura que el directorio exista
@@ -343,16 +353,17 @@ class JuiceShopConfig:
                 "message": f"YAML file could not be created: {e}",
             }
 
-    def get_config(self) -> dict[str, str | list[int] | bool]:
+    def get_config(self) -> dict[str, str | int | list[int] | bool]:
         """
         Devuelve un diccionario con la configuración actual de JuiceShop.
 
         Returns:
-            (dict[str, str | list[int] | bool]): Configuración actual de JuiceShop.
+            (dict[str, str | int | list[int] | bool]): Configuración actual de JuiceShop.
         """
         return {
             "containers_name": self.containers_name,
             "ports_range": self.ports_range,
+            "lifespan": self.lifespan,
             "ctf_key": self.ctf_key,
             "node_env": self.node_env,
             "detach_mode": self.detach_mode,

@@ -6,13 +6,14 @@ Clase JuiceBoxManager que carga configuración desde JuiceShopConfig
 y gestiona los contenedores via Docker SDK.
 """
 
-import os, atexit
+import os, atexit, shutil
 from docker import errors
 from ..utils import JuiceShopConfig
 from ..utils import validate_container
-from Models import ManagerResult, Status, BaseManager
+from Models import ManagerResult, BaseManager
 from docker import DockerClient
 from docker.models.containers import Container
+from docker.models.networks import Network
 
 
 LOGO = """
@@ -73,10 +74,16 @@ class JuiceShopManager(BaseManager):
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Directorio padre del proyecto (contiene 'scripts/' y 'configs/')
-        self.project_root = os.path.dirname(self.script_dir)
+        # Directorio padre del script
+        self.components_dir = os.path.dirname(self.script_dir)
+        # Directorio de la carpeta raíz del proyecto
+        self.project_root = os.path.abspath(os.path.join(self.script_dir, "../../.."))
+        # Directorio de RootTheBox/missions/
+        self.missions_dir = os.path.abspath(
+            os.path.join(self.project_root, "RootTheBox/missions/")
+        )
         # Ruta absoluta a configs/
-        self.configs_dir = os.path.join(self.project_root, "configs")
+        self.configs_dir = os.path.join(self.components_dir, "configs")
 
         self.image = "bkimminich/juice-shop:latest"
 
@@ -111,6 +118,13 @@ class JuiceShopManager(BaseManager):
         return self.config.ending_port
 
     @property
+    def lifespan(self) -> int:
+        """
+        Tiempo de vida de los contenedores de la Juice Shop en minutos.
+        """
+        return self.config.lifespan
+
+    @property
     def ctf_key(self) -> str:
         """
         Clave CTF para Juice Shop.
@@ -129,6 +143,19 @@ class JuiceShopManager(BaseManager):
         """
         return self.config.detach_mode
 
+    def get_containers(self) -> list[str]:
+        """
+        Obtiene la lista de contenedores de la configuración actual de la Juice Shop.
+
+        Returns:
+          (list[str]): Lista con los nombres de los contenedores
+        """
+        __containers: list[str] = []
+        for port in range(self.starting_port, self.ending_port + 1):
+            __container: str = self.container_prefix + str(port)
+            __containers.append(__container)
+        return __containers
+
     def __get_available_port(self) -> tuple[int, str]:
         """
         Obtiene un puerto disponible.
@@ -136,7 +163,7 @@ class JuiceShopManager(BaseManager):
         Returns:
             tuple[int, "available" | "not available"]: Puerto y disponibilidad.
         """
-        for port in self.ports_range:
+        for port in range(self.starting_port, self.ending_port + 1):
             __container: str = self.container_prefix + str(port)
             # Se verifica que no exista el contenedor
             if not validate_container(self.__docker_client, __container):
@@ -157,7 +184,13 @@ class JuiceShopManager(BaseManager):
         return int(container_name[len(self.container_prefix) :])
 
     def is_valid_port(self, port: int) -> bool:
-        return port in self.ports_range
+        """
+        Valida si un puerto está dentro del rango de puertos del Juice Shop Manager.
+
+        Returns:
+          bool: True si el puerto está dentro del rango, en otro caso, False.
+        """
+        return port in range(self.starting_port, self.ending_port + 1)
 
     def start(self) -> ManagerResult:
         """
@@ -185,6 +218,7 @@ class JuiceShopManager(BaseManager):
                     f"CTF_KEY={self.ctf_key}",
                     f"NODE_ENV={self.node_env}",
                 ],
+                labels={"lifespan": str(self.lifespan), "program": "JS"},
             )
             return ManagerResult.ok(
                 message="Container has been created and now is running",
@@ -268,7 +302,7 @@ class JuiceShopManager(BaseManager):
         # Destruye todos los contenedores de la JuiceShop
         containers_results: list[ManagerResult] = []
         overall_ok = True
-        for port in self.ports_range:
+        for port in range(self.starting_port, self.ending_port + 1):
             result = self.stop_container(self.container_prefix + str(port))
 
             if not result.success:
@@ -316,6 +350,7 @@ class JuiceShopManager(BaseManager):
                 "config": {
                     "container_prefix": self.container_prefix,
                     "ports_range": self.ports_range,
+                    "lifespan": self.lifespan,
                     "ctf_key": self.ctf_key,
                     "node_env": self.node_env,
                     "detach_mode": self.detach_mode,
@@ -354,17 +389,37 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             str: Estado del contenedor ('running', 'exited', 'not_found', etc.).
-
-        Raises:
-            errors.NotFound: Si el contenedor no existe.
         """
         try:
             container = self.__docker_client.containers.get(container_name)
             return container.status
-        except errors.NotFound as e:
-            return str(e)
+        except errors.NotFound:
+            return "not_found"
 
-    def status(self, container: str | int) -> ManagerResult:
+    def __get_port(self, container_name: str) -> int:
+        """
+        Obtiene el puerto mapeado de un contenedor de Juice Shop.
+
+        Args:
+            container_name (str): Nombre del contenedor.
+
+        Returns:
+            int: Puerto asignado o -1 si no tiene.
+        """
+        try:
+            container = self.__docker_client.containers.get(container_name)
+            ports = container.attrs["NetworkSettings"]["Ports"]
+            # ejemplo: {'3000/tcp': [{'HostIp': '0.0.0.0', 'HostPort': '3001'}]}
+            bindings = ports.get("3000/tcp")
+            if bindings and len(bindings) > 0:
+                return int(bindings[0]["HostPort"])
+            return -1
+        except errors.NotFound:
+            return -1
+        except Exception as e:
+            raise RuntimeError(f"Error getting port for {container_name}: {e}")
+
+    def container_status(self, container: str | int) -> ManagerResult:
         """
         Obtiene el estado actual de un contenedor de la Juice Shop.
         Args:
@@ -400,60 +455,150 @@ class JuiceShopManager(BaseManager):
                 },
             )
 
-    def generate_rtb_config(
-        self,
-        input_filename: str = "juiceShopRTBConfig.yml",
-        output_filename: str = "missions.xml",
-    ) -> ManagerResult:
+    def status(self) -> ManagerResult:
         """
-        Lanza el contenedor juice-shop-ctf y genera el archivo XML de configuración para Root The Box en configs/.
-        Es equivalente a:
-          `docker run -ti --rm -v $(pwd):/data bkimminich/juice-shop-ctf --config juiceShopRTBConfig.yml --output missions.xml`
-
-        Args:
-            input_filename (str): Nombre del archivo YAML de entrada en configs/.
-            output_filename (str): Nombre del archivo XML de salida a generar en configs/.
+        Obtiene el estado actual de los contenedores de Juice Shop.
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al generar el archivo.
         """
-        try:
-            # Ruta al YAML de entrada dentro de configs/
-            full_config_path = os.path.join(self.configs_dir, input_filename)
+        containers_results: list[ManagerResult] = []
+        overall_ok = True
 
-            if not os.path.isfile(full_config_path):
-                return ManagerResult.failure(
-                    message="YAML file not found",
-                    error=f"YAML file could not be found at {full_config_path}",
+        for i in range(self.starting_port, self.ending_port + 1):
+            container_name = f"{self.container_prefix}{i}"
+            try:
+                __status: str = self.__get_status(container_name)
+                __port: int = self.__get_port(container_name)
+                _data: dict[str, str | int] = {
+                    "container": container_name,
+                    "status": __status,
+                    "port": __port,
+                }
+                containers_results.append(
+                    ManagerResult.ok(
+                        message="Container status retrieved",
+                        data=_data,
+                    )
+                )
+            except Exception as e:
+                overall_ok = False
+                containers_results.append(
+                    ManagerResult.failure(
+                        message="Error getting container status",
+                        error=str(e),
+                        data={"container": container_name, "status": "error"},
+                    )
                 )
 
-            # Monta configs/ en /data, usa /data como working_dir
-            self.__docker_client.containers.run(
-                image="bkimminich/juice-shop-ctf",
-                command=[
-                    "--config",
-                    os.path.basename(full_config_path),
-                    "--output",
-                    output_filename,
-                ],
-                volumes={self.configs_dir: {"bind": "/data", "mode": "rw"}},
-                working_dir="/data",
-                tty=True,  # -t
-                stdin_open=True,  # -i
-                remove=True,  # --rm
-            )
+        __data: dict[str, list[dict]] = {
+            "containers": [r.to_dict() for r in containers_results]
+        }
+
+        if overall_ok:
             return ManagerResult.ok(
-                message=f"{output_filename} generated at {self.configs_dir}",
-                data={"path": self.configs_dir},
+                message="Success at retrieving Juice Shop containers' statuses",
+                data=__data,
             )
+        else:
+            return ManagerResult.failure(
+                message="Failure at retrieving some Juice Shop containers' statuses",
+                error="Some containers statuses could not be retrieved",
+                data=__data,
+            )
+
+    def generate_rtb_config(
+        self, input_filename="juiceShopRTBConfig.yml", output_filename="missions.xml"
+    ):
+        import os, time
+        from docker import errors
+
+        try:
+            # Paths
+            full_config_path = os.path.join(self.configs_dir, input_filename)
+            if not os.path.isfile(full_config_path):
+                return ManagerResult.failure(
+                    message="YAML file not found", error=full_config_path
+                )
+
+            client = self.__docker_client
+            network_name = "juice-net"
+
+            # 1. Crea la red si no existe
+            __net: Network
+            try:
+                __net = client.networks.get(network_name)
+            except errors.NotFound:
+                __net = client.networks.create(network_name)
+
+            # 2. Levanta un contenedor de la Juice Shop temporal
+            js_container = client.containers.run(
+                image="bkimminich/juice-shop",
+                name="juice-shop-temp",
+                network=network_name,
+                detach=True,
+            )
+
+            # 3. Espera unos segundos para que arranque
+            time.sleep(5)
+
+            try:
+                # 4. Ejecuta juice-shop-ctf en la misma red
+                client.containers.run(
+                    image="bkimminich/juice-shop-ctf",
+                    command=[
+                        "--config",
+                        os.path.basename(full_config_path),
+                        "--output",
+                        output_filename,
+                    ],
+                    volumes={self.configs_dir: {"bind": "/data", "mode": "rw"}},
+                    working_dir="/data",
+                    network=network_name,
+                    tty=True,
+                    stdin_open=True,
+                    remove=True,
+                )
+            finally:
+                # 5. Detiene y elimina el contenedor Juice Shop temporal
+                js_container.stop()
+                js_container.remove()
+                if __net is not None:
+                    try:
+                        __net.reload()
+                        if not __net.containers:
+                            __net.remove()
+                    except Exception as e:
+                        ManagerResult.failure(
+                            message=f"Temporary network {__net} couldn't be removed",
+                            error=str(e),
+                        )
+
+            # 7. Verifica la existencia del archivo
+            output_path = os.path.join(self.configs_dir, output_filename)
+            if os.path.isfile(output_path):
+                dest_path = os.path.join(self.missions_dir, output_filename)
+
+                # Si ya existe el archivo en el destino, se elimina
+                if os.path.isfile(dest_path):
+                    os.remove(dest_path)
+
+                # Se mueve el archivo a RootTheBox/missions/
+                shutil.move(output_path, dest_path)
+
+                return ManagerResult.ok(
+                    message=f"{output_filename} file saved in {self.missions_dir}",
+                    data={"path": self.missions_dir},
+                )
+            else:
+                return ManagerResult.failure(
+                    message=f"{output_filename} couldn't be generated",
+                    error="Non-existent file",
+                )
 
         except Exception as e:
             return ManagerResult.failure(
-                message="XML file could not be generated",
-                error=f"{e}",
+                message="Error while generating XML file", error=str(e)
             )
 
     def cleanup(self) -> ManagerResult:

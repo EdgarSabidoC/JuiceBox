@@ -1,15 +1,16 @@
-import logging, time, threading, docker, docker.errors
+import logging, time, asyncio, threading, docker, docker.errors
 from ..utils import Logger
 from .redisManager import RedisManager
 from Models import ManagerResult, ManagerResult, RedisPayload
 from docker.models.containers import Container
-from ..utils import validate_container
 from docker import DockerClient
+from ..api import JuiceBoxAPI
+from datetime import datetime, timezone, timedelta
 
 
 class Monitor:
     """
-    Clase para monitorear eventos en JuiceBoxEngine.
+    Clase para monitorear eventos en Engine.
 
     ## Características
     - Gestión de logs mediante un logger personalizado.
@@ -26,7 +27,7 @@ class Monitor:
     def __init__(
         # Logger:
         self,
-        name: str = "JuiceBoxEngine",
+        name: str = "juiceboxengine",
         use_journal: bool = True,
         level: int = logging.DEBUG,
         # Docker:
@@ -90,6 +91,9 @@ class Monitor:
             self.__redis: RedisManager = redis_manager
         else:
             self.__redis: RedisManager = RedisManager()
+
+        # Lista para guardar tareas activas de expiración
+        self.__expiration_tasks: list[asyncio.Task] = []
 
     # ─── Métodos de Logging ─────────────────────────────────────────────────────
 
@@ -170,35 +174,60 @@ class Monitor:
         """
         Bucle de vigilancia de contenedores. Ejecutado en segundo plano.
         """
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
         while self._monitoring:
-            containers = self.rtb_containers + self.js_containers
-
-            if not containers:
-                return  # No hay contenedores a monitorear
-
             try:
-                self.__process_all_containers()
+                # Procesar todos los contenedores usando la función helper
+                self.__process_all_containers(loop)
+
+                # Limpiar tareas completadas
+                self.__cleanup_finished_tasks()
+
+                # Ejecutar tareas pendientes de expiración
+                if self.__expiration_tasks:
+                    loop.run_until_complete(
+                        asyncio.gather(*self.__expiration_tasks, return_exceptions=True)
+                    )
+
             except Exception as e:
                 self.error(f"Monitor containers error: {e}")
 
             time.sleep(self._interval)
 
-    def __process_all_containers(self) -> None:
+        loop.close()
+
+    def __process_all_containers(self, loop: asyncio.AbstractEventLoop) -> None:
         """
-        Procesa el estado de todos los contenedores conocidos.
+        Procesa todos los contenedores conocidos:
+          - Actualiza su estado.
+          - Expira automáticamente los contenedores JS que superen su lifespan.
+          - Guarda las tareas de expiración en self.__expiration_tasks.
+
+        Args:
+            loop: Loop de asyncio para crear tareas.
         """
         containers = self.rtb_containers + self.js_containers
         for container_name in containers:
-            if not validate_container(self.__docker_client, container_name):
+            container = self.__get_container(container_name)
+            if not container:
+                # Si el contenedor no existe
                 if self.__last_statuses.get(container_name) != "not_found":
-                    self.change_status(
-                        container_name=container_name, current_status="not_found"
-                    )
+                    self.change_status(container_name, "not_found")
                     self.warning(f"Container '{container_name}' does not exist.")
                 continue
-            container = self.__get_container(container_name)  # Se obtiene el contenedor
-            if not container:
+
+            labels = container.labels or {}
+
+            # Solo contenedores JuiceShop con label program=JS se procesan para expirar
+            if labels.get("program") == "JS" and self.__is_container_expired(container):
+                # Se crea una tarea asyncio para expirar
+                task = loop.create_task(self.__expire_container(container))
+                self.__expiration_tasks.append(task)
                 continue
+
+            # Procesar estado normal (para RTB o JS que no expiran)
             self.__process_single_container(container)
 
     def __get_container(self, container_name: str) -> Container | None:
@@ -215,6 +244,60 @@ class Monitor:
             return self.__docker_client.containers.get(container_name)
         except docker.errors.NotFound:
             return None
+
+    def __is_container_expired(self, container: Container) -> bool:
+        """
+        Verifica si el contenedor ha superado su tiempo de vida.
+
+        Args:
+            container (Container): Contenedor Docker.
+
+        Returns:
+            bool: True si ha expirado, False si aún es válido.
+        """
+        created_at_str = container.attrs.get("Created")
+        if not created_at_str:
+            return False  # No se puede calcular, se considera activo
+
+        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+        lifespan_minutes = int(
+            container.labels.get("lifespan", 180)
+        )  # predeterminado 180 min
+        expire_at = created_at + timedelta(minutes=lifespan_minutes)
+
+        return datetime.now(timezone.utc) > expire_at
+
+    async def __expire_container(self, container: Container) -> None:
+        """
+        Expira un contenedor de Juice Shop usando la API de JuiceBox Engine y registra el evento.
+
+        Args:
+            container (Container): Contenedor Docker.
+        """
+        try:
+            ports_info = container.attrs["NetworkSettings"]["Ports"]
+            host_port = None
+            for _, mappings in ports_info.items():
+                if mappings and isinstance(mappings, list):
+                    host_port = mappings[0]["HostPort"]
+                    break
+
+            if not host_port:
+                raise ValueError(
+                    f"No se pudo obtener el puerto del contenedor {container.name}"
+                )
+
+            await JuiceBoxAPI.stop_js_container(int(host_port))
+            self.info(f"Expired container {container.name} on port {host_port}")
+
+        except Exception as e:
+            self.error(f"Failed to expire container {container.name}: {e}")
+
+    def __cleanup_finished_tasks(self) -> None:
+        """
+        Elimina tareas expiradas completadas de la lista __expiration_tasks.
+        """
+        self.__expiration_tasks = [t for t in self.__expiration_tasks if not t.done()]
 
     def __process_single_container(self, container: Container) -> None:
         """

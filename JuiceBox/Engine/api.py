@@ -4,8 +4,10 @@ from dotenv import dotenv_values
 from Models import Response, Status
 
 SOCKET_PATH: str | None = dotenv_values().get(
-    "JUICEBOX_SOCKET", "/run/juicebox/juicebox.sock"
+    "JUICEBOX_SOCKET", "/run/juicebox/engine.sock"
 )
+
+REDIS_PASSWORD: str | None = dotenv_values().get("REDIS_PASSWORD", "")
 
 
 class Programs:
@@ -287,12 +289,26 @@ class JuiceBoxAPI:
     @staticmethod
     async def start_js_container() -> Response:
         """
-        Inicia los contenedores de JS.
+        Inicia un contenedor de JS.
 
         Returns:
             Response: Resultado de la operación.
         """
         return await JuiceBoxAPI.__start(Programs.JS)
+
+    @staticmethod
+    async def start_n_js_containers(n: int) -> list[Response]:
+        """
+        Inicia n contenedores de JS.
+
+        Returns:
+            list[Response]: Lista con los resultados de las operaciones.
+        """
+        __containers: list[Response] = []
+        for _ in range(n):
+            __response: Response = await JuiceBoxAPI.__start(Programs.JS)
+            __containers.append(__response)
+        return __containers
 
     # STOP --------------------------------------------------------------
 
@@ -355,3 +371,13 @@ class JuiceBoxAPI:
             Response: Resultado de la operación.
         """
         return await JuiceBoxAPI.__send_command(Programs.JS, "__GENERATE_XML__")
+
+    @staticmethod
+    async def get_js_ports_range() -> Response:
+        """
+        Obtiene el rango de puertos utilizado por el manager de OWASP Juice Shop.
+
+        Returns:
+            Response: Resultado de la operación.
+        """
+        return await JuiceBoxAPI.__send_command(Programs.JS, "__PORTS_RANGE__")

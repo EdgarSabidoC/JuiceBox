@@ -119,7 +119,7 @@ def validate_ports_range(ports_range: list[int], name: str) -> list[int]:
     - InvalidConfiguration: Si los valores no son enteros o están fuera de rango.
     """
     # Valores por defecto
-    start, end = 3000, 3009
+    start, end = 3000, 3001
 
     if (
         isinstance(ports_range, list)
@@ -141,3 +141,38 @@ def validate_ports_range(ports_range: list[int], name: str) -> list[int]:
         validate_port(p, "PORT_IN_RANGE")
 
     return [start, end]
+
+
+def validate_int(
+    value: int, name: str, min_value: int = 0, max_value: int | None = None
+) -> int:
+    """
+    Verifica que un valor sea un entero dentro de un rango permitido.
+
+    Parámetros:
+    - value (int | str): Valor a validar (puede venir como int o str).
+    - name (str): Nombre descriptivo del parámetro (para mensajes de error).
+    - min_value (int): Valor mínimo permitido (default=0).
+    - max_value (int | None): Valor máximo permitido (opcional).
+
+    Retorna:
+    - int: El valor validado.
+
+    Lanza:
+    - InvalidConfiguration: Si `value` no es un entero válido o no cumple el rango.
+    """
+    # Int directo
+    if isinstance(value, int):
+        parsed = value
+    # Int como string
+    elif isinstance(value, str) and value.strip().isdigit():
+        parsed = int(value.strip())
+    else:
+        raise InvalidConfiguration(f"{name} must be an integer")
+
+    if parsed < min_value:
+        raise InvalidConfiguration(f"{name} must be >= {min_value}")
+    if max_value is not None and parsed > max_value:
+        raise InvalidConfiguration(f"{name} must be <= {max_value}")
+
+    return parsed

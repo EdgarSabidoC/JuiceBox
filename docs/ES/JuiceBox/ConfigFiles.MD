@@ -22,7 +22,7 @@ Contiene las variables para la configuracion y creacion de los contenedores de l
 }
 ```
 
-## juiceShopRTBConfig.yml
+## juiceShopRTBConfig.yml [NO MODIFICAR]
 Contiene la configuracion para el contenedor de Docker que genera el archivo XML con los desafios/misiones y las banderas de la JuiceShop para Root The Box.
 
 ### Ejemplo
@@ -116,3 +116,6 @@ requirepass C5L48
 # Persistencia AOF
 appendonly yes
 ```
+
+## .env [NO MODIFICAR]
+El archivo `.env` genera y utiliza variables de entorno dinamicas, por lo que no se debe modificar.

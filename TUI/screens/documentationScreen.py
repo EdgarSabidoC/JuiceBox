@@ -11,7 +11,7 @@ from pathlib import Path
 
 class DocumentationScreen(Screen):
     CSS_PATH = "../styles/documentation.tcss"
-    DOCS: Traversable = files("JuiceBox.docs.ES.JuiceBox")
+    DOCS: Traversable = files("docs.ES.JuiceBox")
     MARKDOWNS = {
         "Motor": Path(str(DOCS.joinpath("Engine.MD"))),
         "API": Path(str(DOCS.joinpath("API.MD"))),

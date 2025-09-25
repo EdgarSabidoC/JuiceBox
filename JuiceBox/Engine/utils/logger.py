@@ -10,7 +10,7 @@ class Logger:
     def __init__(
         self,
         name: str,
-        to_journal: bool = False,
+        to_journal: bool = True,
         identifier: str | None = None,
         level: int = logging.INFO,
     ):

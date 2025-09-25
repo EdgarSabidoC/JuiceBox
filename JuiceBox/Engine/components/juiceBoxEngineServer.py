@@ -40,6 +40,7 @@ COMMANDS = {
         "__STOP__",
         "__SET_CONFIG__",
         "__GENERATE_XML__",
+        "__PORTS_RANGE__",
     ],
 }
 
@@ -69,7 +70,7 @@ class JuiceBoxEngineServer:
         """
         # Obtiene la ruta del socket
         self.socket_path: str = (
-            dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/juicebox.sock"
+            dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/engine.sock"
         )
         # Obtiene la carpeta que contiene el socket
         socket_dir = os.path.dirname(self.socket_path)
@@ -127,6 +128,11 @@ class JuiceBoxEngineServer:
         """
         try:
             data = conn.recv(1024).decode().strip()
+            if not data:
+                self.monitor.warning("Empty message received from client, ignoring.")
+                conn.close()
+                return
+
             self.monitor.info(f"Data received: {data}")
             self.monitor.command_received(conn, data, conn.getpeername())
             self.command_queue.put((conn, data))
@@ -195,6 +201,9 @@ class JuiceBoxEngineServer:
             self.monitor.info(
                 message=f"Root The Box Manager containers have been started -> {__res.data}"
             )
+            load_result = self.__load_rtb_missions()
+            if not load_result.success:
+                self.monitor.warning(f"Could not load missions: {load_result.error}")
             return Response.ok(__message)
         if __res.error:
             __message += f": {__res.error}"
@@ -221,7 +230,25 @@ class JuiceBoxEngineServer:
             new_manager: RootTheBoxManager = RootTheBoxManager(
                 RTBConfig(), docker_client=self.docker_client
             )
-            self.__init_manager(new_manager)  # Se asegura de que la config esté cargada
+            __res: ManagerResult = self.__init_manager(
+                new_manager
+            )  # Se asegura de que la config esté cargada
+            if not __res.success:
+                self.monitor.error(
+                    f"Root The Box Manager couldn't be restarted -> {__res.error}"
+                )
+                return Response.error(
+                    message=f"Error restarting Root The Box Manager: {__res.error}"
+                )
+            __res = new_manager.start()
+            if __res.success:
+                self.monitor.info(f"RTB restarted -> {__res.data}")
+                load_result = self.__load_rtb_missions()
+                if not load_result.success:
+                    self.monitor.warning(
+                        f"Could not load missions after restart: {load_result.error}"
+                    )
+                return Response.ok("Root The Box Manager restarted")
         except AttributeError as e:
             self.monitor.error(f"Root The Box Manager couldn't be restarted -> {e}")
             return Response.error(message=f"Error restarting Root The Box Manager: {e}")
@@ -303,7 +330,13 @@ class JuiceBoxEngineServer:
             Response: Respuesta de la operación
         """
         __resp: ManagerResult = manager.set_config(config)
+
         if __resp.success:
+            # Se actualizan los contenedores del monitor:
+            self.monitor.set_containers(
+                rtb=self.rtb_manager.get_containers(),
+                js=self.js_manager.get_containers(),
+            )
             self.monitor.info(
                 message=f"Root The Box Manager running config has been changed -> {__resp.data}"
             )
@@ -345,6 +378,41 @@ class JuiceBoxEngineServer:
             message="Error when trying to retrieve Root The Box Manager Config."
         )
 
+    def __load_rtb_missions(self) -> ManagerResult:
+        """
+        Ejecuta rootthebox.py dentro del contenedor para cargar misiones desde el XML generado por JuiceShop.
+        """
+        container_name: str = self.rtb_manager.get_containers()[0]
+        missions_path: str = (
+            "/opt/rtb/missions/missions.xml"  # Ruta con las misiones dentro del contenedor de RTB
+        )
+
+        try:
+            if self.docker_client is not None:
+                container = self.docker_client.containers.get(container_name)
+            else:
+                self.monitor.error(
+                    "Failed to load RTB missions -> Webapp container not found"
+                )
+                return ManagerResult.failure(
+                    "Failed to load missions", error="Webapp container not found"
+                )
+            cmd = ["python3", "/opt/rtb/rootthebox.py", f"--xml={missions_path}"]
+            exec_result = container.exec_run(cmd, stdout=True, stderr=True)
+            exit_code = exec_result.exit_code
+            output = exec_result.output.decode("utf-8").strip()
+
+            if exit_code == 0:
+                self.monitor.info(f"RTB missions loaded successfully -> {output}")
+                return ManagerResult.ok("Missions loaded", data={"output": output})
+            else:
+                self.monitor.error(f"Failed to load RTB missions -> {output}")
+                return ManagerResult.failure("Failed to load missions", error=output)
+        except Exception as e:
+            return ManagerResult.failure(
+                "Error executing command inside RTB container", error=str(e)
+            )
+
     def __js_start_container(self, manager: JuiceShopManager) -> Response:
         """
         Inicia un nuevo contenedor de Juice Shop.
@@ -377,6 +445,16 @@ class JuiceBoxEngineServer:
             result: ManagerResult = self.js_manager.cleanup()
             if result.success:
                 self.monitor.info(f"Juice Shop Manager cleaned up -> {result.data}")
+                self.rtb_manager.cleanup()
+                # Crea una nueva instancia y carga la configuración
+                new_manager: JuiceShopManager = JuiceShopManager(
+                    JuiceShopConfig(), docker_client=self.docker_client
+                )
+                __res: ManagerResult = self.__init_manager(
+                    new_manager
+                )  # Se asegura de que la config esté cargada
+                if __res.success:
+                    return Response.ok("OWASP Juice Shop Manager restarted")
             else:
                 self.monitor.error(
                     f"Juice Shop Manager cleanup failed -> {result.error}"
@@ -405,6 +483,11 @@ class JuiceBoxEngineServer:
         """
         __resp: ManagerResult = manager.set_config(config)
         if __resp.success:
+            # Se actualizan los contenedores del monitor:
+            self.monitor.set_containers(
+                rtb=self.rtb_manager.get_containers(),
+                js=self.js_manager.get_containers(),
+            )
             self.monitor.info(
                 message=f"Juice Shop Manager running config has been changed -> {__resp.data}"
             )
@@ -489,7 +572,7 @@ class JuiceBoxEngineServer:
         if not container:
             return Response.error("Missing 'port' or 'container' in args")
 
-        __res: ManagerResult = manager.status(container)
+        __res: ManagerResult = manager.container_status(container)
         if __res.success and __res.data:
             self.redis_manager.publish_to_admin(
                 payload=RedisPayload.from_dict(__res.data)
@@ -534,6 +617,33 @@ class JuiceBoxEngineServer:
                 message="Error when trying to retrieve Juice Shop Manager config."
             )
 
+    def __js_get_ports_range(self, manager: JuiceShopManager) -> Response:
+        """
+        Obtiene el rango de puertos actual del manager de Juice Shop.
+
+        Args:
+            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+
+        Returns:
+            Response: Respuesta de la operación
+        """
+        __res: list[int] = manager.ports_range
+        if __res:
+            self.monitor.info(
+                message=f"Juice Shop Manager ports range retrieved -> {__res}"
+            )
+            return Response.ok(
+                message="Juice Shop Manager ports range retrieved",
+                data={"ports_range": __res},
+            )
+        else:
+            self.monitor.error(
+                message="Juice Shop Manager ports range couldn't be retrieved"
+            )
+            return Response.error(
+                message="Error when trying to retrieve Juice Shop Manager ports range."
+            )
+
     def __js_generate_xml(self, manager: JuiceShopManager) -> Response:
         """
         Genera el archivo XML de configuración para Root The Box basado en la configuración actual de Juice Shop.
@@ -558,30 +668,52 @@ class JuiceBoxEngineServer:
                 message="Error when trying to generate Root The Box XML file."
             )
 
-    def __js_status(self) -> Response:
+    def __js_status(self, manager: JuiceShopManager) -> Response:
         """
-        Obtiene el estado actual de los contenedores gestionados por Juice Shop.
+        Obtiene el estado actual de los contenedores gestionados por la OWASP Juice Shop.
 
         Args:
-            manager (JuiceShopManager): Instancia del manejador de Juice Shop
+            manager (JuiceShopManager): Instancia del manejador de OWASP Juice Shop
 
         Returns:
             Response: Respuesta de la operación
         """
-        if self.js_manager:
-            self.monitor.info(
-                message="Juice Shop Manager status retrieved -> JS Manager status is: [active]."
+        __res: ManagerResult = manager.status()
+        __response: Response = Response.error(
+            message=f"Error when trying to retrieve Juice Shop Manager Status -> {__res.error}",
+            data={},
+        )
+
+        if __res.success and __res.data:
+            # Se publica en Redis el estado de cada contenedor
+            for container_entry in __res.data.get("containers", []):
+                # container_entry viene de r.to_dict(), así que es un dict con "data"
+                container_data = container_entry.get("data", {})
+                if container_data:
+                    self.redis_manager.publish_to_admin(
+                        RedisPayload.from_dict(container_data)
+                    )
+                    self.redis_manager.publish_to_client(
+                        RedisPayload.from_dict(container_data)
+                    )
+
+            # Respuesta de éxito
+            __response = Response.ok(
+                message="Juice Shop Manager is active.", data=__res.data
             )
-            return Response.ok(message="Juice Shop Manager is active.")
+            self.monitor.info(
+                message=f"Juice Shop Manager Status retrieved -> {__res.data}"
+            )
         else:
             self.monitor.error(
-                message="Juice Shop Manager status couldn't be retrieved -> JS Manager status is: [inactive]."
-            )
-            return Response.error(
-                message="Error when trying to retrieve Juice Shop Manager Status."
+                message=f"Juice Shop Manager Status couldn't be retrieved -> {__res.error}"
             )
 
-    def __init_manager(self, manager: RootTheBoxManager | JuiceShopManager) -> None:
+        return __response
+
+    def __init_manager(
+        self, manager: RootTheBoxManager | JuiceShopManager
+    ) -> ManagerResult:
         """
         Inicializa un manager cargando su configuración y registrando los logs.
 
@@ -598,24 +730,38 @@ class JuiceBoxEngineServer:
 
             # Carga la configuración si no está cargada
             if manager.config.loaded:
-                self.monitor.info(f"✅ {name} config already loaded")
-                return
+                self.monitor.info(f"{name} config already loaded")
+                return ManagerResult(
+                    success=True,
+                    message=f"{name} config already loaded",
+                )
 
             result = manager.config.load_config()
             if not result.success:
                 self.monitor.error(f"❌ {name} config error: {result.message}")
+                return ManagerResult(
+                    success=False, message="Error found!", error=str(result.message)
+                )
             else:
-                self.monitor.info(f"✅ {name} config loaded successfully")
+                self.monitor.info(f"{name} config loaded successfully")
+                return ManagerResult(
+                    success=True,
+                    message=f"{name} config loaded successfully",
+                )
 
     def start(self) -> None:
         """
         Arranca el motor y acepta conexiones entrantes indefinidamente.
         """
-        print(f"🔌 JuiceBoxEngine started and listening on port: {self.socket_path}")
-        self.monitor.info(
-            f"JuiceBoxEngine started and listening on port: {self.socket_path}"
-        )
+        print(f"🔌 Engine started and listening on port: {self.socket_path}")
+        self.monitor.info(f"Engine started and listening on port: {self.socket_path}")
         self.redis_manager.start()  # Arranca el servicio de redis
+        self.__init_manager(self.rtb_manager)  # Carga la config de RootTheBox
+        self.__init_manager(self.js_manager)  # Carga la config de JuiceShop
+        # Se cargan los contenedores al monitor:
+        self.monitor.set_containers(
+            rtb=self.rtb_manager.get_containers(), js=self.js_manager.get_containers()
+        )
         # Publica el arranque del motor
         self.redis_manager.publish_to_admin(
             RedisPayload.from_dict(
@@ -715,9 +861,11 @@ class JuiceBoxEngineServer:
             case "__GENERATE_XML__":
                 return self.__js_generate_xml(__manager)
             case "__STATUS__":
-                return self.__js_status()
+                return self.__js_status(__manager)
             case "__SET_CONFIG__":
                 return self.__js_set_config(__manager, args)
+            case "__PORTS_RANGE__":
+                return self.__js_get_ports_range(__manager)
             case _:
                 __message: str = "Juice Shop Manager command error"
                 self.monitor.error(message=__message + f" -> {command}")
@@ -736,6 +884,8 @@ class JuiceBoxEngineServer:
             Response: Respuesta serializada en formato JSON
         """
         __resp: Response = Response.error(message="Program not supported by engine")
+        if not raw_data:
+            return Response.error(message="Empty request received")
         try:
             payload = json.loads(raw_data)
             prog = payload.get("prog")
