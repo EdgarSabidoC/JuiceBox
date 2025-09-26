@@ -523,7 +523,6 @@ class JuiceShopManager(BaseManager):
             try:
                 resp = requests.get(url, timeout=2)
                 if resp.status_code == 200:
-                    print(f"Service available {url} ✅")
                     return url
             except requests.exceptions.RequestException:
                 continue  # Si aún no responde
@@ -556,7 +555,7 @@ class JuiceShopManager(BaseManager):
             js_container: Container | None = None
             try:
                 try:
-                    valid_url = self.__wait_for_a_juice_shop(remote_url, timeout=30)
+                    valid_url = self.__wait_for_a_juice_shop(remote_url, timeout=16)
                 except TimeoutError:
                     # Levanta contenedor temporal
                     js_container = client.containers.run(
@@ -567,7 +566,7 @@ class JuiceShopManager(BaseManager):
                     )
                     # Espera a que responda el contenedor temporal
                     valid_url = self.__wait_for_a_juice_shop(
-                        "http://juice-shop-temp:3000", timeout=60
+                        "http://juice-shop-temp:3000", timeout=16
                     )
             finally:
                 # Limpia el contenedor temporal siempre

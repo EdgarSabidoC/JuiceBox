@@ -78,10 +78,14 @@ class RootTheBoxManager(BaseManager):
 
         # Directorio donde está este script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Subo dos niveles: de components/ -> Engine/ -> JuiceBox/
-        self.project_root = os.path.dirname(os.path.dirname(self.script_dir))
+        # Directorio padre del script
+        self.components_dir = os.path.dirname(self.script_dir)
+        # Directorio de la carpeta raíz del proyecto
+        self.project_root = os.path.abspath(os.path.join(self.script_dir, "../../.."))
+        # Directorio de RootTheBox/
+        self.rtb_dir = os.path.abspath(os.path.join(self.project_root, "RootTheBox/"))
         # Ruta absoluta a configs/
-        self.configs_dir = os.path.join(self.project_root, "Engine", "configs")
+        self.configs_dir = os.path.join(self.components_dir, "configs")
 
         atexit.register(self.cleanup)
 
@@ -105,13 +109,6 @@ class RootTheBoxManager(BaseManager):
         Nombre de la red de contenedores de Root The Box.
         """
         return self.config.network_name
-
-    @property
-    def rtb_dir(self) -> str:
-        """
-        Ruta del directorio donde se encuentra la carpeta de RootTheBox.
-        """
-        return self.config.rtb_dir
 
     @property
     def webapp_container_name(self) -> str:

@@ -222,7 +222,7 @@ class JuiceShopScreen(Screen):
 
                 __gen_xml_str: str = (
                     f"\n\n{resp.message}\n\n\nNow you can restart Root The Box services."
-                    if option == "Generate missions"
+                    if option == "Generate missions" and resp.status == Status.OK
                     else ""
                 )
                 __color, __severity = (
