@@ -1,7 +1,7 @@
-ctfFramework: RootTheBox
-juiceShopUrl: http://juice-shop-temp:3000
-ctfKey: test1
 countryMapping: https://raw.githubusercontent.com/juice-shop/juice-shop/master/config/fbctf.yml
-insertHints: free
-insertHintUrls: free
+ctfFramework: RootTheBox
+ctfKey: FMATCyberLab2025
 insertHintSnippets: free
+insertHintUrls: free
+insertHints: free
+juiceShopUrl: https://juice-shop.herokuapp.com

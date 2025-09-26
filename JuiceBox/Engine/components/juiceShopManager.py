@@ -6,7 +6,7 @@ Clase JuiceBoxManager que carga configuración desde JuiceShopConfig
 y gestiona los contenedores via Docker SDK.
 """
 
-import os, atexit, shutil
+import os, atexit, shutil, time, requests, yaml
 from docker import errors
 from ..utils import JuiceShopConfig
 from ..utils import validate_container
@@ -507,43 +507,86 @@ class JuiceShopManager(BaseManager):
                 data=__data,
             )
 
+    def __wait_for_a_juice_shop(self, url: str, timeout=60):
+        """
+        Espera hasta que al menos uno de los servicios de OWASP Juice Shop de la lista responda con HTTP 200.
+
+        Args:
+            urls (list[str]): Lista de URLs a chequear.
+            timeout (int): Tiempo máximo en segundos antes de rendirse.
+
+        Returns:
+            str: La URL que respondió primero.
+        """
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                resp = requests.get(url, timeout=2)
+                if resp.status_code == 200:
+                    print(f"Service available {url} ✅")
+                    return url
+            except requests.exceptions.RequestException:
+                continue  # Si aún no responde
+            time.sleep(2)  # retry tras revisar todos
+        raise TimeoutError(
+            f"There was no response from the services in {timeout} seconds"
+        )
+
     def generate_rtb_config(
         self, input_filename="juiceShopRTBConfig.yml", output_filename="missions.xml"
     ):
-        import os, time
-        from docker import errors
-
         try:
-            # Paths
             full_config_path = os.path.join(self.configs_dir, input_filename)
             if not os.path.isfile(full_config_path):
                 return ManagerResult.failure(
                     message="YAML file not found", error=full_config_path
                 )
 
-            client = self.__docker_client
-            network_name = "juice-net"
+            client: DockerClient = self.__docker_client
+            network_name: str = "juice-net"
 
-            # 1. Crea la red si no existe
-            __net: Network
+            # Crea la red Docker si no existe
             try:
                 __net = client.networks.get(network_name)
             except errors.NotFound:
                 __net = client.networks.create(network_name)
 
-            # 2. Levanta un contenedor de la Juice Shop temporal
-            js_container = client.containers.run(
-                image="bkimminich/juice-shop",
-                name="juice-shop-temp",
-                network=network_name,
-                detach=True,
-            )
-
-            # 3. Espera unos segundos para que arranque
-            time.sleep(5)
-
+            # Intentar URL remota primero
+            remote_url = "https://juice-shop.herokuapp.com"
+            js_container: Container | None = None
             try:
-                # 4. Ejecuta juice-shop-ctf en la misma red
+                try:
+                    valid_url = self.__wait_for_a_juice_shop(remote_url, timeout=30)
+                except TimeoutError:
+                    # Levanta contenedor temporal
+                    js_container = client.containers.run(
+                        image="bkimminich/juice-shop",
+                        name="juice-shop-temp",
+                        network=network_name,
+                        detach=True,
+                    )
+                    # Espera a que responda el contenedor temporal
+                    valid_url = self.__wait_for_a_juice_shop(
+                        "http://juice-shop-temp:3000", timeout=60
+                    )
+            finally:
+                # Limpia el contenedor temporal siempre
+                if js_container is not None:
+                    try:
+                        js_container.stop()
+                        js_container.remove()
+                    except Exception:
+                        pass
+
+            # Reescribe el YAML con la URL válida
+            with open(full_config_path, "r") as f:
+                cfg = yaml.safe_load(f) or {}
+            cfg["juiceShopUrl"] = valid_url  # Se actualiza la URL
+            with open(full_config_path, "w") as f:
+                yaml.safe_dump(cfg, f)
+
+            # Ejecuta el CLI juice-shop-ctf
+            try:
                 client.containers.run(
                     image="bkimminich/juice-shop-ctf",
                     command=[
@@ -560,32 +603,22 @@ class JuiceShopManager(BaseManager):
                     remove=True,
                 )
             finally:
-                # 5. Detiene y elimina el contenedor Juice Shop temporal
-                js_container.stop()
-                js_container.remove()
+                # Elimina la red si no tiene contenedores
                 if __net is not None:
                     try:
                         __net.reload()
                         if not __net.containers:
                             __net.remove()
-                    except Exception as e:
-                        ManagerResult.failure(
-                            message=f"Temporary network {__net} couldn't be removed",
-                            error=str(e),
-                        )
+                    except Exception:
+                        pass
 
-            # 7. Verifica la existencia del archivo
+            # Mueve el archivo XML generado a missions/
             output_path = os.path.join(self.configs_dir, output_filename)
             if os.path.isfile(output_path):
                 dest_path = os.path.join(self.missions_dir, output_filename)
-
-                # Si ya existe el archivo en el destino, se elimina
                 if os.path.isfile(dest_path):
                     os.remove(dest_path)
-
-                # Se mueve el archivo a RootTheBox/missions/
                 shutil.move(output_path, dest_path)
-
                 return ManagerResult.ok(
                     message=f"{output_filename} file saved in {self.missions_dir}",
                     data={"path": self.missions_dir},
