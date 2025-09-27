@@ -531,9 +531,144 @@ class JuiceShopManager(BaseManager):
             f"There was no response from the services in {timeout} seconds"
         )
 
+    def __validate_js_container(
+        self, network_name: str, client: DockerClient
+    ) -> tuple[str, str | None]:
+        """
+        Valida un contenedor de OWASP Juice Shop para obtener las misiones del CTF.
+
+        Args:
+            network_name (str): Nombre de la red.
+            client (DockerClient): Cliente Docker.
+
+        Returns:
+            (tuple[str, str | None]): URL válida del contenedor de la OWASP Juice Shop y el nombre del contenedor temporal (en caso de que exista o None).
+        """
+        # Intentar URL remota primero
+        remote_url = "https://juice-shop.herokuapp.com"
+        js_container: Container | None = None
+        valid_url: str = ""
+        try:
+            valid_url = self.__wait_for_a_juice_shop(remote_url, timeout=32)
+        except TimeoutError:
+            # Levanta un contenedor temporal en la red interna de Docker si la remota no responde
+            try:
+                js_container = client.containers.run(
+                    image="bkimminich/juice-shop",
+                    name="juice-shop-temp",
+                    network=network_name,
+                    detach=True,
+                )
+                valid_url = "http://juice-shop-temp:3000"
+                time.sleep(90)
+            except Exception:
+                if js_container is not None:
+                    js_container.stop()
+                    js_container.remove()
+        if js_container:
+            return (valid_url, js_container.name)
+        return (valid_url, None)
+
+    def __write_url_in_yaml(self, url: str, full_config_path: str) -> None:
+        """
+        Escribe una URL en un archivo YAML con el campo `juiceShopUrl`.
+
+        Args:
+            url (str): URL validada que será escrita en el YAML.
+            full_config_path (str): Ruta absoluta al archivo YAML de configuración.
+        """
+        with open(full_config_path, "r") as f:
+            cfg = yaml.safe_load(f) or {}
+        cfg["juiceShopUrl"] = url  # Se actualiza la URL
+        with open(full_config_path, "w") as f:
+            yaml.safe_dump(cfg, f)
+
+    def __run_js_cli_container(
+        self,
+        output_filename: str,
+        full_config_path: str,
+        network_name: str,
+        docker_net: Network,
+        client: DockerClient,
+    ) -> None:
+        """
+        Corre un contenedor de Docker con las herramientas CLI de OWASP Juice Shop CTF para generar las misiones.
+
+        Args:
+            output_filename (str): Nombre del archivo de salida.
+            full_config_path (str): Ruta absoluta al archivo de configuración.
+            network_name (str): Nombre de la red de contenedores de Docker.
+            docker_net (Network): Red de Docker.
+            client (DockerClient): Cliente Docker.
+        """
+        try:
+            client.containers.run(
+                image="bkimminich/juice-shop-ctf",
+                command=[
+                    "--config",
+                    os.path.basename(full_config_path),
+                    "--output",
+                    output_filename,
+                ],
+                volumes={self.configs_dir: {"bind": "/data", "mode": "rw"}},
+                working_dir="/data",
+                network=network_name,
+                tty=True,
+                stdin_open=True,
+                remove=True,
+            )
+        except Exception as e:
+            print(f"Error en CLI CTF: {e}")
+        finally:
+            # Elimina la red si no tiene contenedores
+            if docker_net is not None:
+                try:
+                    docker_net.reload()
+                    if not docker_net.containers:
+                        docker_net.remove()
+                except Exception:
+                    pass
+
+    def __move_XML_file(self, output_filename: str) -> ManagerResult:
+        """
+        Mueve el archivo XML generado a RootTheBox/missions/.
+
+        Args:
+            output_filename (str): Nombre del archivo de salida.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+        """
+        output_path = os.path.join(self.configs_dir, output_filename)
+        if os.path.isfile(output_path):
+            dest_path = os.path.join(self.missions_dir, output_filename)
+            if os.path.isfile(dest_path):
+                os.remove(dest_path)
+            shutil.move(output_path, dest_path)
+            return ManagerResult.ok(
+                message=f"{output_filename} file saved in {self.missions_dir}",
+                data={"path": self.missions_dir},
+            )
+        else:
+            return ManagerResult.failure(
+                message=f"{output_filename} couldn't be generated",
+                error="Non-existent file",
+            )
+
     def generate_rtb_config(
         self, input_filename="juiceShopRTBConfig.yml", output_filename="missions.xml"
-    ):
+    ) -> ManagerResult:
+        """
+        Genera un archvivo de misiones de OWASP Juice Shop para un CTF.
+
+        Args:
+            input_filename (str, optional): Nombre del archivo de entrada. Predeterminado: "juiceShopRTBConfig.yml".
+            output_filename (str, optional): Nombre del archivo de salida. Predeterminado: "missions.xml".
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+        """
+        js_container: str | None = None
         try:
             full_config_path = os.path.join(self.configs_dir, input_filename)
             if not os.path.isfile(full_config_path):
@@ -545,93 +680,47 @@ class JuiceShopManager(BaseManager):
             network_name: str = "juice-net"
 
             # Crea la red Docker si no existe
+            __net: Network
             try:
                 __net = client.networks.get(network_name)
             except errors.NotFound:
                 __net = client.networks.create(network_name)
 
-            # Intentar URL remota primero
-            remote_url = "https://juice-shop.herokuapp.com"
-            js_container: Container | None = None
-            try:
-                try:
-                    valid_url = self.__wait_for_a_juice_shop(remote_url, timeout=16)
-                except TimeoutError:
-                    # Levanta contenedor temporal
-                    js_container = client.containers.run(
-                        image="bkimminich/juice-shop",
-                        name="juice-shop-temp",
-                        network=network_name,
-                        detach=True,
-                    )
-                    # Espera a que responda el contenedor temporal
-                    valid_url = self.__wait_for_a_juice_shop(
-                        "http://juice-shop-temp:3000", timeout=16
-                    )
-            finally:
-                # Limpia el contenedor temporal siempre
-                if js_container is not None:
-                    try:
-                        js_container.stop()
-                        js_container.remove()
-                    except Exception:
-                        pass
+            # Prueba un contenedor de la Juice Shop remoto o uno temporal
+            valid_url, js_container = self.__validate_js_container(
+                network_name=network_name, client=client
+            )
 
             # Reescribe el YAML con la URL válida
-            with open(full_config_path, "r") as f:
-                cfg = yaml.safe_load(f) or {}
-            cfg["juiceShopUrl"] = valid_url  # Se actualiza la URL
-            with open(full_config_path, "w") as f:
-                yaml.safe_dump(cfg, f)
+            self.__write_url_in_yaml(url=valid_url, full_config_path=full_config_path)
 
             # Ejecuta el CLI juice-shop-ctf
-            try:
-                client.containers.run(
-                    image="bkimminich/juice-shop-ctf",
-                    command=[
-                        "--config",
-                        os.path.basename(full_config_path),
-                        "--output",
-                        output_filename,
-                    ],
-                    volumes={self.configs_dir: {"bind": "/data", "mode": "rw"}},
-                    working_dir="/data",
-                    network=network_name,
-                    tty=True,
-                    stdin_open=True,
-                    remove=True,
-                )
-            finally:
-                # Elimina la red si no tiene contenedores
-                if __net is not None:
-                    try:
-                        __net.reload()
-                        if not __net.containers:
-                            __net.remove()
-                    except Exception:
-                        pass
+            self.__run_js_cli_container(
+                output_filename=output_filename,
+                full_config_path=full_config_path,
+                network_name=network_name,
+                docker_net=__net,
+                client=client,
+            )
 
             # Mueve el archivo XML generado a missions/
-            output_path = os.path.join(self.configs_dir, output_filename)
-            if os.path.isfile(output_path):
-                dest_path = os.path.join(self.missions_dir, output_filename)
-                if os.path.isfile(dest_path):
-                    os.remove(dest_path)
-                shutil.move(output_path, dest_path)
-                return ManagerResult.ok(
-                    message=f"{output_filename} file saved in {self.missions_dir}",
-                    data={"path": self.missions_dir},
-                )
-            else:
-                return ManagerResult.failure(
-                    message=f"{output_filename} couldn't be generated",
-                    error="Non-existent file",
-                )
+            return self.__move_XML_file(output_filename=output_filename)
 
         except Exception as e:
             return ManagerResult.failure(
                 message="Error while generating XML file", error=str(e)
             )
+        finally:
+            # Limpia el contenedor temporal siempre
+            if js_container is not None:
+                try:
+                    container: Container = self.__docker_client.containers.get(
+                        js_container
+                    )
+                    container.stop()
+                    container.remove()
+                except Exception:
+                    pass
 
     def cleanup(self) -> ManagerResult:
         """
