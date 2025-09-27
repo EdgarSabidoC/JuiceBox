@@ -143,6 +143,87 @@ class RootTheBoxScreen(Screen):
 
         # Ejecuta el resto de acciones con confirmación
 
+    async def on_option_list_option_highlighted(
+        self, event: OptionList.OptionHighlighted
+    ):
+        """
+        Actualiza la información mostrada al resaltar una opción.
+
+        Args:
+            event (OptionList.OptionHighlighted): Evento de opción resaltada.
+        """
+        option: str = str(event.option.prompt).strip()
+        description = self.MENU_OPTIONS.get(option, "No menu_info available.")[0]
+        self.menu_info.update(description)
+
+    async def on_option_list_option_selected(
+        self, event: OptionList.OptionSelected
+    ) -> None:
+        """
+        Ejecuta la acción correspondiente a la opción seleccionada en el menú.
+
+        Args:
+            event (OptionList.OptionSelected): Evento que contiene la opción seleccionada.
+        """
+        option: str = str(event.option.prompt).strip()
+        description, action = self.MENU_OPTIONS.get(option, (None, None))
+
+        # Regresa al menú principal
+        if action is None:
+            await self.__return_to_main()
+            return
+
+        # Edita la configuración
+        if option == "Configuration":
+            try:
+                resp: Response = await JuiceBoxAPI.get_rtb_config()
+                config_dict = resp.data.get("config", {})
+                # Se eliminan las claves que no deben editarse
+                config_dict.pop("network_name", None)
+                config_dict.pop("webapp_container_name", None)
+                config_dict.pop("cache_container_name", None)
+                config_text = json.dumps(config_dict, indent=4)
+
+                async def __run_handle_config():
+                    result = await self.app.push_screen_wait(ConfigModal(config_text))
+                    await self.__on_config_dismissed(result, description)
+
+                self.__skip_resume = True
+                self.run_worker(__run_handle_config)
+            except Exception as e:
+                self.notify(
+                    message=f"{e}",
+                    title="Config couldn't be loaded:",
+                    severity="error",
+                    timeout=5,
+                )
+            return
+
+        async def __run_handle_confirm():
+            await self.__handle_confirm(option, description, action)
+
+        self.run_worker(__run_handle_confirm)
+
+    async def on_screen_resume(self, event: ScreenResume) -> None:
+        """
+        Evento que se ejecuta cuando la pantalla vuelve a mostrarse.
+
+        Args:
+            event (ScreenResume): Evento que indica que la pantalla ha sido reactivada.
+        """
+        if not self.__skip_resume:
+            # Selecciona el índice 0
+            self.menu.highlighted = 0
+
+            # Se asegura que el widget tenga el enfoque
+            self.menu.focus()
+
+    async def action_go_back(self) -> None:
+        """
+        Acción para regresar a la pantalla principal desde cualquier opción.
+        """
+        await self.__return_to_main()
+
     async def __on_config_dismissed(self, result: str | None, description: str) -> None:
         __color: str = "gold"
         __severity: str = "warning"
@@ -237,10 +318,7 @@ class RootTheBoxScreen(Screen):
 
                 # --- REFRESCO PARA RESTART ---
                 if option == "Restart" and resp.status == Status.OK:
-                    loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(
-                        None, lambda: self.__init_containers_status(loop)
-                    )
+                    await self.__init_containers_status()
 
             except Exception as e:
                 __severity = "error"
@@ -260,68 +338,6 @@ class RootTheBoxScreen(Screen):
             )
         self.__skip_resume = False
 
-    async def on_option_list_option_selected(
-        self, event: OptionList.OptionSelected
-    ) -> None:
-        """
-        Ejecuta la acción correspondiente a la opción seleccionada en el menú.
-
-        Args:
-            event (OptionList.OptionSelected): Evento que contiene la opción seleccionada.
-        """
-        option: str = str(event.option.prompt).strip()
-        description, action = self.MENU_OPTIONS.get(option, (None, None))
-
-        # Regresa al menú principal
-        if action is None:
-            await self.__return_to_main()
-            return
-
-        # Edita la configuración
-        if option == "Configuration":
-            try:
-                resp: Response = await JuiceBoxAPI.get_rtb_config()
-                config_dict = resp.data.get("config", {})
-                # Se eliminan las claves que no deben editarse
-                config_dict.pop("network_name", None)
-                config_dict.pop("webapp_container_name", None)
-                config_dict.pop("cache_container_name", None)
-                config_text = json.dumps(config_dict, indent=4)
-
-                async def __run_handle_config():
-                    result = await self.app.push_screen_wait(ConfigModal(config_text))
-                    await self.__on_config_dismissed(result, description)
-
-                self.__skip_resume = True
-                self.run_worker(__run_handle_config)
-            except Exception as e:
-                self.notify(
-                    message=f"{e}",
-                    title="Config couldn't be loaded:",
-                    severity="error",
-                    timeout=5,
-                )
-            return
-
-        async def __run_handle_confirm():
-            await self.__handle_confirm(option, description, action)
-
-        self.run_worker(__run_handle_confirm)
-
-    async def on_screen_resume(self, event: ScreenResume) -> None:
-        """
-        Evento que se ejecuta cuando la pantalla vuelve a mostrarse.
-
-        Args:
-            event (ScreenResume): Evento que indica que la pantalla ha sido reactivada.
-        """
-        if not self.__skip_resume:
-            # Selecciona el índice 0
-            self.menu.highlighted = 0
-
-            # Se asegura que el widget tenga el enfoque
-            self.menu.focus()
-
     async def __return_to_main(self) -> None:
         """
         Regresa a la pantalla principal del menú.
@@ -332,25 +348,6 @@ class RootTheBoxScreen(Screen):
             await self.app.pop_screen()
             # Se cambia a la nueva pantalla
             await self.app.push_screen("main")
-
-    async def action_go_back(self) -> None:
-        """
-        Acción para regresar a la pantalla principal desde cualquier opción.
-        """
-        await self.__return_to_main()
-
-    async def on_option_list_option_highlighted(
-        self, event: OptionList.OptionHighlighted
-    ):
-        """
-        Actualiza la información mostrada al resaltar una opción.
-
-        Args:
-            event (OptionList.OptionHighlighted): Evento de opción resaltada.
-        """
-        option: str = str(event.option.prompt).strip()
-        description = self.MENU_OPTIONS.get(option, "No menu_info available.")[0]
-        self.menu_info.update(description)
 
     async def __get_conf(self) -> str:
         """
@@ -406,15 +403,9 @@ class RootTheBoxScreen(Screen):
         elif data["container"] == "rootthebox-memcached-1":
             self.SERVICES_STATUS_DATA_CACHE.update(status)
 
-    def __init_containers_status(self, loop: AbstractEventLoop) -> None:
-        """
-        Obtiene el estado inicial de los contenedores y los inicializa en la TUI.
-
-        Args:
-            loop (AbstractEventLoop): Loop de eventos.
-        """
+    async def __init_containers_status(self):
         try:
-            resp = loop.run_until_complete(JuiceBoxAPI.get_rtb_status())
+            resp = await JuiceBoxAPI.get_rtb_status()
             if resp.status == Status.OK:
                 containers = resp.data.get("containers", [])
                 for c in containers:
@@ -423,19 +414,12 @@ class RootTheBoxScreen(Screen):
                         AVAILABLE if c["data"]["status"] == "running" else NOT_AVAILABLE
                     )
                     if name == "rootthebox-webapp-1":
-                        self.app.call_from_thread(
-                            lambda status=status: self.SERVICES_STATUS_DATA_WEBAPP.update(
-                                status
-                            )
-                        )
+                        self.SERVICES_STATUS_DATA_WEBAPP.update(status)
                     elif name == "rootthebox-memcached-1":
-                        self.app.call_from_thread(
-                            lambda status=status: self.SERVICES_STATUS_DATA_CACHE.update(
-                                status
-                            )
-                        )
+                        self.SERVICES_STATUS_DATA_CACHE.update(status)
         except Exception:
-            pass
+            self.SERVICES_STATUS_DATA_WEBAPP.update(NOT_AVAILABLE)
+            self.SERVICES_STATUS_DATA_CACHE.update(NOT_AVAILABLE)
 
     def __load_config(self, loop: AbstractEventLoop) -> None:
         """
@@ -465,8 +449,7 @@ class RootTheBoxScreen(Screen):
         )
 
     async def __refresh_status(self) -> None:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, lambda: self.__init_containers_status(loop))
+        await self.__init_containers_status()
 
     async def __get_container_status(self) -> None:
         """
@@ -547,7 +530,6 @@ class RootTheBoxScreen(Screen):
 
                         # Se carga la configuración
                         self.__load_config(loop)
-                        self.__init_containers_status(loop)
                         break  # Se sale del retry
                     except Exception:
                         # Si no hay respuesta del engine todavía

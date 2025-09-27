@@ -104,6 +104,8 @@ class JuiceBoxEngineServer:
         self.command_queue = Queue()
         Thread(target=self.__worker, daemon=True).start()
 
+        # Limpieza al cierre del socket
+        self._cleaned_up = False
         atexit.register(self.cleanup)
 
     def __worker(self) -> None:
@@ -1002,6 +1004,9 @@ class JuiceBoxEngineServer:
             __monitor = self.monitor
             __docker_client = self.docker_client
 
+        if self._cleaned_up:
+            return ManagerResult.ok("Cleanup already executed")
+        self._cleaned_up = True
         # Acumulamos mensajes y errores
         messages = []
         errors = []
