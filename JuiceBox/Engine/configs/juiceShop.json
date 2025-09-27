@@ -1,7 +1,7 @@
 {
     "CONTAINERS_NAME": "owasp-juice-shop-",
     "PORTS_RANGE": [
-        3000,
+        3001,
         3010
     ],
     "LIFESPAN": 180,

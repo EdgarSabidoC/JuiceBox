@@ -1,7 +1,7 @@
-countryMapping: https://raw.githubusercontent.com/juice-shop/juice-shop/master/config/fbctf.yml
 ctfFramework: RootTheBox
 ctfKey: FMATCyberLab2025
-insertHintSnippets: free
-insertHintUrls: free
+countryMapping: https://raw.githubusercontent.com/juice-shop/juice-shop/master/config/fbctf.yml
 insertHints: free
-juiceShopUrl: https://juice-shop.herokuapp.com
+insertHintUrls: free
+insertHintSnippets: free
+juiceShopUrl: ''

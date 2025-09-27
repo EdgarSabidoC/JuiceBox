@@ -2,6 +2,10 @@ Markdown {
   color: $text
 }
 
+ToastRack {
+  dock: top;
+}
+
 LoadingIndicator {
     align: center middle;
     color: $accent;

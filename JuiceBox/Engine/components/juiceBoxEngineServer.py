@@ -426,12 +426,13 @@ class JuiceBoxEngineServer:
         __res: ManagerResult = manager.start()
         if __res.success:
             self.monitor.info(message=f"Juice Shop container started -> {__res.data}")
-            return Response.ok(message=__res.message)
+            return Response.ok(message=__res.message, data=__res.data or {})
         self.monitor.error(
             message=f"Juice Shop container couldn't be started -> {__res.data}"
         )
         return Response.error(
-            message="Error when trying to start Juice Shop container."
+            message="Error when trying to start Juice Shop container.",
+            data=__res.data or {},
         )
 
     def __js_restart(self) -> Response:
@@ -532,7 +533,8 @@ class JuiceBoxEngineServer:
                 message=f"Juice Shop container couldn't be stopped -> {__res.error}"
             )
             return Response.error(
-                message="Error when trying to stop Juice Shop container."
+                message="Error when trying to stop Juice Shop container.",
+                data=__res.data or {},
             )
 
     def __js_stop(self, manager: JuiceShopManager) -> Response:

@@ -14,12 +14,17 @@ from JuiceBox.Engine.api import JuiceBoxAPI, REDIS_PASSWORD
 from ..widgets.confirmModal import ConfirmModal
 import importlib.resources as pkg_resources
 from ..widgets.configModal import ConfigModal
+from ..widgets.intModal import IntModal
 from redis.exceptions import ConnectionError
 from asyncio import AbstractEventLoop
+from redis.client import PubSub
 
+NOT_AVAILABLE: str = "[red]Not available ✘[/red]"
+AVAILABLE: str = "[green]Active and running ✔[/green]"
 
-NOT_AVAILABLE = "[red]Not available ✘[/red]"
-AVAILABLE = "[green]Active and running ✔[/green]"
+GENERATE_MISSIONS: str = "Generate missions"
+OP_STATUS: str = "Operation Status:"
+PATIENCE_VIRTUE: str = "Patience is a virtue:"
 
 
 class JuiceShopScreen(Screen):
@@ -48,7 +53,7 @@ class JuiceShopScreen(Screen):
             "Restart OWASP Juice Shop services",
             JuiceBoxAPI.restart_js_status,
         ),
-        "Generate missions": (
+        GENERATE_MISSIONS: (
             "Generate new XML with missions for Root The Box (This feature requires to restart Root The Box services)",
             JuiceBoxAPI.generate_xml,
         ),
@@ -62,7 +67,6 @@ class JuiceShopScreen(Screen):
     BINDINGS = [
         Binding("ctrl+b", "go_back", "Back", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
-        Binding("ctrl+r", "refresh", "Refresh", show=True),
     ]
 
     __skip_resume: bool = (
@@ -121,6 +125,7 @@ class JuiceShopScreen(Screen):
                 self.services_status.styles.overflow_y = "scroll"
                 self.services_status.can_focus = False
                 self.services_status.border_title = "Services Status"
+                self.services_status.loading = True
                 yield self.services_status
 
         # Footer
@@ -137,123 +142,20 @@ class JuiceShopScreen(Screen):
         await asyncio.sleep(0.1)
 
         # Dibuja los contenedores iniciales y consulta sus estados
-        await self.refresh_status()
+        await self.__refresh_status()
 
-    async def __on_config_dismissed(self, result: str | None, description: str) -> None:
-        if result:
-            try:
-                parsed = json.loads(result)
-                resp = await JuiceBoxAPI.set_js_config(parsed)
-                __color, __severity = (
-                    ("green", "information")
-                    if resp.status == Status.OK
-                    else ("red", "error")
-                )
-                self.menu_info.update(
-                    f"{description}\n[{__color}]\nOperation CONFIGURATION: {resp.status.upper()} [/{__color}]"
-                )
-                self.notify(
-                    f"[b]CONFIGURATION[/b] editing has finished: [b]{resp.status.upper()}[/b]",
-                    title="Operation Status:",
-                    severity=__severity,
-                )
-
-                # Actualizar rango de puertos tras la nueva configuración
-                resp_ports = await JuiceBoxAPI.get_js_ports_range()
-                if resp_ports.status == Status.OK:
-                    self.ports_range = resp_ports.data.get("ports_range", [])
-
-                    valid_containers = {
-                        f"owasp-juice-shop-{port}" for port in range(*self.ports_range)
-                    }
-
-                    # Limpiar labels que ya no aplican
-                    to_remove = [
-                        cn for cn in self.SERVICE_LABELS if cn not in valid_containers
-                    ]
-                    for cn in to_remove:
-                        h_container, _ = self.SERVICE_LABELS.pop(cn)
-                        h_container.remove()
-
-                # Se actualiza la TUI con la nueva configuración
-                resp_refresh = await JuiceBoxAPI.get_js_config()
-                if resp_refresh.status == Status.OK:
-                    config_text = json.dumps(
-                        resp_refresh.data.get("config", {}), indent=4
-                    )
-                    self.config_data.update_content(config_text, is_json=True)
-            except Exception as e:
-                self.menu_info.update(
-                    f"{description}\n[red]\n\nOperation CONFIGURATION: {e}[/red]"
-                )
-        else:
-            self.menu_info.update(
-                "[yellow]Operation CONFIGURATION: Canceled ⚠︎[/yellow]"
-            )
-            self.notify(
-                "[b]CONFIGURATION[/b] editing has been [b]canceled[/b]",
-                title="Operation Status:",
-                severity="warning",
-            )
-        self.__skip_resume = False
-
-    async def __handle_confirm(self, option: str, description: str, action) -> None:
+    async def on_option_list_option_highlighted(
+        self, event: OptionList.OptionHighlighted
+    ):
         """
-        Muestra la confirmación y ejecuta la acción seleccionada.
+        Actualiza la información mostrada al resaltar una opción.
+
+        Args:
+            event (OptionList.OptionHighlighted): Evento de opción resaltada.
         """
-        self.__skip_resume = True
-        result = await self.app.push_screen_wait(
-            ConfirmModal(f"¿Are you sure you want to execute: {option.upper()}?")
-        )
-        if result == "yes":
-            try:
-                if option == "Generate missions":
-                    self.notify(
-                        "Please wait while the RTB missions file loads, it may take a while...",
-                        severity="warning",
-                        title="Patience is a virtue:",
-                        timeout=30,
-                    )
-
-                if asyncio.iscoroutinefunction(action):
-                    resp = await action()
-                else:
-                    resp = await asyncio.to_thread(action)
-
-                __gen_xml_str: str = (
-                    f"\n\n{resp.message}\n\n\nNow you can restart Root The Box services."
-                    if option == "Generate missions" and resp.status == Status.OK
-                    else ""
-                )
-                __color, __severity = (
-                    ("green", "information")
-                    if resp.status == Status.OK
-                    else ("red", "error")
-                )
-                self.menu_info.update(
-                    f"{description}\n[{__color}]\n\nOperation {option.upper()}: {resp.status.upper()} [/{__color}]"
-                )
-
-                self.notify(
-                    f"[b]{option.upper()}[/b] has finished: [b]{resp.status.upper()}[/b]{__gen_xml_str}",
-                    title="Operation status:",
-                    severity=__severity,
-                    timeout=30,
-                )
-            except Exception as e:
-                self.menu_info.update(
-                    f"{description}\n[red]\n\nOperation {option.upper()}: {e}[/red]"
-                )
-        else:
-            self.menu_info.update(
-                f"[yellow]Operation {option.upper()}: Canceled ⚠︎[/yellow]"
-            )
-            self.notify(
-                f"[b]{option.upper()}[/b] has been [b]canceled[/b]",
-                title="Operation status:",
-                severity="warning",
-            )
-        self.__skip_resume = False
+        option: str = str(event.option.prompt).strip()
+        description = self.MENU_OPTIONS.get(option, "No menu_info available.")[0]
+        self.menu_info.update(description)
 
     async def on_option_list_option_selected(
         self, event: OptionList.OptionSelected
@@ -264,12 +166,13 @@ class JuiceShopScreen(Screen):
         Args:
             event (OptionList.OptionSelected): Evento que contiene la opción seleccionada.
         """
+
         option: str = str(event.option.prompt).strip()
         description, action = self.MENU_OPTIONS.get(option, (None, None))
 
         # Regresa al menú principal
         if action is None:
-            await self.return_to_main()
+            await self.__return_to_main()
             return
 
         # Edita la configuración
@@ -291,7 +194,64 @@ class JuiceShopScreen(Screen):
                 self.__skip_resume = True
                 self.run_worker(__run_handle_config)
             except Exception as e:
-                self.menu_info.update(f"[red]Config couldn't be loaded: {e}[/red]")
+                self.notify(
+                    message=f"{e}",
+                    title="Config couldn't be loaded:",
+                    severity="error",
+                    timeout=5,
+                )
+            return
+
+        elif option == "Start n containers":
+            try:
+
+                async def __handle_start_n_containers() -> None:
+                    __color: str = "gold"
+                    result = await self.app.push_screen_wait(
+                        IntModal(
+                            ports_range=self.ports_range,
+                            header_title=f"¿Are you sure you want to execute: [b][{__color}]START N CONTAINERS[/b][/{__color}]?",
+                            prompt="Number of containers",
+                            return_ports=False,
+                        )
+                    )
+                    await self.__on_start_n_containers_dismissed(result)
+
+                self.__skip_resume = True
+                self.run_worker(__handle_start_n_containers)
+            except Exception as e:
+                self.notify(
+                    message=f"{e}",
+                    title="Start n containers couldn't be executed:",
+                    severity="error",
+                    timeout=5,
+                )
+            return
+
+        elif option == "Stop a container":
+            try:
+
+                async def __handle_stop_a_container() -> None:
+                    __color: str = "gold"
+                    result = await self.app.push_screen_wait(
+                        IntModal(
+                            ports_range=self.ports_range,
+                            header_title=f"¿Are you sure you want to execute: [b][{__color}]STOP A CONTAINER[/b][/{__color}]?",
+                            prompt="Container port",
+                            return_ports=True,
+                        )
+                    )
+                    await self.__on_stop_a_container_dismissed(result)
+
+                self.__skip_resume = True
+                self.run_worker(__handle_stop_a_container)
+            except Exception as e:
+                self.notify(
+                    message=f"{e}",
+                    title="Start n containers couldn't be executed:",
+                    severity="error",
+                    timeout=5,
+                )
             return
 
         async def __run_handle_confirm():
@@ -313,7 +273,250 @@ class JuiceShopScreen(Screen):
             # Se asegura que el widget tenga el enfoque
             self.menu.focus()
 
-    async def return_to_main(self) -> None:
+    async def __on_config_dismissed(self, result: str | None, description: str) -> None:
+        __color: str = "gold"
+        __severity: str = "warning"
+        __op_status: str = OP_STATUS
+        if result:
+            try:
+                self.notify(
+                    "Please wait for the CONFIGURATION operation to finish, it may take a while...",
+                    severity=__severity,
+                    title=PATIENCE_VIRTUE,
+                    timeout=5,
+                )
+                parsed = json.loads(result)
+                resp = await JuiceBoxAPI.set_js_config(parsed)
+                __color, __severity = (
+                    ("green", "information")
+                    if resp.status == Status.OK
+                    else ("red", "error")
+                )
+                self.notify(
+                    f"[b]CONFIGURATION[/b] editing has finished: [b][{__color}]{resp.status.upper()}[/{__color}][/b]",
+                    title=__op_status,
+                    severity=__severity,
+                    timeout=5,
+                )
+
+                # Actualizar rango de puertos tras la nueva configuración
+                resp_ports = await JuiceBoxAPI.get_js_ports_range()
+                if resp_ports.status == Status.OK:
+                    self.ports_range = resp_ports.data.get("ports_range", [])
+
+                    valid_containers = {
+                        f"owasp-juice-shop-{port}" for port in range(*self.ports_range)
+                    }
+
+                    # Limpia las labels que ya no aplican
+                    to_remove = [
+                        cn for cn in self.SERVICE_LABELS if cn not in valid_containers
+                    ]
+                    for cn in to_remove:
+                        h_container, _ = self.SERVICE_LABELS.pop(cn)
+                        h_container.remove()
+
+                # Se actualiza la TUI con la nueva configuración
+                resp_refresh = await JuiceBoxAPI.get_js_config()
+                if resp_refresh.status == Status.OK:
+                    config_text = json.dumps(
+                        resp_refresh.data.get("config", {}), indent=4
+                    )
+                    self.config_data.update_content(config_text, is_json=True)
+            except Exception as e:
+                __severity = "error"
+                __color = "red"
+                self.notify(
+                    f"[b]CONFIGURATION[/b] editing has finished with error: [b][{__color}]{e}[/{__color}][/b]",
+                    title=__op_status,
+                    severity=__severity,
+                    timeout=5,
+                )
+        else:
+            self.notify(
+                f"[b]CONFIGURATION[/b] editing has been [b][{__color}]canceled ⚠︎[/{__color}][/b]",
+                title=__op_status,
+                severity=__severity,
+            )
+        self.__skip_resume = False
+
+    async def __on_start_n_containers_dismissed(
+        self, dismissed_options: dict[str, str | int]
+    ) -> None:
+        __color: str = "gold"
+        __severity: str = "warning"
+        __op_status: str = OP_STATUS
+
+        if dismissed_options["button"] == "yes" and isinstance(
+            dismissed_options["number"], int
+        ):
+            try:
+                self.notify(
+                    "Please wait for the START N CONTAINERS operation to finish, it may take a while...",
+                    severity=__severity,
+                    title=PATIENCE_VIRTUE,
+                    timeout=5,
+                )
+
+                # Se llama al motor para arrancar n contenedores de la JS:
+                responses: list[Response] = await JuiceBoxAPI.start_n_js_containers(
+                    dismissed_options["number"]
+                )
+
+                for resp in responses:
+                    __color, __severity = (
+                        ("green", "information")
+                        if resp.status == Status.OK
+                        else ("red", "error")
+                    )
+                    __port = resp.data.get("port")
+                    self.notify(
+                        f"[b]Container on port ->{__port}<-[/b] has finished: [b][{__color}]{resp.status.upper()}[/{__color}][/b]",
+                        title=__op_status,
+                        severity=__severity,
+                        timeout=5,
+                    )
+
+            except Exception as e:
+                __severity = "error"
+                __color = "red"
+                self.notify(
+                    f"[b]START N CONTAINERS[/b] has finished with error: [b][{__color}]{e}[/{__color}][/b]",
+                    title=__op_status,
+                    severity=__severity,
+                    timeout=5,
+                )
+        else:
+            self.notify(
+                f"[b]START N CONTAINERS[/b] has been [b][{__color}]canceled ⚠︎[/{__color}][/b]",
+                title=__op_status,
+                severity=__severity,
+            )
+        self.__skip_resume = False
+
+    async def __on_stop_a_container_dismissed(
+        self, dismissed_options: dict[str, str | int]
+    ) -> None:
+        __color: str = "gold"
+        __severity: str = "warning"
+        __op_status: str = OP_STATUS
+
+        if dismissed_options["button"] == "yes" and isinstance(
+            dismissed_options["number"], int
+        ):
+            try:
+                self.notify(
+                    "Please wait for the STOP A CONTAINER operation to finish, it may take a while...",
+                    severity=__severity,
+                    title=PATIENCE_VIRTUE,
+                    timeout=5,
+                )
+
+                # Se llama al motor para parar un contenedor específico de la JS:
+                resp: Response = await JuiceBoxAPI.stop_js_container(
+                    dismissed_options["number"]
+                )
+
+                __color, __severity = (
+                    ("green", "information")
+                    if resp.status == Status.OK
+                    else ("red", "error")
+                )
+                __port = resp.data.get("port")
+                self.notify(
+                    f"[b]STOP A CONTAINER on ->{__port}<-[/b] has finished: [b][{__color}]{resp.status.upper()}[/{__color}][/b]",
+                    title=__op_status,
+                    severity=__severity,
+                    timeout=5,
+                )
+
+            except Exception as e:
+                __severity = "error"
+                __color = "red"
+                self.notify(
+                    f"[b]STOP A CONTAINER[/b] has finished with error: [b][{__color}]{e}[/{__color}][/b]",
+                    title=__op_status,
+                    severity=__severity,
+                    timeout=5,
+                )
+        else:
+            self.notify(
+                f"[b]STOP A CONTAINER[/b] has been [b][{__color}]canceled ⚠︎[/{__color}][/b]",
+                title=__op_status,
+                severity=__severity,
+            )
+        self.__skip_resume = False
+
+    async def __handle_confirm(self, option: str, description: str, action) -> None:
+        """
+        Muestra la confirmación y ejecuta la acción seleccionada.
+        """
+        __color: str = "gold"
+        __severity: str = "warning"
+        __op_status: str = OP_STATUS
+        option = option.upper()
+        self.__skip_resume = True
+
+        result = await self.app.push_screen_wait(
+            ConfirmModal(
+                f"¿Are you sure you want to execute: [b][{__color}]{option}[/b][/{__color}]?"
+            )
+        )
+
+        if result == "yes":
+            try:
+                __tmp_str, __tmp_timeout = (
+                    ("while the RTB missions file loads", 30)
+                    if option == GENERATE_MISSIONS
+                    else (f"for the {option} operation to finish", 5)
+                )
+                self.notify(
+                    f"Please wait {__tmp_str}, it may take a while...",
+                    severity=__severity,
+                    title=PATIENCE_VIRTUE,
+                    timeout=__tmp_timeout,
+                )
+
+                if asyncio.iscoroutinefunction(action):
+                    resp = await action()
+                else:
+                    resp = await asyncio.to_thread(action)
+
+                __gen_xml_str: str = (
+                    f"\n\n{resp.message}\n\n\nNow you can restart Root The Box services."
+                    if option == GENERATE_MISSIONS.upper() and resp.status == Status.OK
+                    else ""
+                )
+                __color, __severity = (
+                    ("green", "information")
+                    if resp.status == Status.OK
+                    else ("red", "error")
+                )
+                self.notify(
+                    f"[b]{option}[/b] has finished: [b]{resp.status.upper()}[/b]{__gen_xml_str}",
+                    title=__op_status,
+                    severity=__severity,
+                    timeout=__tmp_timeout,
+                )
+            except Exception as e:
+                __severity = "error"
+                __color = "red"
+                self.notify(
+                    f"{description} -> [b]{option}[/b] has finished with error:\n[b][{__color}]{e}[/{__color}][/b]",
+                    title=__op_status,
+                    severity=__severity,
+                    timeout=5,
+                )
+        else:
+            self.notify(
+                f"[b]{option}[/b] has been been [b][{__color}]canceled ⚠︎[/{__color}][/b]",
+                title=__op_status,
+                severity=__severity,
+                timeout=5,
+            )
+        self.__skip_resume = False
+
+    async def __return_to_main(self) -> None:
         """
         Regresa a la pantalla principal del menú.
         """
@@ -328,22 +531,9 @@ class JuiceShopScreen(Screen):
         """
         Acción para regresar a la pantalla principal desde cualquier opción.
         """
-        await self.return_to_main()
+        await self.__return_to_main()
 
-    async def on_option_list_option_highlighted(
-        self, event: OptionList.OptionHighlighted
-    ):
-        """
-        Actualiza la información mostrada al resaltar una opción.
-
-        Args:
-            event (OptionList.OptionHighlighted): Evento de opción resaltada.
-        """
-        option: str = str(event.option.prompt).strip()
-        description = self.MENU_OPTIONS.get(option, "No menu_info available.")[0]
-        self.menu_info.update(description)
-
-    async def get_conf(self) -> str:
+    async def __get_conf(self) -> str:
         """
         Obtiene la configuración actual de OWASP Juice Shop.
 
@@ -362,16 +552,42 @@ class JuiceShopScreen(Screen):
         except Exception:
             return '"status": "error"'
 
-    async def action_refresh(self) -> None:
+    async def __get_container_status(self) -> None:
         """
-        Recarga la configuración y el estado de los servicios.
+        Obtiene el estado actual de los contenedores de la OWASP Juice Shop.
+
+        Returns:
+            str: Configuración como string JSON, o un string de error si falla.
+        """
+        try:
+            resp = await JuiceBoxAPI.get_js_ports_range()
+            if resp.status == Status.OK:
+                self.services_status.loading = False
+                self.services_status.visible = True
+                await self.__refresh_status()
+            else:
+                self.services_status.visible = False
+                self.services_status.loading = True
+        except Exception:
+            return
+
+    async def __config_refresh(self) -> None:
+        """
+        Recarga la configuración.
         """
         if not self.config_data.visible:
-            new_conf = await self.get_conf()
+            new_conf = await self.__get_conf()
             self.config_data.update_content(new_conf, is_json=True)
-            self.menu_info.update("[yellow]Data refreshed[/yellow]")
+            await self.__get_container_status()
 
-    async def refresh_status(self) -> None:
+            self.notify(
+                message="Data now has been refreshed",
+                title="Data refreshed:",
+                severity="warning",
+                timeout=5,
+            )
+
+    async def __refresh_status(self) -> None:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, lambda: self.__init_containers_status(loop))
 
@@ -381,7 +597,7 @@ class JuiceShopScreen(Screen):
         if container == "juicebox-engine" and data.get("event") == "set_js_config":
             # Solo si el mensaje indica un cambio de configuración
             asyncio.run_coroutine_threadsafe(
-                self.action_refresh(),
+                self.__config_refresh(),
                 loop=asyncio.get_event_loop(),
             )
         elif "owasp" in container:
@@ -392,7 +608,7 @@ class JuiceShopScreen(Screen):
             ):
                 loop = asyncio.get_event_loop()
                 self._refresh_task = asyncio.run_coroutine_threadsafe(
-                    self.refresh_status(), loop
+                    self.__refresh_status(), loop
                 )
 
     def __load_config(self, loop: AbstractEventLoop) -> bool:
@@ -407,21 +623,17 @@ class JuiceShopScreen(Screen):
                 if resp_ports.status == Status.OK:
                     self.ports_range = resp_ports.data.get("ports_range", [])
 
-                # actualizar UI
-                self.app.call_from_thread(
-                    lambda: setattr(self.config_data, "loading", False)
-                )
-                self.app.call_from_thread(
-                    lambda: setattr(self.config_data, "visible", True)
-                )
+                # Se actualiza la UI
+                self.__set_loading_states(state=False)
+                self.__set_visible_states(state=True)
+
                 self.app.call_from_thread(
                     lambda ct=config_text: self.config_data.update_content(
                         ct, is_json=True
                     )
                 )
-                # self.app.call_from_thread(
-                #     lambda pr=ports_range: self.ports_label.update(f"Ports: {pr}")
-                # )
+
+                self.app.call_from_thread(lambda: self.__refresh_status())
 
                 return True
             else:
@@ -466,7 +678,7 @@ class JuiceShopScreen(Screen):
                 # Actualiza UI en hilo principal
                 def update_label(cn=container_name, sd=status_display):
                     if cn not in self.SERVICE_LABELS:
-                        # Crear nuevos widgets
+                        # Crea nuevos widgets
                         h_container = Horizontal(classes="h_container_services_data")
                         label_name = Label(f"{cn}: ", classes="services-status-key")
                         label_status = Label(sd, classes="services-status-datum")
@@ -475,18 +687,64 @@ class JuiceShopScreen(Screen):
                         h_container.mount(label_name)
                         h_container.mount(label_status)
                     else:
-                        # Solo actualizar texto
+                        # Solo actualiza el texto
                         _, label_status = self.SERVICE_LABELS[cn]
                         label_status.update(sd)
 
                 self.app.call_from_thread(update_label)
 
         except Exception:
-            # Fallback: marcar todos como no disponibles
+            # Fallback: marca todos los contenedores como no disponibles
             for _, label_status in self.SERVICE_LABELS.values():
                 self.app.call_from_thread(
                     lambda ls=label_status: ls.update(NOT_AVAILABLE)
                 )
+
+    def __set_loading_states(self, state: bool):
+        """
+        Cambia estado de carga de los widgets config_data y services_status.
+        """
+        self.app.call_from_thread(lambda: setattr(self.config_data, "loading", state))
+        self.app.call_from_thread(
+            lambda: setattr(self.services_status, "loading", state)
+        )
+
+    def __set_visible_states(self, state: bool) -> None:
+        """
+        Cambia estado de visibilidad de los widgets config_data y services_status.
+        """
+        self.app.call_from_thread(lambda: setattr(self.config_data, "visible", state))
+        self.app.call_from_thread(
+            lambda: setattr(self.services_status, "visible", state)
+        )
+
+    def __mark_services_unvailable(self) -> None:
+        # Si Redis no está disponible, reintenta
+        for _, label_status in self.SERVICE_LABELS.values():
+            self.app.call_from_thread(lambda ls=label_status: ls.update(NOT_AVAILABLE))
+
+    def __subscribe_to_redis(self) -> PubSub:
+        client = redis.Redis(
+            host="localhost",
+            port=6379,
+            db=0,
+            password=REDIS_PASSWORD,
+            decode_responses=True,
+        )
+        pubsub: PubSub = client.pubsub()
+        pubsub.subscribe("admin_channel", "client_channel")
+
+        return pubsub
+
+    def __listen_to_redis(self, pubsub: PubSub) -> None:
+        # Escucha en Redis
+        for message in pubsub.listen():
+            if message.get("type") == "message":
+                try:
+                    data = json.loads(message["data"])
+                    self.app.call_from_thread(lambda d=data: self.__update_ui(d))
+                except Exception:
+                    continue
 
     def __listener_thread(self):
         loop = asyncio.new_event_loop()
@@ -494,51 +752,27 @@ class JuiceShopScreen(Screen):
 
         while True:
             try:
-                client = redis.Redis(
-                    host="localhost",
-                    port=6379,
-                    db=0,
-                    password=REDIS_PASSWORD,
-                    decode_responses=True,
-                )
-                pubsub = client.pubsub()
-                pubsub.subscribe("admin_channel", "client_channel")
+                # Se suscribe a Redis
+                pubsub = self.__subscribe_to_redis()
 
-                # Carga config + status de contenedores con reintento hasta tener éxito
+                # Carga config y status de contenedores con reintento hasta tener éxito
                 while True:
                     try:
-                        self.app.call_from_thread(
-                            lambda: setattr(self.config_data, "loading", True)
-                        )
+                        self.__set_loading_states(state=True)
 
                         # Se carga la configuración
                         self.__load_config(loop)
-                        # self.__init_containers_status(loop)
-                        break  # éxito, salimos del retry
+                        break  # Se sale del retry
                     except Exception:
-                        # ❌ no hay respuesta del engine todavía
+                        # Si no hay respuesta del engine todavía
                         time.sleep(5)
 
-                # 👂 Escuchar Redis
-                for message in pubsub.listen():
-                    if message.get("type") == "message":
-                        try:
-                            data = json.loads(message["data"])
-                            self.app.call_from_thread(
-                                lambda d=data: self.__update_ui(d)
-                            )
-                        except Exception:
-                            continue
+                # Escucha a Redis
+                self.__listen_to_redis(pubsub)
 
             except ConnectionError:
-                # Redis no disponible → reintentar
-                for _, label_status in self.SERVICE_LABELS.values():
-                    self.app.call_from_thread(
-                        lambda ls=label_status: ls.update(NOT_AVAILABLE)
-                    )
-                self.app.call_from_thread(
-                    lambda: setattr(self.config_data, "loading", True)
-                )
+                self.__mark_services_unvailable()
+                self.__set_loading_states(state=True)
                 time.sleep(5)
 
     def __start_redis_listener(self):

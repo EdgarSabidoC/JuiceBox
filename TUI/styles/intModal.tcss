@@ -1,0 +1,29 @@
+.yes-button {
+  margin: 0 3 0 0;
+}
+
+.yes-button:focus {
+  background: $primary;
+  color: auto;
+  border: tall $accent;
+}
+
+.yes-button:hover {
+  background: $primary;
+  color: auto;
+}
+
+.no-button {
+  margin: 0 0 0 3;
+}
+
+.no-button:focus {
+  background: $primary;
+  color: auto;
+  border: tall $accent;
+}
+
+.no-button:hover {
+  background: $primary;
+  color: auto;
+}

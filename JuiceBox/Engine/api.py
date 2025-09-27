@@ -305,9 +305,10 @@ class JuiceBoxAPI:
             list[Response]: Lista con los resultados de las operaciones.
         """
         __containers: list[Response] = []
-        for _ in range(n):
+        for _ in range(0, n):
             __response: Response = await JuiceBoxAPI.__start(Programs.JS)
             __containers.append(__response)
+
         return __containers
 
     # STOP --------------------------------------------------------------
