@@ -14,7 +14,7 @@ class MainScreen(Screen):
     JB_LOGO = pkg_resources.read_text("TUI.media", "JuiceBoxLogo.txt")
 
     SERVER_INFO = Label(classes="server-info-data")
-    SYSTEM_ARCH = pkg_resources.read_text("TUI.media", "Architecture.txt")
+    FMAT_LOGO = pkg_resources.read_text("TUI.media", "FMATCyberLab.txt")
 
     MENU_OPTIONS = {
         "📦 Root the Box": "Admin tools to manage Root the Box docker containers",
@@ -73,19 +73,21 @@ class MainScreen(Screen):
             # Contenedor vertical 2
             with Vertical(classes="vcontainer2") as vcontainer2:
                 vcontainer2.can_focus = False
-                # System architecture
-                self.SYSTEM_ARCH = Static(
-                    str(self.SYSTEM_ARCH), expand=True, classes="arch-box", markup=True
+                # FMAT logo
+                self.FMAT_LOGO = Static(
+                    str(self.FMAT_LOGO),
+                    expand=True,
+                    classes="fmat-logo-box",
+                    markup=True,
                 )
 
-                self.SYSTEM_ARCH.border_title = "System architecture"
-                self.arch_container = ScrollableContainer(
-                    self.SYSTEM_ARCH, classes="arch-container"
+                self.fmat_logo_container = ScrollableContainer(
+                    self.FMAT_LOGO, classes="fmat-logo-container"
                 )
-                self.arch_container.scroll_visible(force=True)
-                self.arch_container.can_focus = False
-                with self.arch_container:
-                    yield self.SYSTEM_ARCH
+                self.fmat_logo_container.scroll_visible(force=True)
+                self.fmat_logo_container.can_focus = False
+                with self.fmat_logo_container:
+                    yield self.FMAT_LOGO
 
                 # Server info
                 self.server_info_container = Horizontal(classes="server-info-container")

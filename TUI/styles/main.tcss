@@ -12,7 +12,7 @@ Footer {
 }
 
 .github-link {
-  hatch: right $accent 20%;
+  hatch: "%" $accent 20%;
   color: $link-color;
   width: 50%;
   height: 100%;
@@ -31,7 +31,7 @@ Footer {
 }
 
 .juice-box-logo {
-  hatch: right $accent 20%;
+  hatch: "%" $accent 20%;
   border: $border;
   border_bottom: none;
   content_align: center middle;
@@ -69,15 +69,15 @@ Footer {
   text-style: bold;
 }
 
-.arch-container {
+.fmat-logo-container {
   content_align: center middle;
   height: 68%;
   overflow_x: auto;
   overflow_y: auto;
 }
 
-.arch-box {
-  background: $surface;
+.fmat-logo-box {
+  hatch: "%" $accent 20%;
   content_align: center middle;
   height: 100%;
   width: 100%;
@@ -117,7 +117,7 @@ Footer {
 }
 
 .empty {
-  hatch: right $accent 20%;
+  hatch: "%" $accent 20%;
   width: 50%;
   height: 100%;
   margin: 0 0 0 0;
