@@ -43,7 +43,7 @@ GITHUB_USER = "EdgarSabidoC"
 
 class RootTheBoxManager(BaseManager):
     """
-    Clase módulo para administrar los contenedores de Root The Box.
+    Clase que administra la instancia de Root The Box en contenedores Docker.
 
     ## Operaciones
     - **start:** Inicia los contenedores de Root The Box.
@@ -60,11 +60,10 @@ class RootTheBoxManager(BaseManager):
     ) -> None:
         """
         Inicializa el gestor de Root The Box con la configuración dada.
+
         Args:
             config (RTBConfig): Configuración para Root The Box.
             docker_client (DockerClient | None): Cliente Docker opcional.
-        Raises:
-            TypeError: Si config no es una instancia de RTBConfig.
         """
         if not isinstance(config, RTBConfig):
             raise TypeError("Required: RTBConfig instance.")
@@ -149,9 +148,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al crear el archivo.
         """
         if not output_path:
             output_path = self.compose_file_path
@@ -192,9 +188,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al crear los contenedores.
         """
         try:
             subprocess.run(
@@ -224,9 +217,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al iniciar los contenedores.
         """
         try:
             __result: ManagerResult
@@ -267,9 +257,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al detener o eliminar el contenedor.
         """
         try:
             # Mata o destruye un contenedor
@@ -295,9 +282,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al detener los contenedores.
         """
         containers_results: list[ManagerResult] = []
         overall_ok = True
@@ -380,9 +364,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al obtener la configuración.
         """
         return ManagerResult.ok(
             message="Root The Box configuration retrieved",
@@ -398,9 +379,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             str: Estado del contenedor ('running', 'exited', 'not_found', etc.).
-
-        Raises:
-            errors.NotFound: Si el contenedor no existe.
         """
         try:
             if not validate_container(self.__docker_client, container_name):
@@ -416,9 +394,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al obtener el estado de los contenedores.
         """
         containers_results: list[ManagerResult] = []
         overall_ok = True
@@ -471,9 +446,6 @@ class RootTheBoxManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al limpiar los recursos.
         """
         try:
             self.stop()

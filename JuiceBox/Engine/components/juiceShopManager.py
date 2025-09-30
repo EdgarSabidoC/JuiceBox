@@ -39,7 +39,7 @@ GITHUB_USER = "EdgarSabidoC"
 
 class JuiceShopManager(BaseManager):
     """
-    Clase módulo para administrar los contenedores de Juice Shop.
+    Clase que administra instancias de OWASP Juice Shop en contenedores Docker.
 
     ## Operaciones
     - **start:** Inicia un nuevo contenedor de Juice Shop en un puerto disponible.
@@ -48,7 +48,7 @@ class JuiceShopManager(BaseManager):
     - **status:** Obtiene el estado de un contenedor específico de Juice Shop.
     - **show_config:** Muestra la configuración actual de Juice Shop.
     - **generate_rtb_config:** Genera el archivo XML de configuración para Root The Box.
-    - **cleanup:** Detiene y elimina todos los contenedores de Juice Shop y libera los
+    - **cleanup:** Detiene y elimina todos los contenedores de Juice Shop y libera los recursos.
     """
 
     def __init__(
@@ -56,11 +56,10 @@ class JuiceShopManager(BaseManager):
     ) -> None:
         """
         Inicializa el gestor de Juice Shop con la configuración dada.
+
         Args:
             config (JuiceShopConfig): Configuración para Juice Shop.
             docker_client (DockerClient | None): Cliente Docker opcional.
-        Raises:
-            TypeError: Si config no es una instancia de JuiceShopConfig.
         """
         if not isinstance(config, JuiceShopConfig):
             raise TypeError("Required: JuiceShopConfig instance.")
@@ -198,9 +197,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al iniciar el contenedor.
         """
         __container_name: str = ""
         __port: int | None = None
@@ -245,9 +241,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al detener el contenedor.
         """
         __container_name: str = ""
         __port: int | None = None
@@ -295,9 +288,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al detener los contenedores.
         """
         # Destruye todos los contenedores de la JuiceShop
         containers_results: list[ManagerResult] = []
@@ -339,10 +329,9 @@ class JuiceShopManager(BaseManager):
     def show_config(self) -> ManagerResult:
         """
         Muestra la configuración actual del manager de la Juice Shop.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            Exception: Si ocurre un error al obtener la configuración.
         """
         return ManagerResult.ok(
             message="Juice Shop configuration retrieved",
@@ -427,9 +416,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al obtener el estado de los contenedores.
         """
         container_name: str = ""
         try:
@@ -509,14 +495,15 @@ class JuiceShopManager(BaseManager):
 
     def __wait_for_a_juice_shop(self, url: str, timeout=60):
         """
-        Espera hasta que al menos uno de los servicios de OWASP Juice Shop de la lista responda con HTTP 200.
+            Espera a que una instancia de Juice Shop esté disponible en la URL especificada.
 
         Args:
-            urls (list[str]): Lista de URLs a chequear.
-            timeout (int): Tiempo máximo en segundos antes de rendirse.
+            url (str): URL de la instancia de Juice Shop a verificar.
+            timeout (int, opcional): Tiempo máximo en segundos a esperar.
+                                     Por defecto es 60.
 
         Returns:
-            str: La URL que respondió primero.
+            str: La URL válida de la instancia de Juice Shop que respondió correctamente.
         """
         start = time.time()
         while time.time() - start < timeout:
@@ -728,9 +715,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error durante la limpieza.
         """
         try:
             __res: ManagerResult = self.stop()

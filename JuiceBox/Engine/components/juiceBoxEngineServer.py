@@ -187,7 +187,7 @@ class JuiceBoxEngineServer:
             conn.close()
 
     def __rtb_start(self, manager: RootTheBoxManager) -> Response:
-        """_summary_
+        """
         Inicia los contenedores gestionados por Root The Box.
 
         Args:
@@ -217,7 +217,7 @@ class JuiceBoxEngineServer:
         )
 
     def __rtb_restart(self) -> Response:
-        """_summary_
+        """
         Reinicia la instancia del manager de Root The Box.
 
         Args:
@@ -919,7 +919,20 @@ class JuiceBoxEngineServer:
         method_name: str,
         monitor: Monitor,
     ) -> tuple[list[str], list[str]]:
+        """
+        Ejecuta una acción de limpieza sobre un componente del sistema y registra el resultado.
 
+        Args:
+            name (str): Nombre del componente (ej. "Monitor", "DockerClient").
+            component (object): Objeto que contiene el método a ejecutar.
+            method_name (str): Nombre del método de acción a invocar en el componente.
+            monitor (Monitor): Instancia del monitor para registrar logs de éxito o error.
+
+        Returns:
+            (tuple[list[str], list[str]]):
+                - messages (list[str]): Mensajes informativos de acciones completadas.
+                - errors (list[str]): Mensajes de error en caso de fallas.
+        """
         # Listas de mensajes y errores:
         messages: list[str] = []
         errors: list[str] = []
@@ -969,6 +982,22 @@ class JuiceBoxEngineServer:
         monitor: Monitor,
         docker_client: DockerClient | None,
     ) -> tuple[list[str], list[str]]:
+        """
+        Ejecuta las rutinas de limpieza y cierre de todos los componentes del sistema.
+
+        Args:
+            js (JuiceShopManager): Gestor de contenedores OWASP Juice Shop.
+            rtb (RootTheBoxManager): Gestor de contenedores Root the Box.
+            redis (RedisManager): Gestor de integración con Redis.
+            monitor (Monitor): Monitor encargado de registrar los logs del sistema.
+            docker_client (DockerClient | None): Cliente Docker usado para interactuar con los contenedores,
+                                                 o None si no se inicializó.
+
+        Returns:
+            (tuple[list[str], list[str]]):
+                - messages (list[str]): Mensajes de éxito generados durante la limpieza.
+                - errors (list[str]): Mensajes de error en caso de fallos.
+        """
         messages: list[str] = []
         errors: list[str] = []
 
