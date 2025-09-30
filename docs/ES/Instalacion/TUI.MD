@@ -18,7 +18,7 @@ export PYTHONPATH=/opt/juicebox
 cd /opt/juicebox
 
 # 4. Arrancar la TUI como modulo, pasando todos los args
-exec python -m JuiceBox.TUI "$@"
+exec python3 -m JuiceBox.TUI "$@"
 
 ```
 

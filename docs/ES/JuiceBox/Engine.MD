@@ -22,8 +22,10 @@ Motor y orquestador para crear competencias CTF basado en Root The Box y OWASP J
 Servidor
 ├── Juice Box Engine
 │   ├── API
-│   ├── TUI
 │   └── Socket de UNIX
+├── TUI
+├── WebClient
+│   └── API REST
 ├── Monitor
 └── Docker
     ├── Redis (Juice Box Engine)
@@ -67,90 +69,3 @@ Este canal es exclusivo para los usuarios administrativos, ya que contiene infor
 Este canal ofrece informacion parcial sobre los contenedores de OWASP Juice Shop, ya que el estado de estos contenedores son los unicos que deben reflejarse en los clientes con usuarios sin permisos administrativos.
 
 **NOTA:** Es recomendado utilizar este canal para comunicar el estado en tiempo real con los clientes.
-
----
-
-## LOGS
-Los logs de `JuiceBoxEngine` se centralizan en `journald`, el gestor de logs de `systemd`.
-
-### Configuracion
-
-#### Activar persistencia
-Por defecto, journald guarda los registros en memoria y no sobreviven a reinicios. Para habilitar almacenamiento persistente:
-
-Modifica el archivo `/etc/systemd/journald.conf`:
-
-```bash
-[Journal]
-# Activa la persistencia
-Storage=persistent
-
-# Habilita la compresion
-Compress=yes
-SystemMaxUse=500M
-SystemKeepFree=100M
-SystemMaxFileSize=50M
-
-# Rotar cada dia
-SystemMaxFileSec=1day
-
-# Conservar hasta 7 archivos/dias
-SystemMaxFiles=7
-
-# Borrar entradas mayores a 7 dias
-MaxRetentionSec=7day
-
-
-# Descomentar las opciones que quieras configurar
-#Seal=yes
-#SplitMode=uid
-#SyncIntervalSec=5m
-#RateLimitIntervalSec=30s
-#RateLimitBurst=10000
-#RuntimeMaxUse=
-#RuntimeKeepFree=
-#RuntimeMaxFileSize=
-#RuntimeMaxFiles=100
-#MaxRetentionSec=0
-#MaxFileSec=1month
-#ForwardToSyslog=no
-#ForwardToKMsg=no
-#ForwardToConsole=no
-#ForwardToWall=yes
-#TTYPath=/dev/console
-#MaxLevelStore=debug
-#MaxLevelSyslog=debug
-#MaxLevelKMsg=notice
-#MaxLevelConsole=info
-#MaxLevelWall=emerg
-#MaxLevelSocket=debug
-#LineMax=48K
-#ReadKMsg=yes
-#Audit=yes
-```
-
-Luego se debe reiniciar el servicio de `systemd-journald` ejecutando el comando:
-
-```
-sudo systemctl restart systemd-journald
-
-```
-
-### Ver los logs
-
-Para ver los logs, ejecutar desde la terminal:
-
-#### Ver todas las entradas
-```
-sudo journalctl -t JuiceBoxEngine
-```
-
-#### Ver en tiempo real
-```
-sudo journalctl -t JuiceBoxEngine -f
-```
-
-#### Ver solo errores
-```
-sudo journalctl -t JuiceBoxEngine -p err
-```
