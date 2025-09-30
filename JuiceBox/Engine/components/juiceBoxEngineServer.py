@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os, socket, threading, json, atexit
 from queue import Queue
 from threading import Thread

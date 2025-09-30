@@ -3,10 +3,12 @@ import json
 from dotenv import dotenv_values
 from Models import Response, Status
 
+# Constante con la ruta del Socket del motor de Juice Box.
 SOCKET_PATH: str | None = dotenv_values().get(
     "JUICEBOX_SOCKET", "/run/juicebox/engine.sock"
 )
 
+# Constante generada dinámicamente con la contraseña de Redis.
 REDIS_PASSWORD: str | None = dotenv_values().get("REDIS_PASSWORD", "")
 
 
@@ -24,18 +26,18 @@ class Programs:
 
 class JuiceBoxAPI:
     """
-    API que expone las operaciones principales y que permite la comunicación con JuiceBoxEngine.
+    API que expone las operaciones principales y que permite la comunicación con el motor de Juice Box.
     """
 
     @staticmethod
     async def __send_command(prog: str, command: str, args: dict = {}) -> Response:
         """
-        Envía un comando al motor JuiceBoxEngine para un programa específico.
+        Envía un comando al motor de Juice Box para un programa específico.
 
         Args:
             prog (str): Programa destino (RTB | JS).
             command (str): Comando a enviar.
-            args (dict, opcional): Argumentos adicionales para el comando.
+            args (dict, opcional): Argumentos adicionales del comando.
 
         Returns:
             Response: Objeto con el estado, mensaje y datos devueltos por el motor.
@@ -299,11 +301,15 @@ class JuiceBoxAPI:
     @staticmethod
     async def start_n_js_containers(n: int) -> list[Response]:
         """
-        Inicia n contenedores de JS.
+        Inicia n contenedores de OWASP Juice Shop de forma secuencial.
+
+        Args:
+            n (int): Número de contenedores a iniciar.
 
         Returns:
-            list[Response]: Lista con los resultados de las operaciones.
+            list[Response]: Lista con los resultados de cada operación de inicio.
         """
+
         __containers: list[Response] = []
         for _ in range(0, n):
             __response: Response = await JuiceBoxAPI.__start(Programs.JS)
@@ -366,19 +372,19 @@ class JuiceBoxAPI:
     @staticmethod
     async def generate_xml() -> Response:
         """
-        Genera el archivo XML de misiones para Root The Box.
+        Genera el archivo XML de misiones para Root The Box usando JuiceBoxEngine.
 
         Returns:
-            Response: Resultado de la operación.
+            Response: Resultado de la operación, incluyendo estado y mensaje.
         """
         return await JuiceBoxAPI.__send_command(Programs.JS, "__GENERATE_XML__")
 
     @staticmethod
     async def get_js_ports_range() -> Response:
         """
-        Obtiene el rango de puertos utilizado por el manager de OWASP Juice Shop.
+        Obtiene el rango de puertos que utiliza el manager de OWASP Juice Shop.
 
         Returns:
-            Response: Resultado de la operación.
+            Response: Resultado de la operación con el rango de puertos o error.
         """
         return await JuiceBoxAPI.__send_command(Programs.JS, "__PORTS_RANGE__")

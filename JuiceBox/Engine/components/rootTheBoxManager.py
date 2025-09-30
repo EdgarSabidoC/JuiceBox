@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-rootTheBoxManager.py
-
-Clase RootTheBoxManager que carga configuración desde rootTheBox.json
-y gestiona los contenedores via Docker Compose y Docker SDK.
-"""
-
 import os, subprocess, atexit
 import yaml
 from docker import errors

@@ -4,7 +4,14 @@ from systemd.journal import JournalHandler, LOG_INFO, LOG_DEBUG, LOG_WARNING, LO
 
 class Logger:
     """
-    Logger que envía mensajes directamente a journald a través de JournalHandler.
+    Logger que envía mensajes directamente a journald a través de JournalHandler
+    o, en caso de no usar journald, a la salida estándar.
+
+    Permite configurar:
+      - Nombre del logger.
+      - Nivel de logging.
+      - Uso de journald o StreamHandler.
+      - Identificador SYSLOG_IDENTIFIER para journald.
     """
 
     def __init__(
@@ -14,6 +21,15 @@ class Logger:
         identifier: str | None = None,
         level: int = logging.INFO,
     ):
+        """
+        Inicializa un logger personalizado.
+
+        Args:
+            name (str): Nombre del logger.
+            to_journal (bool, opcional): Si se debe enviar mensajes a journald. Por defecto True.
+            identifier (str | None, opcional): Identificador SYSLOG_IDENTIFIER para journald. Por defecto None.
+            level (int, opcional): Nivel de logging (e.g., logging.INFO, logging.DEBUG). Por defecto logging.INFO.
+        """
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
         self.logger.propagate = False
@@ -36,8 +52,6 @@ class Logger:
         Retorna el logger configurado.
 
         Returns:
-        --------
-        logging.Logger
-            Objeto logger listo para ser utilizado para registrar mensajes.
+            logging.Logger: Objeto logger listo para ser utilizado para registrar mensajes.
         """
         return self.logger

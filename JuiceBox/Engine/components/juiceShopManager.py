@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""
-juiceShopManager.py
-
-Clase JuiceBoxManager que carga configuración desde JuiceShopConfig
-y gestiona los contenedores via Docker SDK.
-"""
-
 import os, atexit, shutil, time, requests, yaml
 from docker import errors
 from ..utils import JuiceShopConfig
