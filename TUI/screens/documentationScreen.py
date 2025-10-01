@@ -17,6 +17,7 @@ class DocumentationScreen(Screen):
         "TUI": Path(str(DOCS.joinpath("TUI.MD"))),
         "Configs": Path(str(DOCS.joinpath("ConfigFiles.MD"))),
         "API": Path(str(DOCS.joinpath("API.MD"))),
+        "License": Path(str(DOCS.joinpath("Licencia.MD"))),
     }
     BINDINGS = [
         Binding("ctrl+b", "go_back", "Back", show=True),
@@ -50,12 +51,19 @@ class DocumentationScreen(Screen):
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
+        self.license = MarkdownViewer(
+            self.get_markdown("License"),
+            show_table_of_contents=self.show_toc,
+            open_links=False,
+        )
 
-        with TabbedContent("TUI", "Motor", "Configs", "API"):
+        with TabbedContent("TUI", "Motor", "Configuracion", "API", "Licencia"):
             yield self.tui
             yield self.jb_engine
             yield self.configs
             yield self.api
+            yield self.license
+            self.license.show_table_of_contents = False
 
         # Footer
         yield get_footer()
@@ -82,12 +90,14 @@ class DocumentationScreen(Screen):
         self.jb_engine.show_table_of_contents = self.show_toc
         self.configs.show_table_of_contents = self.show_toc
         self.api.show_table_of_contents = self.show_toc
+        self.license.show_table_of_contents = False
 
         # Redibuja
         self.tui.refresh()
         self.jb_engine.refresh()
         self.configs.refresh()
         self.api.refresh()
+        self.license.refresh()
 
     def get_markdown(self, markdown: str) -> str:
         self.content = ""
