@@ -53,13 +53,13 @@ class JuiceShopScreen(Screen):
             "Restart OWASP Juice Shop services",
             JuiceBoxAPI.restart_js_status,
         ),
-        GENERATE_MISSIONS: (
-            "Generate new XML with missions for Root The Box (This feature requires to restart Root The Box services)",
-            JuiceBoxAPI.generate_xml,
-        ),
         "Configuration": (
             "Configuration file for OWASP Juice Shop services",
             JuiceBoxAPI.set_js_config,
+        ),
+        GENERATE_MISSIONS: (
+            "Generate new XML with missions for Root The Box (This feature requires to restart Root The Box services)",
+            JuiceBoxAPI.generate_xml,
         ),
         "Return": ("Return to main menu", None),
     }

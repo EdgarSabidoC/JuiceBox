@@ -169,10 +169,9 @@ class RootTheBoxScreen(Screen):
                 resp: Response = await JuiceBoxAPI.get_rtb_config()
                 config_dict = resp.data.get("config", {})
                 # Se eliminan las claves que no deben editarse
-                config_dict.pop("container_prefix", None)
-                config_dict.pop("node_env", None)
-                config_dict.pop("detach_mode", None)
-                config_dict.pop("image", None)
+                config_dict.pop("network_name", None)
+                config_dict.pop("webapp_container_name", None)
+                config_dict.pop("cache_container_name", None)
                 config_text = json.dumps(config_dict, indent=4)
 
                 async def __run_handle_config():

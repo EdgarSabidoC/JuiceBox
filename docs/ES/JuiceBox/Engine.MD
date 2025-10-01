@@ -6,30 +6,29 @@ Motor y orquestador para crear competencias CTF basado en Root The Box y OWASP J
 
 ## COMPONENTES DE JUICE BOX
 
-|       Componente        | Descripcion                                                                              |
-| :---------------------: | :--------------------------------------------------------------------------------------- |
-|   `Juice Box Engine`    | **Motor** o programa principal que corre en el **servidor/anfitrion**.                   |
-|     `Juice Box TUI`     | Interfaz basada en texto para las herramientas administrativas.                          |
-|   `Juice Shop Client`   | Interfaz grafica basada en una aplicacion web para los usuarios.                         |
-| `Juice Shop Client API` | API REST que conecta la interfaz grafica del JuiceShop_Client con el motor de Juice Box. |
-|        `Monitor`        | Monitor y logger del sistema.                                                            |
+|           Componente            | Descripcion                                                                   |
+| :-----------------------------: | :---------------------------------------------------------------------------- |
+|       `Juice Box Engine`        | **Motor** o programa principal que corre en el **servidor/anfitrion**.        |
+|     `Juice Box Manager TUI`     | Interfaz basada en texto para las herramientas administrativas.               |
+|       `Juice Shop Client`       | Interfaz grafica basada en una aplicacion web para los usuarios.              |
+| `Juice Shop WebClient API REST` | API REST que conecta la interfaz web del WebClient con el motor de Juice Box. |
+|            `Monitor`            | Monitor y logger del sistema.                                                 |
 
 ---
 
 ## ARQUITECTURA DE JUICE BOX
 
 ```bash
-Servidor
+Servidor|Host
 ├── Juice Box Engine
 │   ├── API
 │   └── Socket de UNIX
-├── TUI
-├── WebClient
+├── Juice Box Manager TUI
+├── Juice Shop WebClient
 │   └── API REST
 ├── Monitor
 └── Docker
     ├── Redis (Juice Box Engine)
-    ├── Cliente Juice Box
     ├── OWASP Juice Shop (Juice Box Engine)
     └── Root The Box (Juice Box Engine)
 ```

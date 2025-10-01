@@ -14,8 +14,9 @@ class DocumentationScreen(Screen):
     DOCS: Traversable = files("docs.ES.JuiceBox")
     MARKDOWNS = {
         "Motor": Path(str(DOCS.joinpath("Engine.MD"))),
-        "API": Path(str(DOCS.joinpath("API.MD"))),
+        "TUI": Path(str(DOCS.joinpath("TUI.MD"))),
         "Configs": Path(str(DOCS.joinpath("ConfigFiles.MD"))),
+        "API": Path(str(DOCS.joinpath("API.MD"))),
     }
     BINDINGS = [
         Binding("ctrl+b", "go_back", "Back", show=True),
@@ -29,13 +30,13 @@ class DocumentationScreen(Screen):
         yield get_header()
 
         # Markdowns:
-        self.jb_engine = MarkdownViewer(
-            self.get_markdown("Motor"),
+        self.tui = MarkdownViewer(
+            self.get_markdown("TUI"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
-        self.api = MarkdownViewer(
-            self.get_markdown("API"),
+        self.jb_engine = MarkdownViewer(
+            self.get_markdown("Motor"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
@@ -44,17 +45,24 @@ class DocumentationScreen(Screen):
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
+        self.api = MarkdownViewer(
+            self.get_markdown("API"),
+            show_table_of_contents=self.show_toc,
+            open_links=False,
+        )
 
-        with TabbedContent("Motor", "API", "Configs"):
+        with TabbedContent("TUI", "Motor", "Configs", "API"):
+            yield self.tui
             yield self.jb_engine
-            yield self.api
             yield self.configs
+            yield self.api
+
         # Footer
         yield get_footer()
 
     async def return_to_main(self) -> None:
         """Regresa a la pantalla del menú principal."""
-        # Opcional: comprueba que no estés en la pantalla raíz
+        # Se comprueba que no se esté en la pantalla principal
         if self.screen.id != "main":
             # Se reemplaza la pantalla actual
             await self.app.pop_screen()
@@ -70,14 +78,16 @@ class DocumentationScreen(Screen):
         self.show_toc = not self.show_toc
 
         # Actualiza el estado en cada visor para mostrar u ocultar la tabla de contenido:
+        self.tui.show_table_of_contents = self.show_toc
         self.jb_engine.show_table_of_contents = self.show_toc
-        self.api.show_table_of_contents = self.show_toc
         self.configs.show_table_of_contents = self.show_toc
+        self.api.show_table_of_contents = self.show_toc
 
-        # Redibuja (opcional, dependiendo del comportamiento)
+        # Redibuja
+        self.tui.refresh()
         self.jb_engine.refresh()
-        self.api.refresh()
         self.configs.refresh()
+        self.api.refresh()
 
     def get_markdown(self, markdown: str) -> str:
         self.content = ""
