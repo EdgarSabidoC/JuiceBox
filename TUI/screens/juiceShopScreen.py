@@ -719,7 +719,6 @@ class JuiceShopScreen(Screen):
         )
 
     def __mark_services_unvailable(self) -> None:
-        # Si Redis no está disponible, reintenta
         for _, label_status in self.SERVICE_LABELS.values():
             self.app.call_from_thread(lambda ls=label_status: ls.update(NOT_AVAILABLE))
 
@@ -747,6 +746,10 @@ class JuiceShopScreen(Screen):
                     continue
 
     def __listener_thread(self):
+        """
+        Hilo que mantiene conexión con Redis, actualiza estado de servicios
+        y refresca la configuración mientras Redis está activo.
+        """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
