@@ -86,24 +86,24 @@ class JuiceBoxEngineServer:
         self.monitor = monitor
 
         # Se crea socket del servidor
-        fds = listen_fds()
-        if fds:  # la lista no está vacía
-            fd = fds[0]  # primer descriptor heredado
-            if is_socket_unix(fd, socket.SOCK_STREAM):
-                self.server_socket = socket.fromfd(
-                    fd, socket.AF_UNIX, socket.SOCK_STREAM
-                )
-            else:
-                raise RuntimeError(
-                    "The inherited descriptor is not a valid UNIX socket"
-                )
-        else:
-            # fallback: crear el socket nosotros mismos
-            if os.path.exists(self.socket_path):
-                os.remove(self.socket_path)
-            self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.server_socket.bind(self.socket_path)
-            self.server_socket.listen()
+        # fds = listen_fds()
+        # if fds:  # la lista no está vacía
+        #     fd = fds[0]  # primer descriptor heredado
+        #     if is_socket_unix(fd, socket.SOCK_STREAM):
+        #         self.server_socket = socket.fromfd(
+        #             fd, socket.AF_UNIX, socket.SOCK_STREAM
+        #         )
+        #     else:
+        #         raise RuntimeError(
+        #             "The inherited descriptor is not a valid UNIX socket"
+        #         )
+        # else:
+        # fallback: crear el socket nosotros mismos
+        if os.path.exists(self.socket_path):
+            os.remove(self.socket_path)
+        self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.server_socket.bind(self.socket_path)
+        self.server_socket.listen()
 
         # Managers
         self.rtb_manager: RootTheBoxManager = rtb_manager

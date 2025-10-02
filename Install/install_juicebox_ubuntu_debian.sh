@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Script de instalación del servicio systemd para JuiceBox Engine + Manager TUI + WebClient en Ubuntu/Debian/Arch con shell Bash
+
+set -euo pipefail
+
+# Detecta la ruta absoluta de la carpeta raíz de la app (JuiceBox)
+script_dir="$(dirname "$(realpath "$0")")"
+app_dir="$(realpath "$script_dir/..")"
+
+echo ">=== Creating juicebox user and directories ===<"
+if ! id -u juicebox >/dev/null 2>&1; then
+    sudo useradd -r -s /usr/sbin/nologin -U juicebox
+fi
+sudo mkdir -p /opt/juicebox
+sudo chown -R juicebox:juicebox /opt/juicebox
+sudo usermod -aG docker juicebox
+sudo mkdir -p /opt/juicebox/run
+sudo chown juicebox:juicebox /opt/juicebox/run
+sudo chmod 770 /opt/juicebox/run
+newgrp docker
+
+echo "=== Copying JuiceBox app from $app_dir to /opt/juicebox ==="
+sudo rsync -av --exclude venv "$app_dir/" /opt/juicebox/
+sudo chown -R juicebox:juicebox /opt/juicebox
+
+echo "=== Creating Python virtual environment ==="
+cd /opt/juicebox
+sudo -u juicebox python3 -m venv /opt/juicebox/venv
+sudo -u juicebox /opt/juicebox/venv/bin/python -m ensurepip --upgrade
+sudo -u juicebox /opt/juicebox/venv/bin/python -m pip install --upgrade pip
+
+echo "=== Installing dependencies from requirements.txt ==="
+sudo -u juicebox /opt/juicebox/venv/bin/pip install -r /opt/juicebox/requirements.txt
+
+echo "=== Installing JuiceBox package in editable mode ==="
+sudo -u juicebox /opt/juicebox/venv/bin/pip install -e /opt/juicebox
+
+echo ">=== Creating systemd service unit for Engine ===<"
+cat <<'EOF' | sudo tee /etc/systemd/system/juiceboxengine.service > /dev/null
+[Unit]
+Description=JuiceBox CTF Orchestrator for Root The Box & OWASP Juice Shop
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=juicebox
+Group=juicebox
+WorkingDirectory=/opt/juicebox
+ExecStart=/opt/juicebox/venv/bin/juicebox
+Environment=JUICEBOX_SOCKET=/opt/juicebox/run/engine.sock
+UMask=007
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "=== Reloading systemd daemon ==="
+sudo systemctl daemon-reload
+
+echo "=== Enabling and starting Engine service ==="
+sudo systemctl enable --now juiceboxengine.service
+
+echo "=== Checking Engine service status ==="
+systemctl status juiceboxengine.service --no-pager
+
+echo ">=== Creating juicebox-tui wrapper ===<"
+cat <<'EOF' | sudo tee /usr/local/bin/juicebox-tui > /dev/null
+#!/usr/bin/env bash
+# Wrapper para ejecutar la TUI como el usuario juicebox
+exec sudo -u juicebox /opt/juicebox/venv/bin/juicebox-tui "$@"
+EOF
+sudo chmod +x /usr/local/bin/juicebox-tui
+
+echo ">=== Creating systemd service for JuiceBox WebClient ===<"
+cat <<'EOF' | sudo tee /etc/systemd/system/juiceboxweb.service > /dev/null
+[Unit]
+Description=JuiceBox WebClient API (FastAPI)
+After=network.target juiceboxengine.service
+Requires=juiceboxengine.service
+
+[Service]
+Type=simple
+User=juicebox
+Group=juicebox
+WorkingDirectory=/opt/juicebox
+EnvironmentFile=/opt/juicebox/WebClient/.env
+ExecStart=/opt/juicebox/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker WebClient.main:app -b ${HOST}:${PORT} --workers 4
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "=== Reloading systemd daemon ==="
+sudo systemctl daemon-reload
+
+echo "=== Enabling and starting WebClient service ==="
+sudo systemctl enable --now juiceboxweb.service
+
+echo "=== Checking WebClient service status ==="
+systemctl status juiceboxweb.service --no-pager
+
+echo "<=== JuiceBox Engine + WebClient installation completed ===>"

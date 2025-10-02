@@ -36,10 +36,16 @@ El motor de `Juice Box` utiliza Python v3.12+, ademas debe de tener instalados l
 
 ## Instalacion de `Juice Box` como servicio
 
-Para instalar `Juice Box` como servicio en tu servidor [ver el siguiente enlace](JuiceBoxService.MD).
+Para instalar `Juice Box` como servicio en tu servidor o computadora con `Linux (Debian/Ubuntu/Arch)` [ver el siguiente enlace](JuiceBoxService.MD).
 
 ---
 
-## Instalacion de la TUI de `Juice Box` como servicio
+## Instalacion de la Manager TUI de `Juice Box`
 
-Para instalar la TUI como servicio [ver el siguiente enlace](TUI.MD).
+Para instalar la TUI como ejecutable [ver el siguiente enlace](TUI.MD).
+
+---
+
+## Instalacion del WebClient de `Juice Box`
+
+Para instalar el WebClient como servicio [ver el siguiente enlace](WebClient.MD).

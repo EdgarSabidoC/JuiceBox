@@ -1,5 +1,5 @@
 #!/usr/bin/env fish
-# Script de instalación del servicio systemd para JuiceBox Engine en Arch con shell Fish
+# Script de instalación del servicio systemd para JuiceBox Engine + Manager TUI + WebClient en Arch con shell Fish
 
 set -e
 
@@ -14,6 +14,10 @@ end
 sudo mkdir -p /opt/juicebox
 sudo chown -R juicebox:juicebox /opt/juicebox
 sudo usermod -aG docker juicebox
+sudo mkdir -p /opt/juicebox/run
+sudo chown juicebox:juicebox /opt/juicebox/run
+sudo chmod 770 /opt/juicebox/run
+newgrp docker
 
 echo "=== Copying JuiceBox app from $app_dir to /opt/juicebox ==="
 sudo rsync -av --exclude venv "$app_dir/" /opt/juicebox/
@@ -44,6 +48,7 @@ Group=juicebox
 WorkingDirectory=/opt/juicebox
 ExecStart=/opt/juicebox/venv/bin/juicebox
 Environment=JUICEBOX_SOCKET=/opt/juicebox/run/engine.sock
+UMask=007
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
@@ -61,5 +66,47 @@ sudo systemctl enable --now juiceboxengine.service
 
 echo "=== Checking service status ==="
 systemctl status juiceboxengine.service --no-pager
+
+echo ">=== Creating juicebox-tui wrapper ===<"
+echo '#!/usr/bin/env fish
+# Wrapper para ejecutar la TUI como el usuario juicebox
+exec sudo -u juicebox /opt/juicebox/venv/bin/juicebox-tui $argv' \
+| sudo tee /usr/local/bin/juicebox-tui > /dev/null
+sudo chmod +x /usr/local/bin/juicebox-tui
+
+echo ">=== Creating systemd service for JuiceBox WebClient ===<"
+
+echo "[Unit]
+Description=JuiceBox WebClient API (FastAPI)
+After=network.target juiceboxengine.service
+Requires=juiceboxengine.service
+
+[Service]
+Type=simple
+User=juicebox
+Group=juicebox
+WorkingDirectory=/opt/juicebox
+EnvironmentFile=/opt/juicebox/WebClient/.env
+ExecStart=/opt/juicebox/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker WebClient.main:app -b \${HOST}:\${PORT} --workers 4
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target" \
+| sudo tee /etc/systemd/system/juiceboxweb.service > /dev/null
+
+echo "=== Reloading systemd daemon ==="
+sudo systemctl daemon-reload
+
+echo "=== Enabling and starting WebClient service ==="
+sudo systemctl enable juiceboxweb.service
+
+echo "=== Starting juiceboxweb service ==="
+sudo systemctl start juiceboxweb
+
+echo "=== Checking WebClient service status ==="
+systemctl status juiceboxweb.service --no-pager
 
 echo "<=== JuiceBox Engine installation completed ===>"
