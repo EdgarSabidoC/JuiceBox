@@ -1,7 +1,7 @@
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.widgets import Static, Select, Button
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.binding import Binding
 from textual import events
 from ..widgets import get_footer
@@ -16,8 +16,8 @@ class IntModal(ModalScreen[dict[str, str | int]]):
     CSS_PATH = "../styles/intModal.tcss"
 
     BINDINGS = [
-        Binding("ctrl+y", "dismiss_yes", "Yes", show=True),
-        Binding("ctrl+n", "dismiss_no", "No", show=True),
+        Binding("ctrl+y", "dismiss_yes", "Yes ", show=True),
+        Binding("ctrl+n", "dismiss_no", "No ", show=True),
     ]
 
     def __init__(
@@ -38,8 +38,6 @@ class IntModal(ModalScreen[dict[str, str | int]]):
         # Header
         yield get_header()
 
-        yield Static(self.header_title or "", classes="modal-title")
-
         # Select con las opciones del rango
         if self.return_ports:
             # Se muestran los puertos
@@ -51,11 +49,15 @@ class IntModal(ModalScreen[dict[str, str | int]]):
             __count = self.ports_range[1] - self.ports_range[0] + 1
             options = [(str(i), i) for i in range(1, __count + 1)]
         self.selector = Select(options=options, prompt=self.prompt)
-        yield self.selector
 
-        with Horizontal() as self.buttons_container:
-            self.yes = yield Button("Yes", id="yes")
-            self.no = yield Button("No", id="no")
+        with Horizontal(classes="confirm-modal"):
+            with Vertical(classes="confirm-box"):
+                yield Static(self.header_title or "", classes="confirm-message")
+                with Horizontal(classes="selector"):
+                    yield self.selector
+                with Horizontal(classes="confirm-buttons") as self.buttons_container:
+                    self.yes = yield Button("Yes", id="yes", classes="yes-button")
+                    self.no = yield Button("No", id="no", classes="no-button")
 
         # Footer
         yield get_footer()

@@ -1,3 +1,43 @@
+Select {
+  width: 50%;
+  align: center middle;
+  content-align: center middle;
+}
+
+.selector{
+  width: 100%;
+  align: center middle;
+  content-align: center middle;
+}
+
+.confirm-modal {
+  background: $surface;
+  padding: 1;
+  align: center middle;
+  content-align: center middle;
+  width: 100%;
+}
+
+.confirm-box {
+    height: 50%;
+    width: 100%;
+    align: center middle;
+    content-align: center middle;
+}
+
+.confirm-message {
+  border: hkey $accent;
+  width: 100%;
+  align: center middle;
+  content-align: center middle;
+  margin: 0 0 3 0;
+  padding: 0;
+}
+
+.confirm-buttons {
+  align: center middle;
+}
+
 .yes-button {
   margin: 0 3 0 0;
 }
