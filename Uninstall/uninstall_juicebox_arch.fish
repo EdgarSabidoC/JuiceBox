@@ -1,6 +1,5 @@
 #!/usr/bin/env fish
-
-# Script de desinstalación del servicio systemd para JuiceBox Engine en Arch
+# Script de desinstalación del servicio systemd para JuiceBox Engine en Arch con shell Fish
 
 set -e
 

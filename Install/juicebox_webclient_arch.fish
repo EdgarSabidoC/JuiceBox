@@ -1,5 +1,5 @@
 #!/usr/bin/env fish
-# Script de instalación del servicio systemd para JuiceBox WebClient en Arch
+# Script de instalación del servicio systemd para JuiceBox WebClient en Arch con shell Fish
 
 set -e
 

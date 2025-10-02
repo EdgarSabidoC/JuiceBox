@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-
-# Script de desinstalación del servicio systemd para JuiceBox WebClient en Ubuntu/Debian
+# Script de desinstalación del servicio systemd para JuiceBox WebClient en Ubuntu/Debian con shell Bash
 
 set -e
 
