@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# Script de desinstalación del servicio systemd para JuiceBox Engine en Ubuntu/Debian
+
 set -e
 
 echo ">=== Stopping Juice Box Engine ===<"

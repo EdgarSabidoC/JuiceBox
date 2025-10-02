@@ -66,6 +66,9 @@ docker
 dotenv
 textual
 textual[syntax]
+fastapi
+gunicorn
+uvicorn
 py-cpuinfo
 linkify-it-py
 systemd-python
@@ -121,6 +124,11 @@ Estando en la ruta `/opt/juicebox/` y con el venv activado, ejecutar:
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+## 2.2.4. Añadir el binario del venv al PATH
+```bash
+export PATH="/opt/juicebox/venv/bin:$PATH"
 ```
 
 #### Desactivacion del entorno virtual:

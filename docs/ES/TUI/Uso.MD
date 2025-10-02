@@ -1,4 +1,12 @@
-# Uso de la TUI
+# Uso de Juice Box Manager TUI
+
+## Correr la aplicacion Juice Box Manager TUI
+
+Para correr la apliacion solo es necesario ejecutar el comando:
+
+```bash
+juicebox-tui
+```
 
 ## Herramientas administrativas de Root The Box
 
@@ -58,9 +66,7 @@ Donde:
 Para poder generar un nuevo archivo XML con las misiones de la Juice Shop para Root The Box, se deben seguir los siguientes pasos:
 
 1. Entrar a la pantalla `Juice Shop`.
-2. `[ OPCIONAL ]` Cambiar la `ctf_key`, se utiliza el comando `Configuration`, desde donde se accede a la configuracion actual, se realiza el cambio y se elige la opcion `save` para guardar los cambios de la configuracion.
+2. `[ OPCIONAL ]` Cambiar la `ctf_key`, se utiliza el comando `Configuration`, desde donde se accede a la configuracion actual, se realiza el cambio y se elige la opcion `save` para guardar los cambios de la configuracion. Una vez hecho esto es necesario reiniciar con el comando `Restart` y arrancar de nuevo los contenedores de la `OWASP Juice Shop`.
 3. Utilizar el comando `Generate missions` y esperar a que se genere y actualice el archvo XML para Root The Box.
 4. Entrar a la pantalla `Root The Box` y ejecutar el comando `Restart`, el cual cargara el nuevo archivo XML y arrancara de nuevo los contenedores de la aplicacion web y el cache.
-5. Regresar a la pantalla `Juice Shop` y utilizar el comando `Restart`.
-6. Una vez finalizado el reinicio, arrancar los contenedores de la `OWASP Juice Shop`.
-7. Listo, ahora ya debe estar configurado `Root The Box` con las misiones generadas de la OWASP Juice Shop. Con esto las banderas (flags) deben estar sincronizadas entre los contenedores de la `OWASP Juice Shop` y `Root The Box`.
+5. Listo, ahora ya debe estar configurado `Root The Box` con las misiones generadas de la OWASP Juice Shop. Con esto las banderas (flags) deben estar sincronizadas entre los contenedores de la `OWASP Juice Shop` y `Root The Box`.

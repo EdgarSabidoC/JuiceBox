@@ -2,11 +2,31 @@
 
 Este documento detalla los pasos para eliminar la instalación de Juice Box Engine y revertir los cambios realizados durante su despliegue de forma manual.
 
-Si quiere evitar hacerlo de forma manual, puede optar por alguno de los scripts de desinstalación que se encuentran en la carpeta `Uninstall/` dentro de la raíz del proyecto.
+---
+
+## Desinstalacion por script
+
+Si se quiere evitar la desinstalacion manual, se puede optar por utilizar el archivo de desinstalacion correspondiente en la ruta `/opt/juicebox/Uninstall/`:
+
+### Para distros basadas en Ubuntu/Debian con shell bash:
+
+```bash
+chmod +x uninstall_juicebox_ubuntu_debian.sh
+./uninstall_juicebox_ubuntu_debian.sh
+```
+
+### Para distros basadas en Arch con shell fish:
+
+```bash
+chmod +x uninstall_juicebox_arch.fish
+./uninstall_juicebox_arch.fish
+```
 
 ---
 
-## 1. Detener el servicio y el socket
+## Desinstalacion manual
+
+### 1. Detener el servicio y el socket
 
 Antes de eliminar archivos, detener las unidades systemd:
 
@@ -18,7 +38,7 @@ sudo systemctl disable juiceboxengine.socket
 sudo systemctl daemon-reload
 ```
 
-## 2. Eliminar archivos de las unidades systemd
+### 2. Eliminar archivos de las unidades systemd
 
 Para borrar los archivos de configuración creados ejecutar:
 
@@ -28,7 +48,7 @@ sudo rm -f /etc/systemd/system/juiceboxengine.socket
 sudo systemctl daemon-reload
 ```
 
-## 3. Eliminar el entorno virtual y la aplicación
+### 3. Eliminar el entorno virtual y la aplicación
 
 Para eliminar el directorio completo de Juice Box:
 
@@ -41,18 +61,18 @@ Con esto se eliminan:
 - El paquete instalado (pip install -e .)
 - Archivos de configuración, logs y scripts de la aplicación
 
-## 4. Eliminar el suuario creado (opcional)
+### 4. Eliminar el suuario creado (opcional)
 
 Si se desea eliminar el usuario `juicebox` y su grupo, ejecutar:
 
-### Para distros basadas en Ubuntu/Debian
+#### Para distros basadas en Ubuntu/Debian
 
 ```bash
 sudo deluser --remove-home juicebox
 sudo groupdel juicebox
 ```
 
-### Para distros basadas en Arch:
+#### Para distros basadas en Arch:
 
 ```bash
 sudo userdel -r juicebox
@@ -61,7 +81,7 @@ sudo groupdel juicebox
 
 **NOTA:** Asegura que ningún otro servicio o contenedor dependa del grupo docker o del usuario juicebox.
 
-## 5. Limpieza de logs (opcional)
+### 5. Limpieza de logs (opcional)
 
 Si se requiere eliminar los lgos generados por journald para `Juice Box`, ejecutar:
 

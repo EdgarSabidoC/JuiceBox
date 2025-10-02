@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["JuiceBox*"]
+include = ["JuiceBox*", "TUI*", "docs*"]
 
 
 [project]
@@ -21,6 +21,8 @@ dependencies = [
   "python-dotenv",
   "textual",
   "textual[syntax]",
+  "fastapi",
+  "uvicorn",
   "py-cpuinfo",
   "linkify-it-py",
   "systemd-python",
@@ -32,3 +34,4 @@ dependencies = [
 
 [project.scripts]
 juicebox = "JuiceBox.__main__:JuiceBoxEngine"
+juicebox-tui = "TUI.__main__:JuiceBoxTUI"

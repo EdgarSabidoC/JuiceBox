@@ -11,13 +11,13 @@ from pathlib import Path
 
 class DocumentationScreen(Screen):
     CSS_PATH = "../styles/documentation.tcss"
-    DOCS: Traversable = files("docs.ES.JuiceBox")
+    DOCS_ES: Traversable = files("docs.ES")
     MARKDOWNS = {
-        "Motor": Path(str(DOCS.joinpath("Engine.MD"))),
-        "TUI": Path(str(DOCS.joinpath("TUI.MD"))),
-        "Configs": Path(str(DOCS.joinpath("ConfigFiles.MD"))),
-        "API": Path(str(DOCS.joinpath("API.MD"))),
-        "License": Path(str(DOCS.joinpath("Licencia.MD"))),
+        "Motor": Path(str(DOCS_ES.joinpath("JuiceBox/Motor.MD"))),
+        "TUI": Path(str(DOCS_ES.joinpath("TUI/Uso.MD"))),
+        "Configs": Path(str(DOCS_ES.joinpath("JuiceBox/Configuracion.MD"))),
+        "API": Path(str(DOCS_ES.joinpath("JuiceBox/API.MD"))),
+        "License": Path(str(DOCS_ES.joinpath("Licencia.MD"))),
     }
     BINDINGS = [
         Binding("ctrl+b", "go_back", "Back", show=True),

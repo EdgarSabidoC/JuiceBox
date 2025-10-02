@@ -1,15 +1,15 @@
-import asyncio
-import json
-from dotenv import dotenv_values
+import asyncio, json, os
+from dotenv import load_dotenv
 from Models import Response, Status
 
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+load_dotenv(dotenv_path=dotenv_path)
+
 # Constante con la ruta del Socket del motor de Juice Box.
-SOCKET_PATH: str | None = dotenv_values().get(
-    "JUICEBOX_SOCKET", "/run/juicebox/engine.sock"
-)
+SOCKET_PATH = os.getenv("JUICEBOX_SOCKET", "/run/juicebox/engine.sock")
 
 # Constante generada dinámicamente con la contraseña de Redis.
-REDIS_PASSWORD: str | None = dotenv_values().get("REDIS_PASSWORD", "")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
 
 class Programs:
@@ -149,6 +149,7 @@ class JuiceBoxAPI:
         Returns:
             Response: Estado de JS o error.
         """
+        print(REDIS_PASSWORD)
         return await JuiceBoxAPI.__get_status(Programs.JS)
 
     @staticmethod
