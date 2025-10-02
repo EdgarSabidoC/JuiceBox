@@ -36,7 +36,9 @@ El motor de `Juice Box` utiliza Python v3.12+, ademas debe de tener instalados l
 
 ## Instalacion de `Juice Box` como servicio
 
-Para instalar `Juice Box` como servicio en tu servidor o computadora con `Linux (Debian/Ubuntu/Arch)` [ver el siguiente enlace](JuiceBoxService.MD).
+Para instalar manualmente `Juice Box` como servicio en tu servidor o computadora con `Linux (Debian/Ubuntu/Arch)` [ver el siguiente enlace](JuiceBoxService.MD).
+
+Si se desea utilizar alguno de los scripts de instalacion para automatizar el proceso, estos se encuentran disponibles en el directorio `Install` dentro de la carpeta raiz.
 
 ---
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Script de instalación del servicio systemd para JuiceBox Engine + Manager TUI + WebClient en Ubuntu/Debian/Arch con shell Bash
+# Script de instalación del servicio systemd para JuiceBox Engine + Manager TUI + WebClient en Ubuntu/Debian con shell Bash
 
 set -euo pipefail
 
@@ -71,7 +71,6 @@ systemctl status juiceboxengine.service --no-pager
 echo ">=== Creating juicebox-tui wrapper ===<"
 cat <<'EOF' | sudo tee /usr/local/bin/juicebox-tui > /dev/null
 #!/usr/bin/env bash
-# Wrapper para ejecutar la TUI como el usuario juicebox
 exec sudo -u juicebox /opt/juicebox/venv/bin/juicebox-tui "$@"
 EOF
 sudo chmod +x /usr/local/bin/juicebox-tui
@@ -108,4 +107,4 @@ sudo systemctl enable --now juiceboxweb.service
 echo "=== Checking WebClient service status ==="
 systemctl status juiceboxweb.service --no-pager
 
-echo "<=== JuiceBox Engine + WebClient installation completed ===>"
+echo "<=== Juice Box Engine + Manager TUI + WebClient installation completed ===>"

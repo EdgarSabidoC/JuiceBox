@@ -1,8 +1,10 @@
-# Juice Box Engine: Despliegue con systemd y activacion del Socket
+# Juice Box Engine: Despliegue con systemd
 
-Este documento detalla todos los pasos necesarios para la instalacion manual del proyecto `Juice Box`, preparar el entorno virtual de Python (venv), crear los scripts de arranque, definir las unidades systemd (socket y servicio) y verificar que todo funcione correctamente.
+Este documento detalla todos los pasos necesarios para la instalacion manual de `Juice Box Engine` como servicio, preparar el entorno virtual de Python (venv), definir la unidad systemd (servicio) y verificar que todo funcione correctamente.
 
-Si se deasea, se puede realizar la instalacion automatica por medio de los scripts disponibles en `JuiceBox/Install`. Hay scripts disponibles para distros basadas en `Arch` con shell `Fish` y en `Ubuntu/Debian` con shell `Bash`.
+Si se deasea, se puede realizar la instalacion automatica por medio de los scripts disponibles en el directorio `Install` de la carpeta raiz. Hay scripts disponibles para distros basadas en `Arch` con shell `Fish` y en `Ubuntu/Debian` con shell `Bash`.
+
+**NOTA:** Los scripts automaticos instalan por defecto `Juice Box Engine`, `Juice Box Manager TUI` y `Juice Box WebClient`.
 
 ---
 

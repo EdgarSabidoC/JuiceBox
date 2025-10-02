@@ -69,7 +69,6 @@ systemctl status juiceboxengine.service --no-pager
 
 echo ">=== Creating juicebox-tui wrapper ===<"
 echo '#!/usr/bin/env fish
-# Wrapper para ejecutar la TUI como el usuario juicebox
 exec sudo -u juicebox /opt/juicebox/venv/bin/juicebox-tui $argv' \
 | sudo tee /usr/local/bin/juicebox-tui > /dev/null
 sudo chmod +x /usr/local/bin/juicebox-tui
@@ -109,4 +108,4 @@ sudo systemctl start juiceboxweb
 echo "=== Checking WebClient service status ==="
 systemctl status juiceboxweb.service --no-pager
 
-echo "<=== JuiceBox Engine installation completed ===>"
+echo "<=== Juice Box Engine + Manager TUI + WebClient installation completed ===>"
