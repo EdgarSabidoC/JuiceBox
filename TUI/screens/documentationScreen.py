@@ -20,9 +20,9 @@ class DocumentationScreen(Screen):
         "License": Path(str(DOCS_ES.joinpath("Licencia.MD"))),
     }
     BINDINGS = [
-        Binding("ctrl+b", "go_back", "Back ", show=True),
-        Binding("ctrl+q", "quit", "Quit ", show=True),
-        Binding("ctrl+t", "show_hide_toc", "Show/Hide table of content ", show=True),
+        Binding("ctrl+b", "go_back", "Back | ", show=True),
+        Binding("ctrl+q", "quit", "Quit | ", show=True),
+        Binding("ctrl+t", "show_hide_toc", "Show/Hide table of content | ", show=True),
     ]
 
     def compose(self) -> ComposeResult:

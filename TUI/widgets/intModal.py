@@ -16,8 +16,8 @@ class IntModal(ModalScreen[dict[str, str | int]]):
     CSS_PATH = "../styles/intModal.tcss"
 
     BINDINGS = [
-        Binding("ctrl+y", "dismiss_yes", "Yes ", show=True),
-        Binding("ctrl+n", "dismiss_no", "No ", show=True),
+        Binding("ctrl+y", "dismiss_yes", "Yes | ", show=True),
+        Binding("ctrl+n", "dismiss_no", "No | ", show=True),
     ]
 
     def __init__(

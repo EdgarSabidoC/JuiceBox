@@ -13,8 +13,8 @@ class ConfigModal(ModalScreen[str]):
 
     CSS_PATH = "../styles/configModal.tcss"
     BINDINGS = [
-        Binding("ctrl+s", "dismiss_save", "Save ", show=True),
-        Binding("ctrl+n", "dismiss_cancel", "Cancel ", show=True),
+        Binding("ctrl+s", "dismiss_save", "Save | ", show=True),
+        Binding("ctrl+n", "dismiss_cancel", "Cancel | ", show=True),
     ]
 
     def __init__(self, config_text: str) -> None:

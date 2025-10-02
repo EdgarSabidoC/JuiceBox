@@ -7,6 +7,7 @@ from textual.events import ScreenResume
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Label, Static, OptionList, Link
 import importlib.resources as pkg_resources
+from textual.binding import Binding
 
 
 class MainScreen(Screen):

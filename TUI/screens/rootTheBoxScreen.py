@@ -53,8 +53,8 @@ class RootTheBoxScreen(Screen):
     }
 
     BINDINGS = [
-        Binding("ctrl+b", "go_back", "Back ", show=True),
-        Binding("ctrl+q", "quit", "Quit ", show=True),
+        Binding("ctrl+b", "go_back", "Back | ", show=True),
+        Binding("ctrl+q", "quit", "Quit | ", show=True),
     ]
 
     __skip_resume: bool = (
@@ -490,6 +490,9 @@ class RootTheBoxScreen(Screen):
         """
         Cambia estado de carga de los widgets config_data y services_status.
         """
+        self.menu.disabled = state
+        if not self.menu.disabled:
+            self.menu.focus()
         self.app.call_from_thread(lambda: setattr(self.config_data, "loading", state))
         self.app.call_from_thread(
             lambda: setattr(self.services_status, "loading", state)
