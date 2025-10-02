@@ -6,7 +6,7 @@ dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 load_dotenv(dotenv_path=dotenv_path)
 
 # Constante con la ruta del Socket del motor de Juice Box.
-SOCKET_PATH = os.getenv("JUICEBOX_SOCKET", "/run/juicebox/engine.sock")
+SOCKET_PATH = os.getenv("JUICEBOX_SOCKET", "/opt/juicebox/run/engine.sock")
 
 # Constante generada dinámicamente con la contraseña de Redis.
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")

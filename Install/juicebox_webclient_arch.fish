@@ -7,8 +7,7 @@ set service_file "/etc/systemd/system/juiceboxweb.service"
 
 echo ">=== Creating systemd service for JuiceBox WebClient ===<"
 
-sudo tee $service_file > /dev/null <<'EOF'
-[Unit]
+echo "[Unit]
 Description=JuiceBox WebClient API (FastAPI)
 After=network.target juiceboxengine.service
 Requires=juiceboxengine.service
@@ -19,15 +18,15 @@ User=juicebox
 Group=juicebox
 WorkingDirectory=/opt/juicebox
 EnvironmentFile=/opt/juicebox/WebClient/.env
-ExecStart=/opt/juicebox/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker WebClient.main:app -b ${HOST}:${PORT} --workers 4
+ExecStart=/opt/juicebox/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker WebClient.main:app -b \${HOST}:\${PORT} --workers 4
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
 
 [Install]
-WantedBy=multi-user.target
-EOF
+WantedBy=multi-user.target" \
+| sudo tee $service_file > /dev/null
 
 echo "=== Reloading systemd daemon ==="
 sudo systemctl daemon-reload

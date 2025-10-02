@@ -16,6 +16,7 @@ from docker import DockerClient
 from dotenv import dotenv_values
 from collections.abc import Callable
 from typing import Any
+from systemd.daemon import listen_fds, is_socket_unix
 
 
 # Comandos válidos por programa
@@ -69,17 +70,13 @@ class JuiceBoxEngineServer:
         """
         # Obtiene la ruta del socket
         self.socket_path: str = (
-            dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/engine.sock"
+            dotenv_values().get("JUICEBOX_SOCKET") or "/opt/juicebox/run/engine.sock"
         )
         # Obtiene la carpeta que contiene el socket
         socket_dir = os.path.dirname(self.socket_path)
 
         # Crea la carpeta si no existe
         os.makedirs(socket_dir, exist_ok=True)
-
-        # 3. Si hay un socket antiguo, elimínalo
-        if os.path.exists(self.socket_path):
-            os.remove(self.socket_path)
 
         # Cliente Docker
         if docker_client:
@@ -89,9 +86,24 @@ class JuiceBoxEngineServer:
         self.monitor = monitor
 
         # Se crea socket del servidor
-        self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.server_socket.bind(self.socket_path)
-        self.server_socket.listen()
+        fds = listen_fds()
+        if fds:  # la lista no está vacía
+            fd = fds[0]  # primer descriptor heredado
+            if is_socket_unix(fd, socket.SOCK_STREAM):
+                self.server_socket = socket.fromfd(
+                    fd, socket.AF_UNIX, socket.SOCK_STREAM
+                )
+            else:
+                raise RuntimeError(
+                    "The inherited descriptor is not a valid UNIX socket"
+                )
+        else:
+            # fallback: crear el socket nosotros mismos
+            if os.path.exists(self.socket_path):
+                os.remove(self.socket_path)
+            self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.server_socket.bind(self.socket_path)
+            self.server_socket.listen()
 
         # Managers
         self.rtb_manager: RootTheBoxManager = rtb_manager

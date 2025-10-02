@@ -21,9 +21,10 @@ sudo chown -R juicebox:juicebox /opt/juicebox
 echo "=== Creating Python virtual environment ==="
 cd /opt/juicebox
 sudo -u juicebox python3 -m venv /opt/juicebox/venv
+sudo -u juicebox /opt/juicebox/venv/bin/python -m ensurepip --upgrade
+sudo -u juicebox /opt/juicebox/venv/bin/python -m pip install --upgrade pip
 
 echo "=== Installing dependencies from requirements.txt ==="
-sudo -u juicebox /opt/juicebox/venv/bin/pip install --upgrade pip
 sudo -u juicebox /opt/juicebox/venv/bin/pip install -r /opt/juicebox/requirements.txt
 
 echo "=== Installing JuiceBox package in editable mode ==="

@@ -11,7 +11,6 @@ from .styles.theme import (
     hacker_dark_green_theme,
     synthwave_80s_theme,
 )
-from dotenv import dotenv_values
 
 
 class JuiceBoxApp(App):
@@ -27,7 +26,6 @@ class JuiceBoxApp(App):
         "juice": JuiceShopScreen,
         "documentation": DocumentationScreen,
     }
-    SOCKET_PATH = dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/engine.sock"
 
     async def on_mount(self) -> None:
         self.set_themes()
