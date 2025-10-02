@@ -53,8 +53,8 @@ class RootTheBoxScreen(Screen):
     }
 
     BINDINGS = [
-        Binding("ctrl+b", "go_back", "Back", show=True),
-        Binding("ctrl+q", "quit", "Quit", show=True),
+        Binding("ctrl+b", "go_back", "Back ", show=True),
+        Binding("ctrl+q", "quit", "Quit ", show=True),
     ]
 
     __skip_resume: bool = (

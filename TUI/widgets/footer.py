@@ -7,5 +7,5 @@ def get_footer() -> Footer:
     footer.can_focus = False
     footer.compact = True
     footer.styles.content_align = ("center", "middle")
-    footer.styles.align = ("left", "middle")
+    footer.styles.align = ("center", "middle")
     return footer
