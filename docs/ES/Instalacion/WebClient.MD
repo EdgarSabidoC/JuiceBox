@@ -2,7 +2,7 @@
 
 Este documento detalla todos los pasos necesarios para la instalacion manual de la `Juice Box WebClient` como servicio, definir la unidad systemd (servicio) y verificar que todo funcione correctamente.
 
-**NOTA:** Es necesario instalar previamente el servicio de `Juice Box Engine`. Para ello [ver el enlace](JuiceBoxService.MD). De igual forma es necesario instalar `Juice Box Manager TUI` para administrar el sistema: [ver el enlace](ManagerTUI.MD).
+**NOTA:** Es necesario instalar previamente el servicio de `Juice Box Engine`. Para ello [ver el enlace](JuiceBoxEngine.MD). De igual forma es necesario instalar `Juice Box Manager TUI` para administrar el sistema: [ver el enlace](ManagerTUI.MD).
 
 Si se deasea, se puede realizar la instalacion automatica por medio de los scripts disponibles en el directorio `Install` de la carpeta raiz. Hay scripts disponibles para distros basadas en `Arch` con shell `Fish` y en `Ubuntu/Debian` con shell `Bash`.
 

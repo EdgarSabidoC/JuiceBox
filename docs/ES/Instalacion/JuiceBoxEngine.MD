@@ -31,7 +31,7 @@ sudo usermod -aG docker juicebox
 sudo mkdir -p /opt/juicebox/run
 sudo chown juicebox:juicebox /opt/juicebox/run
 sudo chmod 770 /opt/juicebox/run
-newgrp docker
+newgrp docker # Esto reinicia la terminal
 ```
 
 **NOTA**: Es importante que los usuarios que vayan a utilizar la app esten dentro del grupo `docker`, esto ya se toma en cuenta para la creacion del usuario `juicebox`.

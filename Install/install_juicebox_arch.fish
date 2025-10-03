@@ -1,8 +1,6 @@
 #!/usr/bin/env fish
 # Script de instalación del servicio systemd para JuiceBox Engine + Manager TUI + WebClient en Arch con shell Fish
 
-set -e
-
 # Detecta la ruta absoluta de la carpeta raíz de la app (JuiceBox)
 set script_dir (dirname (status -f))
 set app_dir (realpath "$script_dir/..")
@@ -17,7 +15,6 @@ sudo usermod -aG docker juicebox
 sudo mkdir -p /opt/juicebox/run
 sudo chown juicebox:juicebox /opt/juicebox/run
 sudo chmod 770 /opt/juicebox/run
-newgrp docker
 
 echo "=== Copying JuiceBox app from $app_dir to /opt/juicebox ==="
 sudo rsync -av --exclude venv "$app_dir/" /opt/juicebox/

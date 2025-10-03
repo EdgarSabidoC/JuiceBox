@@ -2,7 +2,7 @@
 
 Este documento detalla todos los pasos necesarios para la instalacion manual de la `Juice Box Manager TUI` como ejecutable, asi como verificar que todo funcione correctamente.
 
-**NOTA:** Es necesario instalar previamente el servicio de `Juice Box Engine`. Para ello [ver el enlace](JuiceBoxService.MD).
+**NOTA:** Es necesario instalar previamente el servicio de `Juice Box Engine`. Para ello [ver el enlace](JuiceBoxEngine.MD).
 
 Si se deasea, se puede realizar la instalacion automatica por medio de los scripts disponibles en el directorio `Install` de la carpeta raiz. Hay scripts disponibles para distros basadas en `Arch` con shell `Fish` y en `Ubuntu/Debian` con shell `Bash`.
 

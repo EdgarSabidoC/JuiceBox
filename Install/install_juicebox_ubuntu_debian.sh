@@ -17,7 +17,6 @@ sudo usermod -aG docker juicebox
 sudo mkdir -p /opt/juicebox/run
 sudo chown juicebox:juicebox /opt/juicebox/run
 sudo chmod 770 /opt/juicebox/run
-newgrp docker
 
 echo "=== Copying JuiceBox app from $app_dir to /opt/juicebox ==="
 sudo rsync -av --exclude venv "$app_dir/" /opt/juicebox/

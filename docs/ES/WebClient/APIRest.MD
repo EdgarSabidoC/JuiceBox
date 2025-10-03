@@ -1,35 +1,40 @@
 
 # API REST
 
-La ruta es: `http://HOST:PORT/api/v1/juice-shop`
+La URL es: `http://{HOST}:{PORT}/api/v1/juice-shop`
 
-## Configuracion de las variables de entorno
+## GET
 
-En el archivo `.env` dentro del `WebClient`, se encuentran las variables:
+Una peticion GET obtiene el estado (status) de todos los contenedores dentro del *rango de puertos disponible* para la `OWASP Juice Shop`.
+
+### Ejemplo
+
+#### Peticion
 
 ```bash
-HOST="127.0.0.1"
-PORT=8080
-DEBUG="true"
+
 ```
 
-### GET
+#### Respuesta
 
-Una peticion GET obtiene el estado (status) de todos los contenedores dentro del rango de puertos disponible para la OWASP Juice Shop.
+```json
 
-#### Ejemplo
+```
 
-##### Peticion
+## POST
 
-##### Respuesta
+Una peticion `POST` permite iniciar un contenedor de la `OWASP Juice Shop` si el puerto esta `disponible`.
 
+### Ejemplo
 
-### POST
+#### Peticion
 
-Una peticion `POST` permite iniciar un contenedor de la OWASP Juice Shop si el puerto esta disponible.
+```bash
 
-#### Ejemplo
+```
 
-##### Peticion
+#### Respuesta
 
-##### Respuesta
+```json
+
+```
