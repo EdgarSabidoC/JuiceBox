@@ -86,19 +86,6 @@ class JuiceBoxEngineServer:
         self.monitor = monitor
 
         # Se crea socket del servidor
-        # fds = listen_fds()
-        # if fds:  # la lista no está vacía
-        #     fd = fds[0]  # primer descriptor heredado
-        #     if is_socket_unix(fd, socket.SOCK_STREAM):
-        #         self.server_socket = socket.fromfd(
-        #             fd, socket.AF_UNIX, socket.SOCK_STREAM
-        #         )
-        #     else:
-        #         raise RuntimeError(
-        #             "The inherited descriptor is not a valid UNIX socket"
-        #         )
-        # else:
-        # fallback: crear el socket nosotros mismos
         if os.path.exists(self.socket_path):
             os.remove(self.socket_path)
         self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -391,6 +378,53 @@ class JuiceBoxEngineServer:
             message="Error when trying to retrieve Root The Box Manager Config."
         )
 
+    def __clear_rtb_db_files(self) -> ManagerResult:
+        """
+        Borra únicamente los archivos críticos de la BD y configuración en /opt/rtb/files/
+        dentro del contenedor webapp de RootTheBox:
+        - botnet.db
+        - rootthebox.cfg
+        - rootthebox.cfg.bak
+        - rootthebox.db
+        """
+        try:
+            container_name: str = self.rtb_manager.get_containers()[0]
+
+            if self.docker_client is not None:
+                container = self.docker_client.containers.get(container_name)
+            else:
+                self.monitor.error(
+                    "Failed to clear RTB DB files -> Webapp container not found"
+                )
+                return ManagerResult.failure(
+                    "Failed to clear RTB DB files", error="Webapp container not found"
+                )
+
+            # Archivos a borrar
+            files_to_remove = [
+                "/opt/rtb/files/botnet.db",
+                "/opt/rtb/files/rootthebox.cfg",
+                "/opt/rtb/files/rootthebox.cfg.bak",
+                "/opt/rtb/files/rootthebox.db",
+            ]
+
+            # Ejecutar rm -f sobre cada archivo
+            for file_path in files_to_remove:
+                cmd = ["rm", "-f", file_path]
+                exec_result = container.exec_run(cmd, stdout=True, stderr=True)
+                if exec_result.exit_code != 0:
+                    output = exec_result.output.decode("utf-8").strip()
+                    self.monitor.error(f"Failed to remove {file_path} -> {output}")
+                    return ManagerResult.failure(
+                        f"Failed to remove {file_path}", error=output
+                    )
+
+            self.monitor.info("RTB DB and config files cleared successfully")
+            return ManagerResult.ok("RTB DB and config files cleared")
+
+        except Exception as e:
+            return ManagerResult.failure("Error clearing RTB DB files", error=str(e))
+
     def __load_rtb_missions(self) -> ManagerResult:
         """
         Ejecuta rootthebox.py dentro del contenedor para cargar misiones desde el XML generado por JuiceShop.
@@ -410,6 +444,15 @@ class JuiceBoxEngineServer:
                 return ManagerResult.failure(
                     "Failed to load missions", error="Webapp container not found"
                 )
+
+            # Se limpia la DB de RTB:
+            __res = self.__clear_rtb_db_files()
+
+            # Si hay un error durante el borrado:
+            if not __res.success:
+                return __res
+
+            # Se cargan las misiones
             cmd = ["python3", "/opt/rtb/rootthebox.py", f"--xml={missions_path}"]
             exec_result = container.exec_run(cmd, stdout=True, stderr=True)
             exit_code = exec_result.exit_code

@@ -41,8 +41,8 @@ class RootTheBoxScreen(Screen):
             "Stop Root The Box services",
             JuiceBoxAPI.stop_rtb,
         ),
-        "Restart": (
-            "Restart Root The Box services",
+        "Restart manager": (
+            "Restart Root The Box Manager",
             JuiceBoxAPI.restart_rtb_status,
         ),
         "Configuration": (
@@ -276,11 +276,8 @@ class RootTheBoxScreen(Screen):
 
         if result == "yes":
             try:
-                __tmp_str, __tmp_timeout = (
-                    ("while the RTB missions file loads", 30)
-                    if option == GENERATE_MISSIONS
-                    else (f"for the {option} operation to finish", 5)
-                )
+                __tmp_str, __tmp_timeout = (f"for the {option} operation to finish", 5)
+
                 self.notify(
                     f"Please wait {__tmp_str}, it may take a while...",
                     severity=__severity,
@@ -293,22 +290,25 @@ class RootTheBoxScreen(Screen):
                 else:
                     resp = await asyncio.to_thread(action)
 
-                __gen_xml_str: str = (
-                    f"\n\n{resp.message}\n\n\nNow you can restart Root The Box services."
-                    if option == GENERATE_MISSIONS.upper() and resp.status == Status.OK
-                    else ""
-                )
                 __color, __severity = (
                     ("green", "information")
                     if resp.status == Status.OK
                     else ("red", "error")
                 )
+
                 self.notify(
-                    f"[b]{option}[/b] has finished: [b]{resp.status.upper()}[/b]{__gen_xml_str}",
+                    f"[b]{option}[/b] has finished: [b]{resp.status.upper()}[/b]",
                     title=__op_status,
                     severity=__severity,
                     timeout=__tmp_timeout,
                 )
+
+                # --- REFRESCO PARA RESTART ---
+                if option == "Restart manager" and resp.status == Status.OK:
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(
+                        None, lambda: self.__init_containers_status(loop)
+                    )
             except Exception as e:
                 __severity = "error"
                 __color = "red"
@@ -437,7 +437,7 @@ class RootTheBoxScreen(Screen):
             future = asyncio.run_coroutine_threadsafe(
                 JuiceBoxAPI.get_rtb_status(), loop
             )
-            resp = future.result(timeout=5)
+            resp = future.result(timeout=15)
 
             if resp is None:
                 for _, label_status in self.SERVICE_LABELS.values():

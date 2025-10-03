@@ -49,8 +49,8 @@ class JuiceShopScreen(Screen):
             "Stop all OWASP Juice Shop containers",
             JuiceBoxAPI.stop_js,
         ),
-        "Restart": (
-            "Restart OWASP Juice Shop services",
+        "Restart manager": (
+            "Restart OWASP Juice Shop Manager",
             JuiceBoxAPI.restart_js_status,
         ),
         "Configuration": (
