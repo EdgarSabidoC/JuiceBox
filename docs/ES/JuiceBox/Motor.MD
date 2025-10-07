@@ -25,7 +25,7 @@ Servidor|Host
 │   └── Socket de UNIX ("/opt/juicebox/run/engine.sock")
 ├── Juice Box Manager TUI
 ├── Juice Shop WebClient
-│   └── API REST ("http://172.16.200.11:8080/api/v1/")
+│   └── API REST ("http://172.16.200.11:8080/api/v1/juice-shop")
 ├── Monitor
 └── Docker
     ├── Redis (Juice Box Engine)

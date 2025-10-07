@@ -64,7 +64,7 @@ chmod +x install_juicebox.fish
 
 ## Instalacion de la Manager TUI de `Juice Box`
 
-Para instalar la TUI como ejecutable [ver el siguiente enlace](TUI.MD).
+Para instalar la TUI como ejecutable [ver el siguiente enlace](ManagerTUI.MD).
 
 ---
 
