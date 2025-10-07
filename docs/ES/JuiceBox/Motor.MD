@@ -22,10 +22,10 @@ Motor y orquestador para crear competencias CTF basado en Root The Box y OWASP J
 Servidor|Host
 ├── Juice Box Engine
 │   ├── API
-│   └── Socket de UNIX
+│   └── Socket de UNIX ("/opt/juicebox/run/engine.sock")
 ├── Juice Box Manager TUI
 ├── Juice Shop WebClient
-│   └── API REST
+│   └── API REST ("http://172.16.200.11:8080/api/v1/")
 ├── Monitor
 └── Docker
     ├── Redis (Juice Box Engine)

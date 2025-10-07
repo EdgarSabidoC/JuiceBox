@@ -15,15 +15,15 @@ Si se desea utilizar alguno de los scripts de desinstalacion para automatizar el
 #### Para distros basadas en Ubuntu/Debian con shell bash:
 
 ```bash
-chmod +x uninstall_juicebox_ubuntu_debian.sh
-./uninstall_juicebox_ubuntu_debian.sh
+chmod +x uninstall_juicebox.sh
+./uninstall_juicebox.sh
 ```
 
 #### Para distros basadas en Arch con shell fish:
 
 ```bash
-chmod +x uninstall_juicebox_arch.fish
-./uninstall_juicebox_arch.fish
+chmod +x uninstall_juicebox.fish
+./uninstall_juicebox.fish
 ```
 
 ---

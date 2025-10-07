@@ -8,6 +8,13 @@ Si se deasea, se puede realizar la instalacion automatica por medio de los scrip
 
 ---
 
+## 0. Instalacion de dependencias del sistema (Ubuntu/Debian)
+
+```bash
+sudo apt update
+sudo apt install -y python3-venv python3-dev build-essential pkg-config libsystemd-dev gcc
+```
+
 ## 1. Creacion del usuario, carpetas y transferencia de la aplicacion
 
 ## Para shell `Bash` (distros basadas en Ubuntu/Debian):
@@ -65,6 +72,7 @@ cd /opt/juicebox
 sudo -u juicebox python3 -m venv /opt/juicebox/venv
 sudo -u juicebox /opt/juicebox/venv/bin/python -m ensurepip --upgrade
 sudo -u juicebox /opt/juicebox/venv/bin/python -m pip install --upgrade pip
+sudo -u juicebox /opt/juicebox/venv/bin/pip install --upgrade pip setuptools wheel
 ```
 
 ### 2.2. Instalacion del paquete de la aplicacion y dependencias en el entorno virtual
@@ -204,6 +212,7 @@ Group=juicebox
 WorkingDirectory=/opt/juicebox
 ExecStart=/opt/juicebox/venv/bin/juicebox
 Environment=JUICEBOX_SOCKET=/opt/juicebox/run/engine.sock
+Environment=HOME=/opt/juicebox
 UMask=007
 Restart=on-failure
 RestartSec=5

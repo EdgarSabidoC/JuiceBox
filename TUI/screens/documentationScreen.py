@@ -14,7 +14,7 @@ class DocumentationScreen(Screen):
     DOCS_ES: Traversable = files("docs.ES")
     MARKDOWNS = {
         "Motor": Path(str(DOCS_ES.joinpath("JuiceBox/Motor.MD"))),
-        "TUI": Path(str(DOCS_ES.joinpath("TUI/Uso.MD"))),
+        "TUI": Path(str(DOCS_ES.joinpath("TUI/Manual.MD"))),
         "Configs": Path(str(DOCS_ES.joinpath("JuiceBox/Configuracion.MD"))),
         "API": Path(str(DOCS_ES.joinpath("JuiceBox/API.MD"))),
         "License": Path(str(DOCS_ES.joinpath("Licencia.MD"))),
@@ -57,7 +57,7 @@ class DocumentationScreen(Screen):
             open_links=False,
         )
 
-        with TabbedContent("TUI", "Motor", "Configuracion", "API", "Licencia"):
+        with TabbedContent("Manual", "Motor", "Configuracion", "API", "Licencia"):
             yield self.tui
             yield self.jb_engine
             yield self.configs

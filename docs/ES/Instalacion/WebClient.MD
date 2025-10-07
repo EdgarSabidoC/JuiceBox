@@ -32,6 +32,7 @@ User=juicebox
 Group=juicebox
 WorkingDirectory=/opt/juicebox
 EnvironmentFile=/opt/juicebox/WebClient/.env
+Environment=HOME=/opt/juicebox
 ExecStart=/opt/juicebox/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker WebClient.main:app -b \${HOST}:\${PORT} --workers 4
 Restart=on-failure
 RestartSec=5

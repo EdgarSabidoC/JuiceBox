@@ -49,15 +49,15 @@ Si se desea utilizar alguno de los scripts de instalacion para automatizar el pr
 #### Para distros basadas en Ubuntu/Debian con shell bash:
 
 ```bash
-chmod +x install_juicebox_ubuntu_debian.sh
-./install_juicebox_ubuntu_debian.sh
+chmod +x install_juicebox.sh
+./install_juicebox.sh
 ```
 
 #### Para distros basadas en Arch con shell fish:
 
 ```bash
-chmod +x install_juicebox_arch.fish
-./install_juicebox_arch.fish
+chmod +x install_juicebox.fish
+./install_juicebox.fish
 ```
 
 ---

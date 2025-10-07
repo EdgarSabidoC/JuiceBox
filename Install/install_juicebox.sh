@@ -7,6 +7,17 @@ set -euo pipefail
 script_dir="$(dirname "$(realpath "$0")")"
 app_dir="$(realpath "$script_dir/..")"
 
+echo ">=== Installing required system packages ===<"
+sudo apt update
+sudo apt install -y \
+    python3-venv \
+    python3-dev \
+    build-essential \
+    pkg-config \
+    libsystemd-dev \
+    gcc
+
+
 echo ">=== Creating juicebox user and directories ===<"
 if ! id -u juicebox >/dev/null 2>&1; then
     sudo useradd -r -s /usr/sbin/nologin -U juicebox
@@ -27,6 +38,8 @@ cd /opt/juicebox
 sudo -u juicebox python3 -m venv /opt/juicebox/venv
 sudo -u juicebox /opt/juicebox/venv/bin/python -m ensurepip --upgrade
 sudo -u juicebox /opt/juicebox/venv/bin/python -m pip install --upgrade pip
+sudo -u juicebox /opt/juicebox/venv/bin/pip install --upgrade pip setuptools wheel
+
 
 echo "=== Installing dependencies from requirements.txt ==="
 sudo -u juicebox /opt/juicebox/venv/bin/pip install -r /opt/juicebox/requirements.txt
@@ -48,6 +61,7 @@ Group=juicebox
 WorkingDirectory=/opt/juicebox
 ExecStart=/opt/juicebox/venv/bin/juicebox
 Environment=JUICEBOX_SOCKET=/opt/juicebox/run/engine.sock
+Environment=HOME=/opt/juicebox
 UMask=007
 Restart=on-failure
 RestartSec=5
@@ -87,6 +101,7 @@ User=juicebox
 Group=juicebox
 WorkingDirectory=/opt/juicebox
 EnvironmentFile=/opt/juicebox/WebClient/.env
+Environment=HOME=/opt/juicebox
 ExecStart=/opt/juicebox/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker WebClient.main:app -b ${HOST}:${PORT} --workers 4
 Restart=on-failure
 RestartSec=5

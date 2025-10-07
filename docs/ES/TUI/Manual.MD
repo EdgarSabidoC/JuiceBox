@@ -1,4 +1,4 @@
-# Uso de Juice Box Manager TUI
+# Manual de uso de Juice Box Manager TUI
 
 ## Correr la aplicacion Juice Box Manager TUI
 

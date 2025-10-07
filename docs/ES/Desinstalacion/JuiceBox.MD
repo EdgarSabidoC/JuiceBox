@@ -11,30 +11,30 @@ Si se quiere evitar la desinstalacion manual, se puede optar por utilizar el arc
 ### Para distros basadas en Ubuntu/Debian con shell bash:
 
 ```bash
-chmod +x uninstall_juicebox_ubuntu_debian.sh
-./uninstall_juicebox_ubuntu_debian.sh
+chmod +x uninstall_juicebox.sh
+./uninstall_juicebox.sh
 ```
 
 ### Para distros basadas en Arch con shell fish:
 
 ```bash
-chmod +x uninstall_juicebox_arch.fish
-./uninstall_juicebox_arch.fish
+chmod +x uninstall_juicebox.fish
+./uninstall_juicebox.fish
 ```
 
 ---
 
 ## Desinstalacion manual
 
-### 1. Detener el servicio y el socket
+### 1. Detener y deshabilitar los servicios systemd
 
 Antes de eliminar archivos, detener las unidades systemd:
 
 ```bash
 sudo systemctl stop juiceboxengine.service
-sudo systemctl stop juiceboxengine.socket
+sudo systemctl stop juiceboxweb.service
 sudo systemctl disable juiceboxengine.service
-sudo systemctl disable juiceboxengine.socket
+sudo systemctl disable juiceboxweb.service
 sudo systemctl daemon-reload
 ```
 
@@ -44,11 +44,17 @@ Para borrar los archivos de configuración creados ejecutar:
 
 ```bash
 sudo rm -f /etc/systemd/system/juiceboxengine.service
-sudo rm -f /etc/systemd/system/juiceboxengine.socket
+sudo rm -f /etc/systemd/system/juiceboxweb.service
 sudo systemctl daemon-reload
 ```
 
-### 3. Eliminar el entorno virtual y la aplicación
+### 3. Eliminar el warpper de la TUI
+
+```bash
+sudo rm -f /usr/local/bin/juicebox-tui
+```
+
+### 4. Eliminar el entorno virtual y la aplicación
 
 Para eliminar el directorio completo de Juice Box:
 
@@ -61,7 +67,7 @@ Con esto se eliminan:
 - El paquete instalado (pip install -e .)
 - Archivos de configuración, logs y scripts de la aplicación
 
-### 4. Eliminar el suuario creado (opcional)
+### 5. Eliminar el usuario creado (opcional)
 
 Si se desea eliminar el usuario `juicebox` y su grupo, ejecutar:
 
@@ -81,13 +87,14 @@ sudo groupdel juicebox
 
 **NOTA:** Asegura que ningún otro servicio o contenedor dependa del grupo docker o del usuario juicebox.
 
-### 5. Limpieza de logs (opcional)
+### 6. Limpieza de logs (opcional)
 
 Si se requiere eliminar los lgos generados por journald para `Juice Box`, ejecutar:
 
 ```bash
 journalctl SYSLOG_IDENTIFIER=juiceboxengine --rotate
+journalctl SYSLOG_IDENTIFIER=juiceboxweb --rotate
 journalctl --vacuum-time=1s
 ```
 
-**NOTA:** Esto eliminará los registros antiguos relacionados con Juice Box.
+**NOTA:** Esto eliminará los registros de logs antiguos relacionados con Juice Box.
