@@ -76,7 +76,7 @@ class JuiceShopManager(BaseManager):
         # Ruta absoluta a configs/
         self.configs_dir = os.path.join(self.components_dir, "configs")
 
-        self.image = "bkimminich/juice-shop:latest"
+        self.image = "bkimminich/juice-shop:v17.0.0"
 
         atexit.register(self.cleanup)
 
@@ -533,7 +533,7 @@ class JuiceShopManager(BaseManager):
         # Levanta un contenedor temporal en la red interna de Docker si la remota no responde
         try:
             js_container = client.containers.run(
-                image="bkimminich/juice-shop",
+                image=self.image,
                 name="juice-shop-temp",
                 network=network_name,
                 detach=True,
@@ -601,7 +601,7 @@ class JuiceShopManager(BaseManager):
 
             # Genera el archivo missions.xml
             logs = client.containers.run(
-                image="bkimminich/juice-shop-ctf",
+                image="bkimminich/juice-shop-ctf:v11.0.0",
                 command=[
                     "--config",
                     os.path.join("/configs", os.path.basename(full_config_path)),
