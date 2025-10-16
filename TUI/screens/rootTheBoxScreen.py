@@ -572,3 +572,22 @@ class RootTheBoxScreen(Screen):
         Inicia un hilo en segundo plano para escuchar a Redis y mantener la UI actualizada.
         """
         threading.Thread(target=self.__listener_thread, daemon=True).start()
+
+    def on_resize(self, event) -> None:
+        """
+        Evento que se ejecuta al redimensionar la ventana.
+        Ajusta el tamaño del contenedor de estado de servicios.
+
+        Args:
+            event: Evento de redimensionamiento.
+        """
+        terminal_size = os.get_terminal_size()
+        terminal_width = terminal_size.columns
+        terminal_height = terminal_size.lines
+
+        self.notify(
+            f"Terminal size: {terminal_width}x{terminal_height}",
+            title="Terminal size",
+            severity="warning",
+            timeout=3,
+        )

@@ -71,7 +71,6 @@ Footer {
 
 .fmat-logo-container {
   content_align: center middle;
-  height: 68%;
   overflow_x: auto;
   overflow_y: auto;
 }
@@ -88,7 +87,6 @@ Footer {
 
 .server-info-container {
   width: 100%;
-  height: 32%;
 }
 
 .server-info-keys {

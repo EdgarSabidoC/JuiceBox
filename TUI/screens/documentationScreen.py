@@ -2,7 +2,8 @@ from textual.app import ComposeResult
 from textual.screen import Screen
 from ..widgets import get_footer
 from ..widgets import get_header
-from textual.widgets import MarkdownViewer, TabbedContent
+from ..widgets.linkableMarkdownViewer import LinkableMarkdownViewer
+from textual.widgets import TabbedContent
 from textual.binding import Binding
 from importlib.resources import files
 from importlib.abc import Traversable
@@ -31,27 +32,27 @@ class DocumentationScreen(Screen):
         yield get_header()
 
         # Markdowns:
-        self.tui = MarkdownViewer(
+        self.tui = LinkableMarkdownViewer(
             self.get_markdown("TUI"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
-        self.jb_engine = MarkdownViewer(
+        self.jb_engine = LinkableMarkdownViewer(
             self.get_markdown("Motor"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
-        self.configs = MarkdownViewer(
+        self.configs = LinkableMarkdownViewer(
             self.get_markdown("Configs"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
-        self.api = MarkdownViewer(
+        self.api = LinkableMarkdownViewer(
             self.get_markdown("API"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
-        self.license = MarkdownViewer(
+        self.license = LinkableMarkdownViewer(
             self.get_markdown("License"),
             show_table_of_contents=self.show_toc,
             open_links=False,
@@ -82,7 +83,7 @@ class DocumentationScreen(Screen):
         await self.return_to_main()
 
     async def action_show_hide_toc(self) -> None:
-        """Alterna la visibilidad de la tabla de contenidos en todos los MarkdownViewer."""
+        """Alterna la visibilidad de la tabla de contenidos en todos los LinkableMarkdownViewer."""
         self.show_toc = not self.show_toc
 
         # Actualiza el estado en cada visor para mostrar u ocultar la tabla de contenido:

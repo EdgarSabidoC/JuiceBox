@@ -2,7 +2,7 @@
 
 ## Version desarrollada para el Laboratorio de Ciberseguridad de la Facultad de Matematicas de la Universidad Autonoma de Yucatan (UADY).
 
-`Copyright © 2025 Edgar Sabido Cortes`
+`Copyright © 2025 `[Edgar Sabido Cortes](https://github.com/EdgarSabidoC)
 
 Se concede permiso gratuito para usar, copiar, modificar y redistribuir este software y sus componentes, que incluyen:
 
