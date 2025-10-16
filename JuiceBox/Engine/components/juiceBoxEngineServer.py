@@ -383,8 +383,6 @@ class JuiceBoxEngineServer:
         Borra únicamente los archivos críticos de la BD y configuración en /opt/rtb/files/
         dentro del contenedor webapp de RootTheBox:
         - botnet.db
-        - rootthebox.cfg
-        - rootthebox.cfg.bak
         - rootthebox.db
         """
         try:
@@ -403,8 +401,6 @@ class JuiceBoxEngineServer:
             # Archivos a borrar
             files_to_remove = [
                 "/opt/rtb/files/botnet.db",
-                "/opt/rtb/files/rootthebox.cfg",
-                "/opt/rtb/files/rootthebox.cfg.bak",
                 "/opt/rtb/files/rootthebox.db",
             ]
 
@@ -445,12 +441,31 @@ class JuiceBoxEngineServer:
                     "Failed to load missions", error="Webapp container not found"
                 )
 
-            # Se limpia la DB de RTB:
+            # Se limpia RTB:
             __res = self.__clear_rtb_db_files()
 
             # Si hay un error durante el borrado:
             if not __res.success:
                 return __res
+
+            # Se resetea RTB
+            cmd = ["python3", "/opt/rtb/rootthebox.py", "--reset-delete"]
+            exec_result = container.exec_run(cmd, stdout=True, stderr=True)
+            exit_code = exec_result.exit_code
+            output = exec_result.output.decode("utf-8").strip()
+
+            if exit_code != 0:
+                self.monitor.error(f"Failed to reset RTB DB -> {output}")
+                return ManagerResult.failure("Failed to reset RTB DB", error=output)
+
+            res = self.rtb_manager.create_rtb_cfg()
+            if not res.success:
+                self.monitor.error(
+                    f"Failed to create rootthebox.cfg file -> {res.error}"
+                )
+                return ManagerResult.failure(
+                    "Failed to create rootthebox.cfg file", error=res.error
+                )
 
             # Se cargan las misiones
             cmd = ["python3", "/opt/rtb/rootthebox.py", f"--xml={missions_path}"]
@@ -502,14 +517,13 @@ class JuiceBoxEngineServer:
             result: ManagerResult = self.js_manager.cleanup()
             if result.success:
                 self.monitor.info(f"Juice Shop Manager cleaned up -> {result.data}")
-                self.rtb_manager.cleanup()
                 # Crea una nueva instancia y carga la configuración
                 new_manager: JuiceShopManager = JuiceShopManager(
                     JuiceShopConfig(), docker_client=self.docker_client
                 )
                 __res: ManagerResult = self.__init_manager(
                     new_manager
-                )  # Se asegura de que la config esté cargada
+                )  # Se asegura de que la configuración esté cargada
                 if __res.success:
                     return Response.ok("OWASP Juice Shop Manager restarted")
             else:

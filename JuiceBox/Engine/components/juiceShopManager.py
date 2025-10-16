@@ -76,7 +76,7 @@ class JuiceShopManager(BaseManager):
         # Ruta absoluta a configs/
         self.configs_dir = os.path.join(self.components_dir, "configs")
 
-        self.image = "bkimminich/juice-shop:v17.0.0"
+        self.image = "bkimminich/juice-shop:latest"
 
         atexit.register(self.cleanup)
 

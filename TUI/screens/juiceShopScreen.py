@@ -466,7 +466,7 @@ class JuiceShopScreen(Screen):
         if result == "yes":
             try:
                 __tmp_str, __tmp_timeout = (
-                    ("while the RTB missions file loads", 30)
+                    ("while the RTB missions file loads", 60)
                     if option == GENERATE_MISSIONS
                     else (f"for the {option} operation to finish", 5)
                 )
@@ -483,7 +483,7 @@ class JuiceShopScreen(Screen):
                     resp = await asyncio.to_thread(action)
 
                 __gen_xml_str: str = (
-                    f"\n\n{resp.message}\n\n\nNow you can restart Root The Box services."
+                    f"\n\n{resp.message}\n\n\nNow you can restart Juice Shop and Root The Box services.\n\nYou can copy the file using:\n'scp user@server:/opt/juicebox/RootTheBox/missions/missions.xml /destination/path/'"
                     if option == GENERATE_MISSIONS.upper() and resp.status == Status.OK
                     else ""
                 )
