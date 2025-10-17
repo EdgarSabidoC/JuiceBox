@@ -2,7 +2,7 @@
 
 ## This version was developed for the Cybersecurity Laboratory of the Faculty of Mathematics at Universidad Autónoma de Yucatán (UADY).
 
-`Copyright © 2025 Edgar Sabido Cortés`
+`Copyright © 2025`[Edgar Sabido Cortes](https://github.com/EdgarSabidoC)
 
 Permission is hereby granted, free of charge, to use, copy, modify, and redistribute this software and its components, which include:
 
@@ -14,7 +14,7 @@ Permission is hereby granted, free of charge, to use, copy, modify, and redistri
 under the following conditions:
 
 1. Attribution Required:
-    Any copy, modification, or redistribution must include a visible notice crediting `Edgar Sabido Cortés` as the original creator and developer of the Juice Box project.
+    Any copy, modification, or redistribution must include a visible notice crediting `Edgar Sabido Cortes` as the original creator and developer of the Juice Box project.
 
 2. Non-Commercial:
     Use The use of this software, in whole or in part, for commercial, profit-making, or revenue-generating purposes (direct or indirect) is strictly prohibited.
