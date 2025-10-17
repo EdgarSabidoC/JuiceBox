@@ -29,7 +29,11 @@ PATIENCE_VIRTUE: str = "Patience is a virtue:"
 
 class RootTheBoxScreen(Screen):
     CSS_PATH = "../styles/rootTheBox.tcss"
+
+    # Logos de Root The Box
     RTB_LOGO = pkg_resources.read_text("TUI.media", "RootTheBoxLogo.txt")
+    RTB_LOGO_ALT = pkg_resources.read_text("TUI.media", "RootTheBoxLogoAlt.txt")
+
     SERVICE_LABELS: dict[str, tuple[Horizontal, Label]] = {}
 
     MENU_OPTIONS = {
@@ -75,22 +79,23 @@ class RootTheBoxScreen(Screen):
         with Horizontal(classes="hcontainer") as hcontainer:
             hcontainer.can_focus = False
 
-            with Vertical(classes="vcontainer1") as vcontainer1:
-                vcontainer1.can_focus = False
+            with Vertical(classes="vcontainer1") as self.vcontainer1:
+                self.vcontainer1.can_focus = False
                 # Logo de RTB
-                rtb_logo = Static(self.RTB_LOGO, classes="rtb-logo")
-                rtb_logo.can_focus = False
-                yield rtb_logo
+                self.rtb_logo = Static(self.RTB_LOGO, classes="rtb-logo")
+                self.rtb_logo.can_focus = False
+                yield self.rtb_logo
 
                 # Menú
                 self.menu = OptionList(classes="menu")
+                self.menu.border_title = "Menu"
                 self.menu.add_options(self.MENU_OPTIONS.keys())
                 yield self.menu
 
                 # Información sobre las opciones
                 self.menu_info = Static(classes="info-box")
                 self.menu_info.can_focus = False
-                self.menu_info.border_title = "Output"
+                self.menu_info.border_title = "Menu option info"
                 yield self.menu_info
 
             # Configuración y estado de servicios
@@ -576,18 +581,33 @@ class RootTheBoxScreen(Screen):
     def on_resize(self, event) -> None:
         """
         Evento que se ejecuta al redimensionar la ventana.
-        Ajusta el tamaño del contenedor de estado de servicios.
+        Ajusta el tamaño de los elementos en pantalla.
 
         Args:
             event: Evento de redimensionamiento.
         """
         terminal_size = os.get_terminal_size()
-        terminal_width = terminal_size.columns
-        terminal_height = terminal_size.lines
+        terminal_width = (
+            terminal_size.columns
+        )  # 100 chars mínimo recomendado para logo principal
+        terminal_height = (
+            terminal_size.lines
+        )  # 36 chars mínimo recomendado para logo principal
 
-        self.notify(
-            f"Terminal size: {terminal_width}x{terminal_height}",
-            title="Terminal size",
-            severity="warning",
-            timeout=3,
-        )
+        if terminal_width >= 103 and terminal_height >= 37:
+            # Logos principales grandes
+            self.rtb_logo.display = True
+            self.rtb_logo.update(self.RTB_LOGO)
+            self.menu.styles.height = "30%"
+            self.menu_info.styles.height = "20%"
+        elif terminal_width >= 150 and terminal_height < 37:
+            # Logos alternativos
+            self.rtb_logo.display = True
+            self.rtb_logo.update(self.RTB_LOGO_ALT)
+            self.menu.styles.height = "30%"
+            self.menu_info.styles.height = "20%"
+        else:
+            # Oculta los logos
+            self.rtb_logo.display = False
+            self.menu.styles.height = "60%"
+            self.menu_info.styles.height = "40%"

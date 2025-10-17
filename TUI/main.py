@@ -7,8 +7,8 @@ from .screens import JuiceShopScreen
 from .screens import DocumentationScreen
 from .styles.theme import (
     juice_box_theme,
-    hacker_dark_blue_theme,
-    hacker_dark_green_theme,
+    dark_blueberry_juice_theme,
+    dark_lime_juice_theme,
     synthwave_80s_theme,
 )
 
@@ -34,8 +34,8 @@ class JuiceBoxApp(App):
     # Se configuran los temas personalizados
     def set_themes(self) -> None:
         self.register_theme(juice_box_theme)
-        self.register_theme(hacker_dark_blue_theme)
-        self.register_theme(hacker_dark_green_theme)
+        self.register_theme(dark_blueberry_juice_theme)
+        self.register_theme(dark_lime_juice_theme)
         self.register_theme(synthwave_80s_theme)
 
         # Se desactivan los temas light:

@@ -28,8 +28,8 @@ juice_box_theme = Theme(
     },
 )
 
-hacker_dark_blue_theme = Theme(
-    name="hacker-dark-blue",
+dark_blueberry_juice_theme = Theme(
+    name="dark-blueberry-juice-theme",
     primary="#19E6F3",
     secondary="#20ADB6",
     accent="#ae08f0",
@@ -54,8 +54,8 @@ hacker_dark_blue_theme = Theme(
     },
 )
 
-hacker_dark_green_theme = Theme(
-    name="hacker-dark-green",
+dark_lime_juice_theme = Theme(
+    name="dark-lime-juice-theme",
     primary="#2ECC71",  # verde esmeralda vibrante
     secondary="#27AE60",  # verde bosque medio
     accent="#21F10E",  # verde azulado oscuro

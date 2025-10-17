@@ -4,24 +4,29 @@ from ..serverInfo import ServerInfo
 from textual.screen import Screen
 from ..widgets import get_footer
 from ..widgets import get_header
+from textual.theme import Theme
 from textual.events import ScreenResume
-from textual.containers import Vertical, Horizontal, ScrollableContainer, VerticalScroll
+from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Label, Static, OptionList, Link
 import importlib.resources as pkg_resources
 
 
 class MainScreen(Screen):
     CSS_PATH = "../styles/main.tcss"
-    JB_LOGO = pkg_resources.read_text("TUI.media", "JuiceBoxLogo.txt")
-
-    JB_LOGO_ALT = pkg_resources.read_text("TUI.media", "JuiceBoxLogoAlt.txt")
+    LOGOS_PATH = "TUI.media"
+    # Logos de JuiceBox
+    JB_LOGO: str = pkg_resources.read_text(LOGOS_PATH, "JuiceBoxLogo.txt")
+    JB_LOGO_ALT: str = pkg_resources.read_text(LOGOS_PATH, "JuiceBoxLogoAlt.txt")
 
     SERVER_INFO = Label(classes="server-info-data")
-    FMAT_LOGO = pkg_resources.read_text("TUI.media", "FMATCyberLab.txt")
-    FMAT_LOGO_ALT = pkg_resources.read_text("TUI.media", "FMATCyberLabAlt.txt")
+    # Logos de FMAT CyberLab
+    FMAT_LOGO: str = pkg_resources.read_text(LOGOS_PATH, "FMATCyberLab.txt")
+    FMAT_LOGO_ALT: str = pkg_resources.read_text(LOGOS_PATH, "FMATCyberLabAlt.txt")
+
+    use_alt_logo: bool  # Indica si se está usando el logo alternativo
 
     MENU_OPTIONS = {
-        "📦 Root the Box": "Admin tools to manage Root the Box docker containers",
+        "📦 Root The Box": "Admin tools to manage Root the Box docker containers",
         "🧃 OWASP Juice Shop": "Admin tools to manage OWASP Juice Shop docker containers",
         "🔎 Documentation": "Read the docs",
         "↩  Exit": "Close the app",
@@ -43,7 +48,7 @@ class MainScreen(Screen):
                 ) as self.vinnercontainer:
                     self.vinnercontainer.can_focus = False
                     # Logo de JuiceBox
-                    self.jb_logo = Label(self.JB_LOGO, classes="juice-box-logo")
+                    self.jb_logo: Label = Label(self.JB_LOGO, classes="juice-box-logo")
                     self.jb_logo.can_focus = False
                     yield self.jb_logo
 
@@ -72,16 +77,16 @@ class MainScreen(Screen):
                 yield self.menu
 
                 # Información sobre las opciones
-                self.info = Static(classes="info-box")
-                self.info.can_focus = False
-                self.info.border_title = "Menu option info"
-                yield self.info
+                self.menu_info = Static(classes="info-box")
+                self.menu_info.can_focus = False
+                self.menu_info.border_title = "Menu option info"
+                yield self.menu_info
 
             # Contenedor vertical 2
             with Vertical(classes="vcontainer2") as self.vcontainer2:
                 self.vcontainer2.can_focus = False
 
-                self.fmat_logo = Label(self.FMAT_LOGO, classes="fmat-logo-box")
+                self.fmat_logo: Label = Label("", classes="fmat-logo-box")
                 self.fmat_logo.can_focus = False
                 self.fmat_logo_container = ScrollableContainer(
                     classes="fmat-logo-container"
@@ -118,6 +123,10 @@ class MainScreen(Screen):
         # 2) Asegurarnos de que el widget tenga el foco
         self.menu.focus()
 
+    async def on_mount(self) -> None:
+        # Se suscribe a la señal del app
+        self.app.theme_changed_signal.subscribe(self, self.on_theme_changed)
+
     # Permite realizar un cambio de pantalla
     async def on_option_list_option_selected(
         self, event: OptionList.OptionSelected
@@ -125,7 +134,7 @@ class MainScreen(Screen):
         option: str = str(event.option.prompt).strip()
 
         screen_map = {
-            "📦 Root the Box": "root",
+            "📦 Root The Box": "root",
             "🧃 OWASP Juice Shop": "juice",
             "🔎 Documentation": "documentation",
             "↩ Exit": None,
@@ -146,7 +155,7 @@ class MainScreen(Screen):
     ):
         option: str = str(event.option.prompt).strip()
         description = self.MENU_OPTIONS.get(option, "No info available.")
-        self.info.update(description)
+        self.menu_info.update(description)
 
     def get_server_info(self) -> None:
         info = ServerInfo().get_all_info()
@@ -165,34 +174,65 @@ class MainScreen(Screen):
             event: Evento de redimensionamiento.
         """
         terminal_size = os.get_terminal_size()
-        terminal_width = terminal_size.columns  # 112 mínimo recomendado
-        terminal_height = terminal_size.lines  # 36 mínimo recomendado
+        terminal_width = (
+            terminal_size.columns
+        )  # 100 chars mínimo recomendado para logo principal
+        terminal_height = (
+            terminal_size.lines
+        )  # 36 chars mínimo recomendado para logo principal
 
-        if terminal_height >= 28 and terminal_height < 36 and terminal_width >= 150:
-            self.vinnercontainer.display = True
-            self.fmat_logo_container.display = True
-            self.fmat_logo_container.styles.height = "50%"
-            self.server_info_container.styles.height = "50%"
-            self.jb_logo.update(self.JB_LOGO_ALT)
-            self.fmat_logo.update(self.FMAT_LOGO_ALT)
-            self.jb_logo.styles.height = "60%"
-            self.hinnercontainer.styles.height = "40%"
-            self.menu.styles.height = "30%"
-            self.info.styles.height = "20%"
-        elif terminal_height >= 36 and terminal_width >= 112:
+        if terminal_width >= 103 and terminal_height >= 37:
+            # Logos principales grandes
             self.vinnercontainer.display = True
             self.fmat_logo_container.display = True
             self.fmat_logo_container.styles.height = "60%"
             self.server_info_container.styles.height = "40%"
             self.jb_logo.update(self.JB_LOGO)
-            self.fmat_logo.update(self.FMAT_LOGO)
+            self.use_alt_logo = False
+            self.change_fmat_logo_color()
             self.jb_logo.styles.height = "80%"
             self.hinnercontainer.styles.height = "20%"
             self.menu.styles.height = "30%"
-            self.info.styles.height = "20%"
+            self.menu_info.styles.height = "20%"
+        elif terminal_width >= 150 and terminal_height < 37:
+            # Logos alternativos
+            self.vinnercontainer.display = True
+            self.fmat_logo_container.display = True
+            self.fmat_logo_container.styles.height = "50%"
+            self.server_info_container.styles.height = "50%"
+            self.jb_logo.update(self.JB_LOGO_ALT)
+            self.use_alt_logo = True
+            self.change_fmat_logo_color()
+            self.jb_logo.styles.height = "60%"
+            self.hinnercontainer.styles.height = "40%"
+            self.menu.styles.height = "30%"
+            self.menu_info.styles.height = "20%"
         else:
+            # Oculta los logos
             self.vinnercontainer.display = False
             self.fmat_logo_container.display = False
             self.menu.styles.height = "60%"
-            self.info.styles.height = "40%"
+            self.menu_info.styles.height = "40%"
             self.server_info_container.styles.height = "100%"
+
+    def change_fmat_logo_color(self) -> None:
+        """
+        Cambia el color de los logos de FMAT CyberLab.
+
+        Args:
+            color (str): Código de color en formato hexadecimal.
+        """
+        color = self.app.theme_variables["footer-key-foreground"]
+        tmp_str: str = self.FMAT_LOGO
+        if self.use_alt_logo:
+            tmp_str = self.FMAT_LOGO_ALT
+        tmp_str = tmp_str.replace("#color", color)
+        self.fmat_logo.update(tmp_str)
+
+    def on_theme_changed(self, theme: Theme) -> None:
+        """Se llama cuando el tema cambia."""
+        self.change_fmat_logo_color()
+
+    async def on_unmount(self) -> None:
+        # Opcional: cancelar la suscripción si se desmonta
+        self.app.theme_changed_signal.unsubscribe(self)

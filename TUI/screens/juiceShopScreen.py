@@ -29,7 +29,11 @@ PATIENCE_VIRTUE: str = "Patience is a virtue:"
 
 class JuiceShopScreen(Screen):
     CSS_PATH = "../styles/juiceShop.tcss"
+
+    # Logos de la OWASP Juice Shop
     JS_LOGO = pkg_resources.read_text("TUI.media", "JuiceShopLogo.txt")
+    JS_LOGO_ALT = pkg_resources.read_text("TUI.media", "JuiceShopLogoAlt.txt")
+
     SERVICE_LABELS: dict[str, tuple[Horizontal, Label]] = {}
 
     MENU_OPTIONS = {
@@ -90,19 +94,20 @@ class JuiceShopScreen(Screen):
             with Vertical(classes="vcontainer1") as vcontainer1:
                 vcontainer1.can_focus = False
                 # Logo de JS
-                js_logo = Static(self.JS_LOGO, classes="js-logo")
-                js_logo.can_focus = False
-                yield js_logo
+                self.js_logo = Static(self.JS_LOGO, classes="js-logo")
+                self.js_logo.can_focus = False
+                yield self.js_logo
 
                 # Menú
                 self.menu = OptionList(classes="menu")
+                self.menu.border_title = "Menu"
                 self.menu.add_options(self.MENU_OPTIONS.keys())
                 yield self.menu
 
                 # Información sobre las opciones
                 self.menu_info = Static(classes="info-box")
+                self.menu_info.border_title = "Menu option info"
                 self.menu_info.can_focus = False
-                self.menu_info.border_title = "Output"
                 yield self.menu_info
 
             # Configuración y estado de servicios
@@ -786,3 +791,37 @@ class JuiceShopScreen(Screen):
         Inicia un hilo en segundo plano para escuchar a Redis y mantener la UI actualizada.
         """
         threading.Thread(target=self.__listener_thread, daemon=True).start()
+
+    def on_resize(self, event) -> None:
+        """
+        Evento que se ejecuta al redimensionar la ventana.
+        Ajusta el tamaño de los elementos en pantalla.
+
+        Args:
+            event: Evento de redimensionamiento.
+        """
+        terminal_size = os.get_terminal_size()
+        terminal_width = (
+            terminal_size.columns
+        )  # 100 chars mínimo recomendado para logo principal
+        terminal_height = (
+            terminal_size.lines
+        )  # 36 chars mínimo recomendado para logo principal
+
+        if terminal_width >= 103 and terminal_height >= 37:
+            # Logos principales grandes
+            self.js_logo.display = True
+            self.js_logo.update(self.JS_LOGO)
+            self.menu.styles.height = "30%"
+            self.menu_info.styles.height = "20%"
+        elif terminal_width >= 150 and terminal_height < 37:
+            # Logos alternativos
+            self.js_logo.display = True
+            self.js_logo.update(self.JS_LOGO_ALT)
+            self.menu.styles.height = "30%"
+            self.menu_info.styles.height = "20%"
+        else:
+            # Oculta los logos
+            self.js_logo.display = False
+            self.menu.styles.height = "60%"
+            self.menu_info.styles.height = "40%"

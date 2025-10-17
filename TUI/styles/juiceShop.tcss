@@ -17,7 +17,7 @@ LoadingIndicator {
   width: 100%;
   content-align: center middle;
   border: $border;
-  hatch: right $accent 40%;
+  hatch: cross $accent 40%;
 }
 
 .vcontainer2{
