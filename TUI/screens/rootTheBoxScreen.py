@@ -28,6 +28,10 @@ PATIENCE_VIRTUE: str = "Patience is a virtue:"
 
 
 class RootTheBoxScreen(Screen):
+    """
+    Pantalla principal para la gestión de servicios de Root The Box en la TUI.
+    """
+
     CSS_PATH = "../styles/rootTheBox.tcss"
 
     # Logos de Root The Box
@@ -67,11 +71,15 @@ class RootTheBoxScreen(Screen):
 
     def compose(self) -> ComposeResult:
         """
-        Composición inicial de la pantalla.
-        Configura header, footer, menú, logos, contenedores y estado de servicios.
+        Construye y devuelve la jerarquía de widgets que conforman la pantalla principal.
+
+        Este método define la estructura visual de la interfaz: cabecera, menús,
+        contenedores, logos y pie de página. Se ejecuta automáticamente al montar
+        la pantalla y determina qué widgets se renderizan y en qué orden.
 
         Returns:
-            ComposeResult: Generador de widgets a mostrar en la pantalla.
+            ComposeResult: Generador que produce los widgets que se añadirán
+            al árbol de la aplicación.
         """
         # Header
         yield get_header()
@@ -201,10 +209,13 @@ class RootTheBoxScreen(Screen):
 
     async def on_screen_resume(self, event: ScreenResume) -> None:
         """
-        Evento que se ejecuta cuando la pantalla vuelve a mostrarse.
+        Evento que se ejecuta cuando la pantalla vuelve a activarse.
+
+        Restaura el estado del menú, asegurando que la primera opción quede
+        resaltada y que el foco se coloque en el menú.
 
         Args:
-            event (ScreenResume): Evento que indica que la pantalla ha sido reactivada.
+            event (ScreenResume): Evento que indica que la pantalla se reanudó.
         """
         if not self.__skip_resume:
             # Selecciona el índice 0
@@ -214,6 +225,13 @@ class RootTheBoxScreen(Screen):
             self.menu.focus()
 
     async def __on_config_dismissed(self, result: str | None, description: str) -> None:
+        """
+        Maneja el resultado tras cerrar el modal de configuración.
+
+        Args:
+            result (str | None): Configuración editada o None si se canceló.
+            description (str): Descripción de la operación.
+        """
         __color: str = "gold"
         __severity: str = "warning"
         __op_status: str = OP_STATUS
@@ -265,7 +283,12 @@ class RootTheBoxScreen(Screen):
 
     async def __handle_confirm(self, option: str, description: str, action) -> None:
         """
-        Muestra la confirmación y ejecuta la acción seleccionada.
+        Muestra una confirmación y ejecuta la acción seleccionada.
+
+        Args:
+            option (str): Opción del menú seleccionada.
+            description (str): Descripción de la opción.
+            action: Función o coroutine asociada a la opción.
         """
         __color: str = "gold"
         __severity: str = "warning"
@@ -384,10 +407,19 @@ class RootTheBoxScreen(Screen):
             )
 
     async def __refresh_status(self) -> None:
+        """
+        Ejecuta la actualización del estado de los contenedores en un hilo separado.
+        """
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, lambda: self.__init_containers_status(loop))
 
     def __update_ui(self, data: dict) -> None:
+        """
+        Actualiza la interfaz según los datos recibidos de Redis.
+
+        Args:
+            data (dict): Datos con información de contenedor o evento.
+        """
         container = data.get("container", "")
 
         if container == "juicebox-engine" and data.get("event") == "set_rtb_config":
@@ -408,6 +440,15 @@ class RootTheBoxScreen(Screen):
                 )
 
     def __load_config(self, loop: AbstractEventLoop) -> bool:
+        """
+        Carga la configuración inicial y actualiza la interfaz.
+
+        Args:
+            loop (AbstractEventLoop): Bucle de eventos de asyncio.
+
+        Returns:
+            bool: True si la carga fue exitosa, False en caso contrario.
+        """
         try:
             conf_resp = loop.run_until_complete(JuiceBoxAPI.get_rtb_config())
             if conf_resp.status == Status.OK:
@@ -434,7 +475,10 @@ class RootTheBoxScreen(Screen):
 
     def __init_containers_status(self, loop: AbstractEventLoop) -> None:
         """
-        Inicializa o actualiza el estado de los contenedores en la UI.
+        Inicializa o actualiza el estado de los contenedores.
+
+        Args:
+            loop (AbstractEventLoop): Bucle de eventos de asyncio.
         """
         future = None
         try:
@@ -493,7 +537,10 @@ class RootTheBoxScreen(Screen):
 
     def __set_loading_states(self, state: bool):
         """
-        Cambia estado de carga de los widgets config_data y services_status.
+        Activa o desactiva el estado de carga en los widgets.
+
+        Args:
+            state (bool): True para activar carga, False para desactivar.
         """
         self.menu.disabled = state
         if not self.menu.disabled:
@@ -505,7 +552,10 @@ class RootTheBoxScreen(Screen):
 
     def __set_visible_states(self, state: bool) -> None:
         """
-        Cambia estado de visibilidad de los widgets config_data y services_status.
+        Cambia la visibilidad de los widgets principales.
+
+        Args:
+            state (bool): True para mostrar, False para ocultar.
         """
         self.app.call_from_thread(lambda: setattr(self.config_data, "visible", state))
         self.app.call_from_thread(
@@ -513,10 +563,19 @@ class RootTheBoxScreen(Screen):
         )
 
     def __mark_services_unvailable(self) -> None:
+        """
+        Marca todos los servicios como no disponibles en la interfaz.
+        """
         for _, label_status in self.SERVICE_LABELS.values():
             self.app.call_from_thread(lambda ls=label_status: ls.update(NOT_AVAILABLE))
 
     def __subscribe_to_redis(self) -> PubSub:
+        """
+        Crea una suscripción a los canales de Redis.
+
+        Returns:
+            PubSub: Objeto suscrito a los canales de Redis.
+        """
         client = redis.Redis(
             host="localhost",
             port=6379,
@@ -530,6 +589,12 @@ class RootTheBoxScreen(Screen):
         return pubsub
 
     def __listen_to_redis(self, pubsub: PubSub) -> None:
+        """
+        Escucha los mensajes de Redis y actualiza la interfaz.
+
+        Args:
+            pubsub (PubSub): Suscripción activa a los canales.
+        """
         # Escucha en Redis
         for message in pubsub.listen():
             if message.get("type") == "message":
@@ -541,8 +606,7 @@ class RootTheBoxScreen(Screen):
 
     def __listener_thread(self):
         """
-        Hilo que mantiene conexión con Redis, actualiza estado de servicios
-        y refresca la configuración mientras Redis está activo.
+        Mantiene la conexión con Redis y actualiza la interfaz en segundo plano.
         """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -574,7 +638,7 @@ class RootTheBoxScreen(Screen):
 
     def __start_redis_listener(self):
         """
-        Inicia un hilo en segundo plano para escuchar a Redis y mantener la UI actualizada.
+        Inicia el hilo que escucha a Redis y mantiene la UI sincronizada.
         """
         threading.Thread(target=self.__listener_thread, daemon=True).start()
 

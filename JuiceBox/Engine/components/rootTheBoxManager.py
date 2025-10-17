@@ -383,7 +383,7 @@ class RootTheBoxManager(BaseManager):
 
     def create_rtb_cfg(self) -> ManagerResult:
         """
-        Crea rootthebox.cfg con plantilla si no existe o está vacío.
+        Crea rootthebox.cfg con plantilla si no existe o está vacía.
         """
         cfg_path = os.path.join(self.rtb_dir, "files/rootthebox.cfg")
         try:

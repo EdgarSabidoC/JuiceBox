@@ -12,6 +12,10 @@ import importlib.resources as pkg_resources
 
 
 class MainScreen(Screen):
+    """
+    Pantalla del menú principal de la TUI.
+    """
+
     CSS_PATH = "../styles/main.tcss"
     LOGOS_PATH = "TUI.media"
     # Logos de JuiceBox
@@ -33,6 +37,17 @@ class MainScreen(Screen):
     }
 
     def compose(self) -> ComposeResult:
+        """
+        Construye y devuelve la jerarquía de widgets que conforman la pantalla principal.
+
+        Este método define la estructura visual de la interfaz: cabecera, menús,
+        contenedores, logos y pie de página. Se ejecuta automáticamente al montar
+        la pantalla y determina qué widgets se renderizan y en qué orden.
+
+        Returns:
+            ComposeResult: Generador que produce los widgets que se añadirán
+            al árbol de la aplicación.
+        """
         # Header
         yield get_header()
 
@@ -124,13 +139,27 @@ class MainScreen(Screen):
         self.menu.focus()
 
     async def on_mount(self) -> None:
+        """
+        Evento que se ejecuta cuando la pantalla se monta por primera vez.
+
+        Se utiliza para suscribirse a señales globales de la aplicación,
+        como el cambio de tema.
+        """
         # Se suscribe a la señal del app
         self.app.theme_changed_signal.subscribe(self, self.on_theme_changed)
 
-    # Permite realizar un cambio de pantalla
     async def on_option_list_option_selected(
         self, event: OptionList.OptionSelected
     ) -> None:
+        """
+        Maneja la selección de una opción en el menú.
+
+        Dependiendo de la opción seleccionada, cambia de pantalla o
+        cierra la aplicación.
+
+        Args:
+            event (OptionList.OptionSelected): Evento que contiene la opción seleccionada.
+        """
         option: str = str(event.option.prompt).strip()
 
         screen_map = {
@@ -153,11 +182,26 @@ class MainScreen(Screen):
     async def on_option_list_option_highlighted(
         self, event: OptionList.OptionHighlighted
     ):
+        """
+        Maneja el resaltado de una opción en el menú.
+
+        Actualiza la caja de información con la descripción de la opción
+        actualmente resaltada.
+
+        Args:
+            event (OptionList.OptionHighlighted): Evento que contiene la opción resaltada.
+        """
         option: str = str(event.option.prompt).strip()
         description = self.MENU_OPTIONS.get(option, "No info available.")
         self.menu_info.update(description)
 
     def get_server_info(self) -> None:
+        """
+        Obtiene y muestra la información del servidor en la interfaz.
+
+        Llama a la clase `ServerInfo` para recuperar los datos y los
+        actualiza en los labels correspondientes.
+        """
         info = ServerInfo().get_all_info()
         if info["Terminal"] != "":
             keys = "\n".join(info.keys())
@@ -217,10 +261,11 @@ class MainScreen(Screen):
 
     def change_fmat_logo_color(self) -> None:
         """
-        Cambia el color de los logos de FMAT CyberLab.
+        Cambia el color del logo de FMAT CyberLab según el tema actual.
 
-        Args:
-            color (str): Código de color en formato hexadecimal.
+        Selecciona la plantilla de logo (principal o alternativo) en función
+        de `self.use_alt_logo` y reemplaza el marcador `#color` por el color
+        definido en las variables de tema.
         """
         color = self.app.theme_variables["footer-key-foreground"]
         tmp_str: str = self.FMAT_LOGO
@@ -230,9 +275,22 @@ class MainScreen(Screen):
         self.fmat_logo.update(tmp_str)
 
     def on_theme_changed(self, theme: Theme) -> None:
-        """Se llama cuando el tema cambia."""
+        """
+        Evento que se ejecuta cuando cambia el tema de la aplicación.
+
+        Actualiza el logo de FMAT CyberLab para reflejar el nuevo color
+        de acento del tema.
+
+        Args:
+            theme (Theme): Objeto que representa el nuevo tema activo.
+        """
         self.change_fmat_logo_color()
 
     async def on_unmount(self) -> None:
-        # Opcional: cancelar la suscripción si se desmonta
+        """
+        Evento que se ejecuta cuando la pantalla se desmonta.
+
+        Cancela la suscripción a señales globales de la aplicación para
+        evitar fugas de memoria o llamadas innecesarias.
+        """
         self.app.theme_changed_signal.unsubscribe(self)
