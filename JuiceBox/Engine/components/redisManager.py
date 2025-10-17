@@ -20,12 +20,14 @@ class RedisManager(BaseManager):
     Clase para gestionar un servidor Redis mediante Docker. Utiliza un archivo
     docker-compose para crear, iniciar y detener el contenedor de Redis.
     Además, permite publicar mensajes en canales Redis.
+
     ## Características
     - Gestión del contenedor Redis mediante Docker.
     - Publicación de mensajes en canales Redis.
     - Manejo de errores y resultados mediante ManagerResult.
     - Uso de un cliente Docker opcional.
     - Uso de un cliente Redis para la comunicación.
+
     ## Operaciones
     - **start():** Inicia el contenedor Redis.
     - **stop():** Detiene y elimina el contenedor Redis.
@@ -48,17 +50,21 @@ class RedisManager(BaseManager):
         docker_client: DockerClient | None = None,
     ) -> None:
         """
-        Inicializa el gestor de Redis.
+        Inicializa el gestor de Redis y configura tanto el cliente Docker
+        (opcional) como el cliente Redis. Además, obtiene la contraseña de Redis
+        desde el archivo `redis.conf` del paquete y la guarda en el archivo `.env`.
+
         Args:
-            container_name (str): Nombre del contenedor Docker de Redis.
-            redis_host (str): Dirección del servidor Redis.
-            redis_port (int): Puerto del servidor Redis.
-            redis_db (int): Base de datos Redis a usar.
-            redis_password (str): Contraseña para el servidor Redis.
-            compose_file (str | None): Ruta al archivo docker-compose para Redis.
-            docker_client (DockerClient | None): Cliente Docker opcional.
-        Raises:
-            TypeError: Si docker_client no es una instancia de DockerClient.
+        container_name (str): Nombre del contenedor Docker de Redis.
+        redis_host (str): Dirección del servidor Redis.
+        redis_port (int): Puerto del servidor Redis.
+        redis_db (int): Base de datos Redis a usar.
+        compose_file (str | None): Ruta al archivo docker-compose para Redis.
+        docker_client (DockerClient | None): Cliente Docker opcional.
+
+        Importante:
+            - Lee la contraseña de Redis desde `Engine.configs/redis.conf`.
+            - Inserta o actualiza la variable `REDIS_PASSWORD` en el archivo `.env` (es dinámica).
         """
         # Si no se especifica la ruta, se carga desde el paquete configs
         if compose_file:
@@ -105,10 +111,15 @@ class RedisManager(BaseManager):
 
     def __set_password(self, password: str | None) -> None:
         """
-        Escribe el password en el archivo .env que está en la raíz de JuiceBox.
+        Inserta o actualiza la variable `REDIS_PASSWORD` en el archivo `.env` de la raíz del proyecto.
 
         Args:
-            password (str | None): Contraseña a escribir.
+            password (str | None): Contraseña a escribir. Si es None, no se realiza ningún cambio.
+
+        Importante:
+            - Modifica o crea el archivo `.env` en la raíz del proyecto.
+            - Si ya existe `REDIS_PASSWORD`, lo reemplaza; si no, lo agrega.
+
         """
         if not password:
             return
@@ -244,11 +255,20 @@ class RedisManager(BaseManager):
         Publica un mensaje en un canal Redis.
 
         Args:
-            channel (str): Nombre del canal.
-            payload (RedisPayload): Mensaje a publicar.
+            channel (str): Nombre del canal al que se enviará el mensaje.
+            payload (RedisPayload): Objeto con el mensaje a publicar, convertido a JSON.
 
         Returns:
-            ManagerResult: Resultado de la operación.
+            ManagerResult: Resultado de la operación. Contiene:
+                - success (bool): True si la publicación se realizó sin errores.
+                - message (str): Descripción del resultado.
+                - error (str | None): Error si ocurrió una excepción al publicar.
+                - data (dict): Incluye el canal utilizado.
+
+        Notas:
+            - En caso de excepción, aún retorna un ManagerResult con `success=True`,
+              pero con un mensaje indicando el fallo y el detalle en `error`.
+
         """
         try:
             message: str = payload.to_json()
@@ -292,11 +312,13 @@ class RedisManager(BaseManager):
 
     def close(self) -> ManagerResult:
         """
-        Cierra la conexión al cliente Redis.
+        Cierra la conexión con el cliente Redis.
 
         Returns:
             ManagerResult: Resultado de la operación.
-
+                - success (bool): True si la conexión se cerró correctamente, False si ocurrió un error.
+                - message (str): Descripción del resultado.
+                - error (str | None): Detalle del error si falló.
         """
         try:
             self.__redis.close()

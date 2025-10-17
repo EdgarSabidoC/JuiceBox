@@ -12,6 +12,7 @@ from .components import Monitor
 from docker import DockerClient
 from types import FrameType
 import sys, signal, atexit, docker
+from Models import ManagerResult
 
 
 def main():
@@ -41,9 +42,12 @@ def main():
 
     # Función para manejar el cierre del programa
     def handle_exit(signum: int, frame: FrameType | None):
-        print(f"\n📶 Received signal: {signum}. Closing socket...")
-        jb_server.cleanup()  # Se para el motor y se limpian los recursos
-        print("✅ Socket closed. Exiting JuiceBoxEngine.")
+        print("\nClosing socket...")
+        resp: ManagerResult = (
+            jb_server.cleanup()
+        )  # Se para el motor y se limpian los recursos
+        print(f"✅ {resp.message}!!!")
+        print("✅ Socket closed\nExiting JuiceBoxEngine...")
         sys.exit(0)
 
     # Se capturan las señales de interrupción

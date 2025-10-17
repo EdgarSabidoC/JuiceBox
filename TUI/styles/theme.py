@@ -21,14 +21,15 @@ juice_box_theme = Theme(
         "link-color-hover": "#32CD32",  # hover amarillo
         "link-background-hover": "#FFD700 15%",
         "block-cursor-text-style": "none",
-        "footer-key-foreground": "#FFFFFF",  # pie de página en blanco
+        "footer-key-foreground": "#32CD32",
+        "footer-description-foreground": "#FFFFFF",
         "input-selection-background": "#FFD700 35%",  # selección en amarillo suave
         "button-focus-text-style": "bold",
     },
 )
 
-hacker_dark_blue_theme = Theme(
-    name="hacker-dark-blue",
+dark_blueberry_juice_theme = Theme(
+    name="dark-blueberry-juice-theme",
     primary="#19E6F3",
     secondary="#20ADB6",
     accent="#ae08f0",
@@ -46,17 +47,18 @@ hacker_dark_blue_theme = Theme(
         "link-color-hover": "#2de2e6",
         "link-background-hover": "#1C8196 15%",
         "block-cursor-text-style": "none",
-        "footer-key-foreground": "#88C0D0",
+        "footer-key-foreground": "#2de2e6",
+        "footer-description-foreground": "#3984E6",
         "input-selection-background": "#81a1c1 35%",
         "button-focus-text-style": "bold",
     },
 )
 
-hacker_dark_green_theme = Theme(
-    name="hacker-dark-green",
+dark_lime_juice_theme = Theme(
+    name="dark-lime-juice-theme",
     primary="#2ECC71",  # verde esmeralda vibrante
     secondary="#27AE60",  # verde bosque medio
-    accent="#16A085",  # verde azulado oscuro
+    accent="#21F10E",  # verde azulado oscuro
     foreground="#2ECC71",  # texto principal en verde esmeralda
     background="#061006",  # negro con matiz verde muy oscuro
     success="#1EFF00",  # verde neón para éxito
@@ -71,7 +73,8 @@ hacker_dark_green_theme = Theme(
         "link-color-hover": "#16A085",  # hover en verde azulado
         "link-background-hover": "#1ABC9C 15%",
         "block-cursor-text-style": "none",
-        "footer-key-foreground": "#95A5A6",  # gris suave para pie de página
+        "footer-key-foreground": "#21F10E",  # gris suave para pie de página
+        "footer-description-foreground": "#16A085",
         "input-selection-background": "#27AE60 35%",  # selección semitransparente
         "button-focus-text-style": "bold",
     },
@@ -96,7 +99,8 @@ synthwave_80s_theme = Theme(
         "link-color-hover": "#FF43A4",  # hover en neón rosa
         "link-background-hover": "#04D9FF 20%",  # fondo cian semitransparente
         "block-cursor-text-style": "none",
-        "footer-key-foreground": "#F8F8F2",  # pie de página en blanco suave
+        "footer-key-foreground": "#1EFF00",  # pie de página en blanco suave
+        "footer-description-foreground": "#04D9FF",
         "input-selection-background": "#9D00FF 35%",  # selección púrpura semitransparente
         "button-focus-text-style": "bold",
     },

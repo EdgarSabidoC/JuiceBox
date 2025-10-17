@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import json, yaml
 from .validator import (
     validate_str,
@@ -15,7 +14,6 @@ RTB_SCHEMA = {
     "webapp_port": ("WEBAPP_PORT", validate_port),
     "memcached_port": ("MEMCACHED_PORT", validate_port),
     "network_name": ("NETWORK_NAME", validate_str),
-    "rtb_dir": ("RTB_DIRECTORY", validate_str),
     "webapp_container_name": ("WEB_APP_CONTAINER_NAME", validate_str),
     "cache_container_name": ("MEMCACHED_CONTAINER_NAME", validate_str),
 }
@@ -41,7 +39,6 @@ class RTBConfig:
         self.webapp_port: int = 8888
         self.memcached_port: int = 11211
         self.network_name: str = "rootthebox_default"
-        self.rtb_dir: str = "RootTheBox"
         self.webapp_container_name: str = "rootthebox-webapp-1"
         self.cache_container_name: str = "rootthebox-memcached-1"
         self.loaded: bool = False
@@ -58,9 +55,6 @@ class RTBConfig:
         json_key, validator = RTB_SCHEMA[key]
         if json_key in config:
             value = validator(config[json_key], json_key)
-            # Normaliza ruta si es rtb_dir
-            if key == "rtb_dir":
-                value = str(Path(value).resolve())
             setattr(self, key, value)
 
     def __restart_state(self) -> None:
@@ -162,7 +156,6 @@ class RTBConfig:
             "webapp_port": self.webapp_port,
             "memcached_port": self.memcached_port,
             "network_name": self.network_name,
-            "rtb_dir": self.rtb_dir,
             "webapp_container_name": self.webapp_container_name,
             "cache_container_name": self.cache_container_name,
         }
@@ -330,12 +323,12 @@ class JuiceShopConfig:
         """
         data = {
             "ctfFramework": "RootTheBox",
-            "juiceShopUrl": "http://juice-shop-temp:3000",
             "ctfKey": self.ctf_key,
             "countryMapping": "https://raw.githubusercontent.com/juice-shop/juice-shop/master/config/fbctf.yml",
             "insertHints": "free",
             "insertHintUrls": "free",
             "insertHintSnippets": "free",
+            "juiceShopUrl": "",
         }
         self.configs_dir.mkdir(
             parents=True, exist_ok=True

@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 
 class Monitor:
     """
-    Clase para monitorear eventos en Engine.
+    Clase para monitorear eventos del motor de Juice Box.
 
     ## Características
     - Gestión de logs mediante un logger personalizado.
@@ -41,25 +41,17 @@ class Monitor:
         redis_manager: RedisManager | None = None,
     ):
         """
-        Inicializa el monitor del sistema.
+        Inicializa el monitor del sistema Juice Box.
 
         Args:
             name (str): Nombre del logger.
             use_journal (bool): Si usar journald para logging.
             level (int): Nivel de logging.
+            docker_client (DockerClient | None): Cliente Docker opcional.
             container_poll_interval (float): Intervalo entre chequeos de contenedores.
-            redis_host (str): Dirección de Redis.
-            redis_port (int): Puerto de Redis.
-            redis_db (int): Base de datos Redis a usar.
-            redis_password (str): Contraseña para Redis.
-            admin_channel (str): Canal Redis para mensajes administrativos.
-            client_channel (str): Canal Redis para mensajes de clientes.
             rtb_containers (list[str]): Nombres de contenedores de RootTheBox.
             js_containers (list[str]): Nombres de contenedores de JuiceShop.
-            docker_client (DockerClient | None): Cliente Docker opcional.
             redis_manager (RedisManager | None): Gestor Redis opcional.
-        Raises:
-            TypeError: Si redis_manager no es una instancia de RedisManager.
         """
         # Logger base
         self.logger = Logger(
@@ -172,7 +164,17 @@ class Monitor:
 
     def __container_monitor_loop(self) -> None:
         """
-        Bucle de vigilancia de contenedores. Ejecutado en segundo plano.
+        Bucle de vigilancia de contenedores Docker, ejecutado en un hilo de fondo.
+
+        Funciones principales:
+          - Revisa periódicamente el estado de los contenedores configurados.
+          - Detecta cambios de estado y publica eventos en Redis.
+          - Maneja la expiración automática de contenedores JuiceShop según su 'lifespan'.
+          - Ejecuta y limpia tareas asíncronas pendientes de expiración.
+
+        Notas:
+          - Este método se ejecuta mientras `self._monitoring` sea True y duerme
+            `self._interval` segundos entre iteraciones.
         """
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

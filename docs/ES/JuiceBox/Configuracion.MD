@@ -118,4 +118,4 @@ appendonly yes
 ```
 
 ## .env [NO MODIFICAR]
-El archivo `.env` genera y utiliza variables de entorno dinamicas, por lo que no se debe modificar.
+El archivo `.env` utiliza variables de entorno dinamicas, por lo que no se debe modificar.

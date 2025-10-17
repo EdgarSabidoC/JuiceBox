@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os, socket, threading, json, atexit
 from queue import Queue
 from threading import Thread
@@ -17,6 +16,7 @@ from docker import DockerClient
 from dotenv import dotenv_values
 from collections.abc import Callable
 from typing import Any
+from systemd.daemon import listen_fds, is_socket_unix
 
 
 # Comandos válidos por programa
@@ -70,17 +70,13 @@ class JuiceBoxEngineServer:
         """
         # Obtiene la ruta del socket
         self.socket_path: str = (
-            dotenv_values().get("JUICEBOX_SOCKET") or "/run/juicebox/engine.sock"
+            dotenv_values().get("JUICEBOX_SOCKET") or "/opt/juicebox/run/engine.sock"
         )
         # Obtiene la carpeta que contiene el socket
         socket_dir = os.path.dirname(self.socket_path)
 
         # Crea la carpeta si no existe
         os.makedirs(socket_dir, exist_ok=True)
-
-        # 3. Si hay un socket antiguo, elimínalo
-        if os.path.exists(self.socket_path):
-            os.remove(self.socket_path)
 
         # Cliente Docker
         if docker_client:
@@ -90,6 +86,8 @@ class JuiceBoxEngineServer:
         self.monitor = monitor
 
         # Se crea socket del servidor
+        if os.path.exists(self.socket_path):
+            os.remove(self.socket_path)
         self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.server_socket.bind(self.socket_path)
         self.server_socket.listen()
@@ -104,6 +102,8 @@ class JuiceBoxEngineServer:
         self.command_queue = Queue()
         Thread(target=self.__worker, daemon=True).start()
 
+        # Limpieza al cierre del socket
+        self._cleaned_up = False
         atexit.register(self.cleanup)
 
     def __worker(self) -> None:
@@ -185,7 +185,7 @@ class JuiceBoxEngineServer:
             conn.close()
 
     def __rtb_start(self, manager: RootTheBoxManager) -> Response:
-        """_summary_
+        """
         Inicia los contenedores gestionados por Root The Box.
 
         Args:
@@ -215,7 +215,7 @@ class JuiceBoxEngineServer:
         )
 
     def __rtb_restart(self) -> Response:
-        """_summary_
+        """
         Reinicia la instancia del manager de Root The Box.
 
         Args:
@@ -378,6 +378,49 @@ class JuiceBoxEngineServer:
             message="Error when trying to retrieve Root The Box Manager Config."
         )
 
+    def __clear_rtb_db_files(self) -> ManagerResult:
+        """
+        Borra únicamente los archivos críticos de la BD y configuración en /opt/rtb/files/
+        dentro del contenedor webapp de RootTheBox:
+        - botnet.db
+        - rootthebox.db
+        """
+        try:
+            container_name: str = self.rtb_manager.get_containers()[0]
+
+            if self.docker_client is not None:
+                container = self.docker_client.containers.get(container_name)
+            else:
+                self.monitor.error(
+                    "Failed to clear RTB DB files -> Webapp container not found"
+                )
+                return ManagerResult.failure(
+                    "Failed to clear RTB DB files", error="Webapp container not found"
+                )
+
+            # Archivos a borrar
+            files_to_remove = [
+                "/opt/rtb/files/botnet.db",
+                "/opt/rtb/files/rootthebox.db",
+            ]
+
+            # Ejecutar rm -f sobre cada archivo
+            for file_path in files_to_remove:
+                cmd = ["rm", "-f", file_path]
+                exec_result = container.exec_run(cmd, stdout=True, stderr=True)
+                if exec_result.exit_code != 0:
+                    output = exec_result.output.decode("utf-8").strip()
+                    self.monitor.error(f"Failed to remove {file_path} -> {output}")
+                    return ManagerResult.failure(
+                        f"Failed to remove {file_path}", error=output
+                    )
+
+            self.monitor.info("RTB DB and config files cleared successfully")
+            return ManagerResult.ok("RTB DB and config files cleared")
+
+        except Exception as e:
+            return ManagerResult.failure("Error clearing RTB DB files", error=str(e))
+
     def __load_rtb_missions(self) -> ManagerResult:
         """
         Ejecuta rootthebox.py dentro del contenedor para cargar misiones desde el XML generado por JuiceShop.
@@ -397,6 +440,34 @@ class JuiceBoxEngineServer:
                 return ManagerResult.failure(
                     "Failed to load missions", error="Webapp container not found"
                 )
+
+            # Se limpia RTB:
+            __res = self.__clear_rtb_db_files()
+
+            # Si hay un error durante el borrado:
+            if not __res.success:
+                return __res
+
+            # Se resetea RTB
+            cmd = ["python3", "/opt/rtb/rootthebox.py", "--reset-delete"]
+            exec_result = container.exec_run(cmd, stdout=True, stderr=True)
+            exit_code = exec_result.exit_code
+            output = exec_result.output.decode("utf-8").strip()
+
+            if exit_code != 0:
+                self.monitor.error(f"Failed to reset RTB DB -> {output}")
+                return ManagerResult.failure("Failed to reset RTB DB", error=output)
+
+            res = self.rtb_manager.create_rtb_cfg()
+            if not res.success:
+                self.monitor.error(
+                    f"Failed to create rootthebox.cfg file -> {res.error}"
+                )
+                return ManagerResult.failure(
+                    "Failed to create rootthebox.cfg file", error=res.error
+                )
+
+            # Se cargan las misiones
             cmd = ["python3", "/opt/rtb/rootthebox.py", f"--xml={missions_path}"]
             exec_result = container.exec_run(cmd, stdout=True, stderr=True)
             exit_code = exec_result.exit_code
@@ -426,12 +497,13 @@ class JuiceBoxEngineServer:
         __res: ManagerResult = manager.start()
         if __res.success:
             self.monitor.info(message=f"Juice Shop container started -> {__res.data}")
-            return Response.ok(message=__res.message)
+            return Response.ok(message=__res.message, data=__res.data or {})
         self.monitor.error(
             message=f"Juice Shop container couldn't be started -> {__res.data}"
         )
         return Response.error(
-            message="Error when trying to start Juice Shop container."
+            message="Error when trying to start Juice Shop container.",
+            data=__res.data or {},
         )
 
     def __js_restart(self) -> Response:
@@ -445,14 +517,13 @@ class JuiceBoxEngineServer:
             result: ManagerResult = self.js_manager.cleanup()
             if result.success:
                 self.monitor.info(f"Juice Shop Manager cleaned up -> {result.data}")
-                self.rtb_manager.cleanup()
                 # Crea una nueva instancia y carga la configuración
                 new_manager: JuiceShopManager = JuiceShopManager(
                     JuiceShopConfig(), docker_client=self.docker_client
                 )
                 __res: ManagerResult = self.__init_manager(
                     new_manager
-                )  # Se asegura de que la config esté cargada
+                )  # Se asegura de que la configuración esté cargada
                 if __res.success:
                     return Response.ok("OWASP Juice Shop Manager restarted")
             else:
@@ -532,7 +603,8 @@ class JuiceBoxEngineServer:
                 message=f"Juice Shop container couldn't be stopped -> {__res.error}"
             )
             return Response.error(
-                message="Error when trying to stop Juice Shop container."
+                message="Error when trying to stop Juice Shop container.",
+                data=__res.data or {},
             )
 
     def __js_stop(self, manager: JuiceShopManager) -> Response:
@@ -915,7 +987,20 @@ class JuiceBoxEngineServer:
         method_name: str,
         monitor: Monitor,
     ) -> tuple[list[str], list[str]]:
+        """
+        Ejecuta una acción de limpieza sobre un componente del sistema y registra el resultado.
 
+        Args:
+            name (str): Nombre del componente (ej. "Monitor", "DockerClient").
+            component (object): Objeto que contiene el método a ejecutar.
+            method_name (str): Nombre del método de acción a invocar en el componente.
+            monitor (Monitor): Instancia del monitor para registrar logs de éxito o error.
+
+        Returns:
+            (tuple[list[str], list[str]]):
+                - messages (list[str]): Mensajes informativos de acciones completadas.
+                - errors (list[str]): Mensajes de error en caso de fallas.
+        """
         # Listas de mensajes y errores:
         messages: list[str] = []
         errors: list[str] = []
@@ -965,6 +1050,22 @@ class JuiceBoxEngineServer:
         monitor: Monitor,
         docker_client: DockerClient | None,
     ) -> tuple[list[str], list[str]]:
+        """
+        Ejecuta las rutinas de limpieza y cierre de todos los componentes del sistema.
+
+        Args:
+            js (JuiceShopManager): Gestor de contenedores OWASP Juice Shop.
+            rtb (RootTheBoxManager): Gestor de contenedores Root the Box.
+            redis (RedisManager): Gestor de integración con Redis.
+            monitor (Monitor): Monitor encargado de registrar los logs del sistema.
+            docker_client (DockerClient | None): Cliente Docker usado para interactuar con los contenedores,
+                                                 o None si no se inicializó.
+
+        Returns:
+            (tuple[list[str], list[str]]):
+                - messages (list[str]): Mensajes de éxito generados durante la limpieza.
+                - errors (list[str]): Mensajes de error en caso de fallos.
+        """
         messages: list[str] = []
         errors: list[str] = []
 
@@ -1000,6 +1101,9 @@ class JuiceBoxEngineServer:
             __monitor = self.monitor
             __docker_client = self.docker_client
 
+        if self._cleaned_up:
+            return ManagerResult.ok("Cleanup already executed")
+        self._cleaned_up = True
         # Acumulamos mensajes y errores
         messages = []
         errors = []

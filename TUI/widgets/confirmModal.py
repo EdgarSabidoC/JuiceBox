@@ -17,8 +17,8 @@ class ConfirmModal(ModalScreen[str]):
     CSS_PATH = "../styles/confirmModal.tcss"
 
     BINDINGS = [
-        Binding("ctrl+y", "dismiss_yes", "Yes", show=True),
-        Binding("ctrl+n", "dismiss_no", "No", show=True),
+        Binding("ctrl+y", "dismiss_yes", "Yes | ", show=True),
+        Binding("ctrl+n", "dismiss_no", "No | ", show=True),
     ]
 
     def __init__(self, message: str) -> None:

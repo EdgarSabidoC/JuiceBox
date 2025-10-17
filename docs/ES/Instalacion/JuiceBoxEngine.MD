@@ -1,29 +1,44 @@
-# Juice Box Engine: Despliegue con systemd y activacion del Socket
+# Juice Box Engine: Despliegue con systemd
 
-Este documento detalla todos los pasos necesarios para copiar/transferir el proyecto `Juice Box`, preparar el entorno virtual de Python (venv), crear los scripts de arranque, definir las unidades systemd (socket y servicio) y verificar que todo funcione correctamente.
+Este documento detalla todos los pasos necesarios para la instalacion manual de `Juice Box Engine` como servicio, preparar el entorno virtual de Python (venv), definir la unidad systemd (servicio) y verificar que todo funcione correctamente.
+
+Si se deasea, se puede realizar la instalacion automatica por medio de los scripts disponibles en el directorio `Install` de la carpeta raiz. Hay scripts disponibles para distros basadas en `Arch` con shell `Fish` y en `Ubuntu/Debian` con shell `Bash`.
+
+**NOTA:** Los scripts automaticos instalan por defecto `Juice Box Engine`, `Juice Box Manager TUI` y `Juice Box WebClient`.
 
 ---
 
-## 1. Creacion del usuario y carpetas y transferencia de la aplicacion
+## 0. Instalacion de dependencias del sistema (Ubuntu/Debian)
+
+```bash
+sudo apt update
+sudo apt install -y python3-venv python3-dev build-essential pkg-config libsystemd-dev gcc
+```
+
+## 1. Creacion del usuario, carpetas y transferencia de la aplicacion
 
 ## Para shell `Bash` (distros basadas en Ubuntu/Debian):
 
 ```bash
-sudo adduser --system --group juicebox
 sudo mkdir -p /opt/juicebox
 sudo chown -R juicebox:juicebox /opt/juicebox
 sudo usermod -aG docker juicebox
+sudo mkdir -p /opt/juicebox/run
+sudo chown juicebox:juicebox /opt/juicebox/run
+sudo chmod 770 /opt/juicebox/run
 newgrp docker
 ```
 
 ## Para shell `Fish` (distros basadas en Arch):
 
 ```bash
-sudo useradd -r -s /usr/bin/nologin -U juicebox
 sudo mkdir -p /opt/juicebox
 sudo chown -R juicebox:juicebox /opt/juicebox
 sudo usermod -aG docker juicebox
-newgrp docker
+sudo mkdir -p /opt/juicebox/run
+sudo chown juicebox:juicebox /opt/juicebox/run
+sudo chmod 770 /opt/juicebox/run
+newgrp docker # Esto reinicia la terminal
 ```
 
 **NOTA**: Es importante que los usuarios que vayan a utilizar la app esten dentro del grupo `docker`, esto ya se toma en cuenta para la creacion del usuario `juicebox`.
@@ -55,17 +70,23 @@ sudo chown -R juicebox:juicebox /opt/juicebox
 ```bash
 cd /opt/juicebox
 sudo -u juicebox python3 -m venv /opt/juicebox/venv
+sudo -u juicebox /opt/juicebox/venv/bin/python -m ensurepip --upgrade
+sudo -u juicebox /opt/juicebox/venv/bin/python -m pip install --upgrade pip
+sudo -u juicebox /opt/juicebox/venv/bin/pip install --upgrade pip setuptools wheel
 ```
 
 ### 2.2. Instalacion del paquete de la aplicacion y dependencias en el entorno virtual
 
-Asegura que el archivo *requirements.txt* en */opt/juicebox* contenga:
+Asegurar que el archivo *requirements.txt* en */opt/juicebox* contenga:
 
-```
+```bash
 docker
 dotenv
 textual
 textual[syntax]
+fastapi
+gunicorn
+uvicorn
 py-cpuinfo
 linkify-it-py
 systemd-python
@@ -116,10 +137,9 @@ Quiere decir que no se esta utilizando el entorno virtual (venv).
 
 #### 2.2.3. Instalacion de los paquetes de ***requirements.txt*** en el venv:
 
-Estando en la ruta `/opt/juicebox/` y con el venv activado, ejecutar:
+Estando en la ruta `/opt/juicebox/` y con el `venv activado`, ejecutar:
 
 ```bash
-pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
@@ -149,7 +169,7 @@ En caso de no estar en `/opt/juicebox/`, utilizar:
 /opt/juicebox/venv/bin/pip install -e /opt/juicebox
 ```
 
-**NOTA:** La bandera `-e` es opcional, esta permite instalar el paquete de la aplicacion en modo editable.
+**NOTA:** La bandera `-e` permite instalar el paquete de la aplicacion en modo editable.
 
 Una vez instalado el paquete, puede ser llamado desde el shell del entorno virtual (venv) utilizando el comando `juicebox`. De igual forma se puede utilizar el comando `python3 -m JuiceBox` para llamar a la aplicacion del motor.
 
@@ -163,42 +183,11 @@ Una vez instalado el paquete, puede ser llamado desde el shell del entorno virtu
 
 Para instalar `Root The Box` [ver el siguiente enlace](RootTheBox.MD).
 
-## 4. Creacion de las unidades systemd
+## 4. Creacion de la unidad systemd
 
-### 4.1. Socket: /etc/systemd/system/juiceboxengine.socket
+### 4.1. Servicio: /etc/systemd/system/juiceboxengine.service
 
-#### 4.1.1 Creacion del archivo `juiceboxengine.socket`
-
-Crear el archivo con `Nano`
-
-```bash
-sudo nano /etc/systemd/system/juiceboxengine.socket
-```
-
-Posteriormente copiar dentro el contenido del archivo y darle a `ctrl+o`, `enter` y luego `ctrl+x`.
-
-##### Contenido del archivo `juiceboxengine.socket`
-
-```bash
-[Unit]
-Description=Socket for JuiceBox Engine
-PartOf=juiceboxengine.service
-
-[Socket]
-ListenStream=/run/juicebox/engine.sock
-SocketMode=0660
-SocketUser=juicebox
-SocketGroup=docker
-RuntimeDirectory=juicebox
-RuntimeDirectoryMode=0755
-
-[Install]
-WantedBy=sockets.target
-```
-
-### 4.2. Servicio: /etc/systemd/system/juiceboxengine.service
-
-#### 4.2.1. Creacion del archivo `juiceboxengine.service`
+#### 4.1.1. Creacion del archivo `juiceboxengine.service`
 
 Crear el archivo con `Nano` utilizando
 
@@ -221,8 +210,10 @@ Type=simple
 User=juicebox
 Group=juicebox
 WorkingDirectory=/opt/juicebox
-ExecStart=/opt/juicebox/venv/bin/python -m JuiceBox
-Environment="JUICEBOX_SOCKET=/run/juicebox/engine.sock"
+ExecStart=/opt/juicebox/venv/bin/juicebox
+Environment=JUICEBOX_SOCKET=/opt/juicebox/run/engine.sock
+Environment=HOME=/opt/juicebox
+UMask=007
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
@@ -232,28 +223,19 @@ StandardError=journal
 WantedBy=multi-user.target
 ```
 
-## 5. Habilitacion, arranque y verificacion del servicio y socket
+## 5. Habilitacion, arranque y verificacion del servicio
 
-### 5.1. Recargar unidades y habilitar el servicio y socket
+### 5.1. Recargar unidad y habilitar el servicio
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable juiceboxengine.socket
-sudo systemctl enable juiceboxengine.service
+sudo systemctl enable --now juiceboxengine.service
 ```
 
-### 5.2. Iniciacion del socket
+### 5.2. Comprobacion del estado del servicio
 
 ```bash
-sudo systemctl start juiceboxengine.socket
-```
-El servicio se activara automaticamente en el primer acceso al socket.
-
-### 5.3. Comprobacion del estado del servicio y socket
-
-```bash
-systemctl status juiceboxengine.socket
-systemctl status juiceboxengine.service
+systemctl status juiceboxengine.service --no-pager
 ```
 
 ## 6. Logs del servicio

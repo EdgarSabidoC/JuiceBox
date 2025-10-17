@@ -2,7 +2,8 @@ from textual.app import ComposeResult
 from textual.screen import Screen
 from ..widgets import get_footer
 from ..widgets import get_header
-from textual.widgets import MarkdownViewer, TabbedContent
+from ..widgets.linkableMarkdownViewer import LinkableMarkdownViewer
+from textual.widgets import TabbedContent
 from textual.binding import Binding
 from importlib.resources import files
 from importlib.abc import Traversable
@@ -11,16 +12,18 @@ from pathlib import Path
 
 class DocumentationScreen(Screen):
     CSS_PATH = "../styles/documentation.tcss"
-    DOCS: Traversable = files("docs.ES.JuiceBox")
+    DOCS_ES: Traversable = files("docs.ES")
     MARKDOWNS = {
-        "Motor": Path(str(DOCS.joinpath("Engine.MD"))),
-        "API": Path(str(DOCS.joinpath("API.MD"))),
-        "Configs": Path(str(DOCS.joinpath("ConfigFiles.MD"))),
+        "Motor": Path(str(DOCS_ES.joinpath("JuiceBox/Motor.MD"))),
+        "TUI": Path(str(DOCS_ES.joinpath("TUI/Manual.MD"))),
+        "Configs": Path(str(DOCS_ES.joinpath("JuiceBox/Configuracion.MD"))),
+        "API": Path(str(DOCS_ES.joinpath("JuiceBox/API.MD"))),
+        "License": Path(str(DOCS_ES.joinpath("Licencia.MD"))),
     }
     BINDINGS = [
-        Binding("ctrl+b", "go_back", "Back", show=True),
-        Binding("ctrl+q", "quit", "Quit", show=True),
-        Binding("ctrl+t", "show_hide_toc", "Show/Hide table of content", show=True),
+        Binding("ctrl+b", "go_back", "Back | ", show=True),
+        Binding("ctrl+q", "quit", "Quit | ", show=True),
+        Binding("ctrl+t", "show_hide_toc", "Show/Hide table of content | ", show=True),
     ]
 
     def compose(self) -> ComposeResult:
@@ -29,32 +32,46 @@ class DocumentationScreen(Screen):
         yield get_header()
 
         # Markdowns:
-        self.jb_engine = MarkdownViewer(
+        self.tui = LinkableMarkdownViewer(
+            self.get_markdown("TUI"),
+            show_table_of_contents=self.show_toc,
+            open_links=False,
+        )
+        self.jb_engine = LinkableMarkdownViewer(
             self.get_markdown("Motor"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
-        self.api = MarkdownViewer(
-            self.get_markdown("API"),
-            show_table_of_contents=self.show_toc,
-            open_links=False,
-        )
-        self.configs = MarkdownViewer(
+        self.configs = LinkableMarkdownViewer(
             self.get_markdown("Configs"),
             show_table_of_contents=self.show_toc,
             open_links=False,
         )
+        self.api = LinkableMarkdownViewer(
+            self.get_markdown("API"),
+            show_table_of_contents=self.show_toc,
+            open_links=False,
+        )
+        self.license = LinkableMarkdownViewer(
+            self.get_markdown("License"),
+            show_table_of_contents=self.show_toc,
+            open_links=False,
+        )
 
-        with TabbedContent("Motor", "API", "Configs"):
+        with TabbedContent("Manual", "Motor", "Configuracion", "API", "Licencia"):
+            yield self.tui
             yield self.jb_engine
-            yield self.api
             yield self.configs
+            yield self.api
+            yield self.license
+            self.license.show_table_of_contents = False
+
         # Footer
         yield get_footer()
 
     async def return_to_main(self) -> None:
         """Regresa a la pantalla del menú principal."""
-        # Opcional: comprueba que no estés en la pantalla raíz
+        # Se comprueba que no se esté en la pantalla principal
         if self.screen.id != "main":
             # Se reemplaza la pantalla actual
             await self.app.pop_screen()
@@ -66,18 +83,22 @@ class DocumentationScreen(Screen):
         await self.return_to_main()
 
     async def action_show_hide_toc(self) -> None:
-        """Alterna la visibilidad de la tabla de contenidos en todos los MarkdownViewer."""
+        """Alterna la visibilidad de la tabla de contenidos en todos los LinkableMarkdownViewer."""
         self.show_toc = not self.show_toc
 
         # Actualiza el estado en cada visor para mostrar u ocultar la tabla de contenido:
+        self.tui.show_table_of_contents = self.show_toc
         self.jb_engine.show_table_of_contents = self.show_toc
-        self.api.show_table_of_contents = self.show_toc
         self.configs.show_table_of_contents = self.show_toc
+        self.api.show_table_of_contents = self.show_toc
+        self.license.show_table_of_contents = False
 
-        # Redibuja (opcional, dependiendo del comportamiento)
+        # Redibuja
+        self.tui.refresh()
         self.jb_engine.refresh()
-        self.api.refresh()
         self.configs.refresh()
+        self.api.refresh()
+        self.license.refresh()
 
     def get_markdown(self, markdown: str) -> str:
         self.content = ""

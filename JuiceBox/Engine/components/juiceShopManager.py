@@ -1,12 +1,4 @@
-#!/usr/bin/env python3
-"""
-juiceShopManager.py
-
-Clase JuiceBoxManager que carga configuración desde JuiceShopConfig
-y gestiona los contenedores via Docker SDK.
-"""
-
-import os, atexit, shutil
+import os, atexit, shutil, time, requests, yaml
 from docker import errors
 from ..utils import JuiceShopConfig
 from ..utils import validate_container
@@ -39,7 +31,7 @@ GITHUB_USER = "EdgarSabidoC"
 
 class JuiceShopManager(BaseManager):
     """
-    Clase módulo para administrar los contenedores de Juice Shop.
+    Clase que administra instancias de OWASP Juice Shop en contenedores Docker.
 
     ## Operaciones
     - **start:** Inicia un nuevo contenedor de Juice Shop en un puerto disponible.
@@ -48,7 +40,7 @@ class JuiceShopManager(BaseManager):
     - **status:** Obtiene el estado de un contenedor específico de Juice Shop.
     - **show_config:** Muestra la configuración actual de Juice Shop.
     - **generate_rtb_config:** Genera el archivo XML de configuración para Root The Box.
-    - **cleanup:** Detiene y elimina todos los contenedores de Juice Shop y libera los
+    - **cleanup:** Detiene y elimina todos los contenedores de Juice Shop y libera los recursos.
     """
 
     def __init__(
@@ -56,11 +48,10 @@ class JuiceShopManager(BaseManager):
     ) -> None:
         """
         Inicializa el gestor de Juice Shop con la configuración dada.
+
         Args:
             config (JuiceShopConfig): Configuración para Juice Shop.
             docker_client (DockerClient | None): Cliente Docker opcional.
-        Raises:
-            TypeError: Si config no es una instancia de JuiceShopConfig.
         """
         if not isinstance(config, JuiceShopConfig):
             raise TypeError("Required: JuiceShopConfig instance.")
@@ -198,9 +189,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al iniciar el contenedor.
         """
         __container_name: str = ""
         __port: int | None = None
@@ -245,9 +233,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al detener el contenedor.
         """
         __container_name: str = ""
         __port: int | None = None
@@ -295,9 +280,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al detener los contenedores.
         """
         # Destruye todos los contenedores de la JuiceShop
         containers_results: list[ManagerResult] = []
@@ -339,10 +321,9 @@ class JuiceShopManager(BaseManager):
     def show_config(self) -> ManagerResult:
         """
         Muestra la configuración actual del manager de la Juice Shop.
+
         Returns:
             ManagerResult: Resultado de la operación.
-        Raises:
-            Exception: Si ocurre un error al obtener la configuración.
         """
         return ManagerResult.ok(
             message="Juice Shop configuration retrieved",
@@ -427,9 +408,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error al obtener el estado de los contenedores.
         """
         container_name: str = ""
         try:
@@ -507,99 +485,252 @@ class JuiceShopManager(BaseManager):
                 data=__data,
             )
 
+    def __wait_for_a_juice_shop(self, url: str, timeout=60):
+        """
+            Espera a que una instancia de Juice Shop esté disponible en la URL especificada.
+
+        Args:
+            url (str): URL de la instancia de Juice Shop a verificar.
+            timeout (int, opcional): Tiempo máximo en segundos a esperar.
+                                     Por defecto es 60.
+
+        Returns:
+            str: La URL válida de la instancia de Juice Shop que respondió correctamente.
+        """
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                resp = requests.get(url, timeout=2)
+                if resp.status_code == 200:
+                    return url
+            except requests.exceptions.RequestException:
+                continue  # Si aún no responde
+            time.sleep(2)  # retry tras revisar todos
+        raise TimeoutError(
+            f"There was no response from the services in {timeout} seconds"
+        )
+
+    def __validate_js_container(
+        self, network_name: str, client: DockerClient
+    ) -> tuple[str, str | None]:
+        """
+        Valida un contenedor de OWASP Juice Shop para obtener las misiones del CTF.
+
+        Args:
+            network_name (str): Nombre de la red.
+            client (DockerClient): Cliente Docker.
+
+        Returns:
+            (tuple[str, str | None]): URL válida del contenedor de la OWASP Juice Shop y el nombre del contenedor temporal (en caso de que exista o None).
+        """
+        # Intentar URL remota primero
+        js_container: Container | None = None
+        valid_url: str = ""
+        # try:
+        #     remote_url = "https://juice-shop.herokuapp.com"
+        #     valid_url = self.__wait_for_a_juice_shop(remote_url, timeout=32)
+        # except TimeoutError:
+        # Levanta un contenedor temporal en la red interna de Docker si la remota no responde
+        try:
+            js_container = client.containers.run(
+                image=self.image,
+                name="juice-shop-temp",
+                network=network_name,
+                detach=True,
+                environment=[
+                    f"CTF_KEY={self.ctf_key}",
+                    f"NODE_ENV={self.node_env}",
+                ],
+            )
+            valid_url = "http://juice-shop-temp:3000"
+            time.sleep(75)
+        except Exception:
+            if js_container is not None:
+                js_container.stop()
+                js_container.remove()
+        if js_container:
+            return (valid_url, js_container.name)
+        return (valid_url, None)
+
+    def __write_url_in_yaml(self, url: str, full_config_path: str) -> None:
+        """
+        Escribe una URL en un archivo YAML con el campo `juiceShopUrl`.
+
+        Args:
+            url (str): URL validada que será escrita en el YAML.
+            full_config_path (str): Ruta absoluta al archivo YAML de configuración.
+        """
+        with open(full_config_path, "r") as f:
+            cfg = yaml.safe_load(f) or {}
+        cfg["juiceShopUrl"] = url  # Se actualiza la URL
+        with open(full_config_path, "w") as f:
+            yaml.safe_dump(cfg, f)
+
+    def __run_js_cli_container(
+        self,
+        output_filename: str,
+        full_config_path: str,
+        network_name: str,
+        docker_net: Network,
+        client: DockerClient,
+    ) -> str:
+        """
+        Corre un contenedor de Docker con las herramientas CLI de OWASP Juice Shop CTF para generar las misiones.
+
+        Args:
+            output_filename (str): Nombre del archivo de salida.
+            full_config_path (str): Ruta absoluta al archivo de configuración.
+            network_name (str): Nombre de la red de contenedores de Docker.
+            docker_net (Network): Red de Docker.
+            client (DockerClient): Cliente Docker.
+        """
+        exit_code: str = "Couldn't reach CTF CLI container"
+        try:
+            # Archivo temporal:
+            tmp_dir = "/tmp/juicebox/RootTheBox/missions"
+            os.makedirs(tmp_dir, exist_ok=True)
+            os.chmod(tmp_dir, 0o777)
+
+            # Borra todos los archivos existentes en tmp_dir
+            for f in os.listdir(tmp_dir):
+                f_path = os.path.join(tmp_dir, f)
+                if os.path.isfile(f_path):
+                    os.remove(f_path)
+                elif os.path.isdir(f_path):
+                    shutil.rmtree(f_path)
+
+            # Genera el archivo missions.xml
+            logs = client.containers.run(
+                image="bkimminich/juice-shop-ctf:v11.0.0",
+                command=[
+                    "--config",
+                    os.path.join("/configs", os.path.basename(full_config_path)),
+                    "--output",
+                    os.path.join("/data", output_filename),
+                ],
+                volumes={
+                    self.configs_dir: {
+                        "bind": "/configs",
+                        "mode": "ro",
+                    },  # solo lectura
+                    tmp_dir: {"bind": "/data", "mode": "rw"},  # escritura
+                },
+                working_dir="/data",
+                network=network_name,
+                # tty=True,
+                # stdin_open=True,
+                remove=True,
+            )
+            exit_code = logs.decode()
+        except Exception as e:
+            exit_code = f"Error on CTF CLI: {exit_code} -> {e}"
+        finally:
+            # Elimina la red si no tiene contenedores
+            if docker_net is not None:
+                try:
+                    docker_net.reload()
+                    if not docker_net.containers:
+                        docker_net.remove()
+                except Exception:
+                    pass
+        return exit_code
+
+    def __move_XML_file(
+        self, output_filename: str, cli_logs: str = ""
+    ) -> ManagerResult:
+        """
+        Mueve el archivo XML generado a RootTheBox/missions/.
+
+        Args:
+            output_filename (str): Nombre del archivo de salida.
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+        """
+        tmp_dir = "/tmp/juicebox/RootTheBox/missions"
+        output_path = os.path.join(tmp_dir, output_filename)
+        if os.path.isfile(output_path):
+            dest_path = os.path.join(self.missions_dir, output_filename)
+            if os.path.isfile(dest_path):
+                os.remove(dest_path)
+            shutil.move(output_path, dest_path)
+            return ManagerResult.ok(
+                message=f"{output_filename} file saved in {self.missions_dir}",
+                data={"path": self.missions_dir},
+            )
+        else:
+            return ManagerResult.failure(
+                message=f"{output_filename} couldn't be generated",
+                error="Non-existent file -> " + cli_logs,
+            )
+
     def generate_rtb_config(
         self, input_filename="juiceShopRTBConfig.yml", output_filename="missions.xml"
-    ):
-        import os, time
-        from docker import errors
+    ) -> ManagerResult:
+        """
+        Genera un archvivo de misiones de OWASP Juice Shop para un CTF.
 
+        Args:
+            input_filename (str, optional): Nombre del archivo de entrada. Predeterminado: "juiceShopRTBConfig.yml".
+            output_filename (str, optional): Nombre del archivo de salida. Predeterminado: "missions.xml".
+
+        Returns:
+            ManagerResult: Resultado de la operación.
+        """
+        js_container: str | None = None
+        logs: str = "Couldn't reach CTF CLI container"
         try:
-            # Paths
             full_config_path = os.path.join(self.configs_dir, input_filename)
             if not os.path.isfile(full_config_path):
                 return ManagerResult.failure(
                     message="YAML file not found", error=full_config_path
                 )
 
-            client = self.__docker_client
-            network_name = "juice-net"
+            client: DockerClient = self.__docker_client
+            network_name: str = "juice-net"
 
-            # 1. Crea la red si no existe
+            # Crea la red Docker si no existe
             __net: Network
             try:
                 __net = client.networks.get(network_name)
             except errors.NotFound:
                 __net = client.networks.create(network_name)
 
-            # 2. Levanta un contenedor de la Juice Shop temporal
-            js_container = client.containers.run(
-                image="bkimminich/juice-shop",
-                name="juice-shop-temp",
-                network=network_name,
-                detach=True,
+            # Prueba un contenedor de la Juice Shop remoto o uno temporal
+            valid_url, js_container = self.__validate_js_container(
+                network_name=network_name, client=client
             )
 
-            # 3. Espera unos segundos para que arranque
-            time.sleep(5)
+            # Reescribe el YAML con la URL válida
+            self.__write_url_in_yaml(url=valid_url, full_config_path=full_config_path)
 
-            try:
-                # 4. Ejecuta juice-shop-ctf en la misma red
-                client.containers.run(
-                    image="bkimminich/juice-shop-ctf",
-                    command=[
-                        "--config",
-                        os.path.basename(full_config_path),
-                        "--output",
-                        output_filename,
-                    ],
-                    volumes={self.configs_dir: {"bind": "/data", "mode": "rw"}},
-                    working_dir="/data",
-                    network=network_name,
-                    tty=True,
-                    stdin_open=True,
-                    remove=True,
-                )
-            finally:
-                # 5. Detiene y elimina el contenedor Juice Shop temporal
-                js_container.stop()
-                js_container.remove()
-                if __net is not None:
-                    try:
-                        __net.reload()
-                        if not __net.containers:
-                            __net.remove()
-                    except Exception as e:
-                        ManagerResult.failure(
-                            message=f"Temporary network {__net} couldn't be removed",
-                            error=str(e),
-                        )
+            # Ejecuta el CLI juice-shop-ctf
+            logs = self.__run_js_cli_container(
+                output_filename=output_filename,
+                full_config_path=full_config_path,
+                network_name=network_name,
+                docker_net=__net,
+                client=client,
+            )
 
-            # 7. Verifica la existencia del archivo
-            output_path = os.path.join(self.configs_dir, output_filename)
-            if os.path.isfile(output_path):
-                dest_path = os.path.join(self.missions_dir, output_filename)
-
-                # Si ya existe el archivo en el destino, se elimina
-                if os.path.isfile(dest_path):
-                    os.remove(dest_path)
-
-                # Se mueve el archivo a RootTheBox/missions/
-                shutil.move(output_path, dest_path)
-
-                return ManagerResult.ok(
-                    message=f"{output_filename} file saved in {self.missions_dir}",
-                    data={"path": self.missions_dir},
-                )
-            else:
-                return ManagerResult.failure(
-                    message=f"{output_filename} couldn't be generated",
-                    error="Non-existent file",
-                )
+            # Mueve el archivo XML generado a missions/
+            return self.__move_XML_file(output_filename=output_filename, cli_logs=logs)
 
         except Exception as e:
             return ManagerResult.failure(
-                message="Error while generating XML file", error=str(e)
+                message="Error while generating XML file", error=str(e) + f"\n{logs}"
             )
+        finally:
+            # Limpia el contenedor temporal siempre
+            if js_container is not None:
+                try:
+                    container: Container = self.__docker_client.containers.get(
+                        js_container
+                    )
+                    container.stop()
+                    container.remove()
+                except Exception:
+                    pass
 
     def cleanup(self) -> ManagerResult:
         """
@@ -607,9 +738,6 @@ class JuiceShopManager(BaseManager):
 
         Returns:
             ManagerResult: Resultado de la operación.
-
-        Raises:
-            Exception: Si ocurre un error durante la limpieza.
         """
         try:
             __res: ManagerResult = self.stop()

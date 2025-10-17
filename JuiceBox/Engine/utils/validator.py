@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
 """
 Módulo de validación de configuración para interacción con Docker.
-
-Contiene:
-- Excepción `InvalidConfiguration` para indicar parámetros erróneos.
-- Funciones de validación de puerto, cadena, existencia de contenedor y booleano.
 """
 
 from docker import DockerClient
@@ -23,15 +18,12 @@ def validate_port(value: int, name: str) -> int:
     """
     Verifica que un valor sea un entero de puerto válido.
 
-    Parámetros:
-    - value (int): El valor a validar como puerto.
-    - name (str): Nombre descriptivo del parámetro (para mensajes de error).
+    Args:
+      value (int): El valor a validar como puerto.
+      name (str): Nombre descriptivo del parámetro (para mensajes de error).
 
-    Retorna:
-    - int: El mismo valor `value` si es un entero entre 1024 y 65535.
-
-    Lanza:
-    - InvalidConfiguration: Si `value` no es entero o no está en el rango permitido.
+    Returns:
+      int: El mismo valor `value` si es un entero entre 1024 y 65535.
     """
     if not isinstance(value, int) or not (1024 <= value <= 65535):
         raise InvalidConfiguration(f"{name} must be an integer between 1024 and 65535")
@@ -42,15 +34,12 @@ def validate_str(value: str, name: str) -> str:
     """
     Verifica que un valor sea una cadena no vacía.
 
-    Parámetros:
-    - value (str): El texto a validar.
-    - name (str): Nombre descriptivo del parámetro (para mensajes de error).
+    Args:
+      value (str): El texto a validar.
+      name (str): Nombre descriptivo del parámetro (para mensajes de error).
 
-    Retorna:
-    - str: La cadena `value` recortada de espacios en los extremos.
-
-    Lanza:
-    - InvalidConfiguration: Si `value` no es cadena o resulta vacía tras el strip.
+    Returns:
+      str: La cadena `value` recortada de espacios en los extremos.
     """
     if not isinstance(value, str) or not value.strip():
         raise InvalidConfiguration(f"{name} must be a non-empty string")
@@ -61,12 +50,12 @@ def validate_container(client: DockerClient, name: str) -> bool:
     """
     Comprueba si existe un contenedor de Docker con nombre exacto.
 
-    Parámetros:
-    - client (DockerClient): Cliente de la API de Docker.
-    - name (str): Nombre exacto del contenedor a buscar.
+    Args:
+      client (DockerClient): Cliente de la API de Docker.
+      name (str): Nombre exacto del contenedor a buscar.
 
-    Retorna:
-    - bool: True si existe un contenedor con nombre exactamente igual a `name`,
+    Returns:
+      bool: True si existe un contenedor con nombre exactamente igual a `name`,
       False en caso contrario.
     """
     # filters 'name' busca substrings, así que se comprueba el match exacto
@@ -78,16 +67,12 @@ def validate_bool(value: bool | str | int, name: str) -> bool:
     """
     Interpreta y valida distintos tipos como booleano.
 
-    Parámetros:
-    - value: Valor a validar (puede ser bool, str o int).
-    - name (str): Nombre descriptivo del parámetro (para mensajes de error).
+    Args:
+      value: Valor a validar (puede ser bool, str o int).
+      name (str): Nombre descriptivo del parámetro (para mensajes de error).
 
-    Retorna:
-    - bool: True o False según corresponda.
-
-    Lanza:
-    - InvalidConfiguration: Si `value` no se ajusta a formatos booleanos
-      válidos ("true"/"false", 1/0, True/False).
+    Returns:
+      bool: True o False según corresponda.
     """
     if isinstance(value, bool):
         return value
@@ -112,11 +97,12 @@ def validate_ports_range(ports_range: list[int], name: str) -> list[int]:
     """
     Valida un rango de puertos [start, end] y cada puerto dentro del rango.
 
-    Retorna:
-    - list[int]: Lista con [start, end] validada y ordenada.
+    Args:
+      ports_range (list[int]): Rango de puertos.
+      name (str): Nombre descriptivo del parámetro (para mensajes de error).
 
-    Lanza:
-    - InvalidConfiguration: Si los valores no son enteros o están fuera de rango.
+    Returns:
+      list[int]: Lista con [start, end] validada y ordenada.
     """
     # Valores por defecto
     start, end = 3000, 3001
@@ -147,19 +133,16 @@ def validate_int(
     value: int, name: str, min_value: int = 0, max_value: int | None = None
 ) -> int:
     """
-    Verifica que un valor sea un entero dentro de un rango permitido.
+    Valida que un valor sea un entero dentro de un rango permitido.
 
-    Parámetros:
-    - value (int | str): Valor a validar (puede venir como int o str).
-    - name (str): Nombre descriptivo del parámetro (para mensajes de error).
-    - min_value (int): Valor mínimo permitido (default=0).
-    - max_value (int | None): Valor máximo permitido (opcional).
+    Args:
+      value (int | str): Valor a validar (puede venir como int o str).
+      name (str): Nombre descriptivo del parámetro (para mensajes de error).
+      min_value (int): Valor mínimo permitido (predeterminado: 0).
+      max_value (int | None): Valor máximo permitido (opcional).
 
-    Retorna:
-    - int: El valor validado.
-
-    Lanza:
-    - InvalidConfiguration: Si `value` no es un entero válido o no cumple el rango.
+    Returns:
+      int: El valor validado.
     """
     # Int directo
     if isinstance(value, int):
