@@ -11,6 +11,10 @@ from pathlib import Path
 
 
 class DocumentationScreen(Screen):
+    """
+    Pantalla para la visualización de la documentación en formato Markdown.
+    """
+
     CSS_PATH = "../styles/documentation.tcss"
     DOCS_ES: Traversable = files("docs.ES")
     MARKDOWNS = {

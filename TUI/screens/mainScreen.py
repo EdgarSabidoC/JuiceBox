@@ -12,6 +12,10 @@ import importlib.resources as pkg_resources
 
 
 class MainScreen(Screen):
+    """
+    Pantalla del menú principal de la TUI.
+    """
+
     CSS_PATH = "../styles/main.tcss"
     LOGOS_PATH = "TUI.media"
     # Logos de JuiceBox
