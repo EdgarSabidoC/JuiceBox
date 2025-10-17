@@ -31,6 +31,16 @@ class DocumentationScreen(Screen):
     ]
 
     def compose(self) -> ComposeResult:
+        """
+        Crea y organiza los elementos de la interfaz de documentación.
+
+        La pantalla se compone de un encabezado, un pie de página y un conjunto de
+        pestañas (`TabbedContent`) que contienen visores de Markdown interactivos
+        para cada sección del sistema (Motor, TUI, Configuración, API, Licencia).
+
+        Returns:
+            ComposeResult: Generador con los widgets que conforman la pantalla.
+        """
         self.show_toc = True
         # Header
         yield get_header()
@@ -74,7 +84,12 @@ class DocumentationScreen(Screen):
         yield get_footer()
 
     async def return_to_main(self) -> None:
-        """Regresa a la pantalla del menú principal."""
+        """
+        Regresa a la pantalla principal del menú de JuiceBox.
+
+        Si la pantalla actual no es la principal, la reemplaza mediante el
+        sistema de pantallas de la aplicación (`pop_screen` → `push_screen`).
+        """
         # Se comprueba que no se esté en la pantalla principal
         if self.screen.id != "main":
             # Se reemplaza la pantalla actual
@@ -83,11 +98,22 @@ class DocumentationScreen(Screen):
             await self.app.push_screen("main")
 
     async def action_go_back(self) -> None:
-        """Regresa a la pantalla del menú principal."""
+        """
+        Acción asociada al atajo de teclado `Ctrl+B`.
+
+        Llama internamente a `return_to_main()` para regresar al menú principal.
+        """
         await self.return_to_main()
 
     async def action_show_hide_toc(self) -> None:
-        """Alterna la visibilidad de la tabla de contenidos en todos los LinkableMarkdownViewer."""
+        """
+        Alterna la visibilidad de la tabla de contenidos en todos los visores de Markdown.
+
+        Esta acción se activa con `Ctrl+T` y permite mostrar u ocultar dinámicamente
+        los índices laterales de navegación (`table of contents`) de cada pestaña.
+
+        Al cambiar el estado, los visores se actualizan para reflejar la nueva configuración.
+        """
         self.show_toc = not self.show_toc
 
         # Actualiza el estado en cada visor para mostrar u ocultar la tabla de contenido:
@@ -105,6 +131,16 @@ class DocumentationScreen(Screen):
         self.license.refresh()
 
     def get_markdown(self, markdown: str) -> str:
+        """
+        Obtiene el contenido de un archivo Markdown del conjunto de documentación.
+
+        Args:
+            markdown (str): Clave que identifica el documento a cargar.
+                Puede ser "Motor", "TUI", "Configs", "API" o "License".
+
+        Returns:
+            str: Contenido del archivo Markdown leído en formato de texto plano.
+        """
         self.content = ""
         with open(self.MARKDOWNS[markdown], "r", encoding="utf-8") as file:
             self.content = file.read()
