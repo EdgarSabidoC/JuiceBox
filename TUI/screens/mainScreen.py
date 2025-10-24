@@ -27,7 +27,7 @@ class MainScreen(Screen):
     FMAT_LOGO: str = pkg_resources.read_text(LOGOS_PATH, "FMATCyberLab.txt")
     FMAT_LOGO_ALT: str = pkg_resources.read_text(LOGOS_PATH, "FMATCyberLabAlt.txt")
 
-    use_alt_logo: bool  # Indica si se está usando el logo alternativo
+    use_alt_logo: bool = False  # Indica si se está usando el logo alternativo
 
     MENU_OPTIONS = {
         "📦 Root The Box": "Admin tools to manage Root the Box docker containers",
