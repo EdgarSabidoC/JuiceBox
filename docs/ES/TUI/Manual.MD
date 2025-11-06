@@ -2,7 +2,7 @@
 
 ## Correr la aplicacion Juice Box Manager TUI
 
-Para correr la apliacion solo es necesario ejecutar el comando:
+Para correr la aplicacion solo es necesario ejecutar el comando:
 
 ```bash
 juicebox-tui
@@ -70,3 +70,9 @@ Para poder generar un nuevo archivo XML con las misiones de la Juice Shop para R
 3. Utilizar el comando `Generate missions` y esperar a que se genere y actualice el archvo XML para Root The Box.
 4. Entrar a la pantalla `Root The Box` y ejecutar el comando `Restart`, el cual cargara el nuevo archivo XML y arrancara de nuevo los contenedores de la aplicacion web y el cache.
 5. Listo, ahora ya debe estar configurado `Root The Box` con las misiones generadas de la OWASP Juice Shop. Con esto las banderas (flags) deben estar sincronizadas entre los contenedores de la `OWASP Juice Shop` y `Root The Box`.
+
+### Mas informacion
+
+Para mas informacion visitar el [repositorio oficial de Juice Box](https://github.com/EdgarSabidoC/JuiceBox)
+
+Documentacion oficial de [JuiceBox](https://github.com/EdgarSabidoC/JuiceBox/tree/main/docs/ES)
